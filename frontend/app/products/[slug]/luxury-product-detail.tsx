@@ -474,11 +474,11 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
                 <h3 className="text-lg font-semibold text-foreground">
                   {isRTL ? 'المقاس' : 'Size'}
                 </h3>
-                <div className="flex flex-wrap gap-3">
+                <div className="flex flex-wrap gap-4">
                   {displaySizes.map((size, index) => (
                     <motion.button
                       key={`${size}-${index}`}
-                      className={`group relative px-6 py-3 rounded-lg border-2 transition-all duration-300 font-medium ${selectedSize === size
+                      className={`group relative min-w-[3.5rem] h-14 rounded-lg border-2 transition-all duration-300 font-medium text-lg flex items-center justify-center ${selectedSize === size
                         ? 'border-primary bg-primary text-primary-foreground shadow-elegant'
                         : 'border-border hover:border-primary/50 bg-background hover:bg-muted/50'
                         }`}
@@ -542,10 +542,10 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
                 className="space-y-4"
                 variants={itemVariants}
               >
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex flex-col sm:flex-row gap-4">
                   <Button
                     size="lg"
-                    className="h-14 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold shadow-elegant hover:shadow-luxury transition-all duration-300"
+                    className="w-full h-16 sm:h-14 text-lg bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold shadow-elegant hover:shadow-luxury transition-all duration-300 order-2 sm:order-1"
                     onClick={handleAddToCart}
                   >
                     <ShoppingCart className="w-5 h-5 mr-2" />
@@ -554,7 +554,7 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
                   <Button
                     size="lg"
                     variant="outline"
-                    className="h-14 border-2 border-foreground text-foreground hover:bg-foreground hover:text-background font-semibold shadow-elegant transition-all duration-300"
+                    className="w-full h-16 sm:h-14 text-lg border-2 border-foreground text-foreground hover:bg-foreground hover:text-background font-semibold shadow-elegant transition-all duration-300 order-1 sm:order-2"
                     disabled={product.sizes && product.sizes.length > 0 && !selectedSize}
                     onClick={() => {
                       if (product.sizes && product.sizes.length > 0 && !selectedSize) {

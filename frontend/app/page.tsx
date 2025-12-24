@@ -176,7 +176,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-cream-50 via-warm-50 to-cream-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 overflow-x-hidden" dir={isRTL ? 'rtl' : 'ltr'}>
       {/* Hero Section with Video */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden bg-gradient-to-r from-camel-100 via-camel-200 to-camel-300 dark:from-camel-800 dark:via-camel-700 dark:to-camel-600">
+      <section className="relative h-[100dvh] flex items-center justify-center overflow-hidden bg-gradient-to-r from-camel-100 via-camel-200 to-camel-300 dark:from-camel-800 dark:via-camel-700 dark:to-camel-600">
         {/* Navbar positioned over video */}
         <div className="absolute top-0 left-0 right-0 z-50">
           <Suspense fallback={<div className="h-16 bg-white/90 backdrop-blur-sm" />}>
@@ -220,7 +220,7 @@ export default function HomePage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 1, delay: 0.5 }}
           >
-            <h1 className="text-5xl md:text-7xl mb-6 tracking-wider group cursor-pointer" dir="ltr">
+            <h1 className="text-3xl md:text-5xl lg:text-7xl mb-6 tracking-wider group cursor-pointer" dir="ltr">
               <span className="inline-block">
                 <span className="text-primary transition-colors duration-300 group-hover:text-white font-bold">LOUD</span>
                 <span className="relative inline-block ml-2">

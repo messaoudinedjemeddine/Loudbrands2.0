@@ -35,6 +35,13 @@ const cairo = Cairo({
   fallback: ['system-ui', 'arial']
 });
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+}
+
 export const metadata: Metadata = {
   title: 'LOUD BRANDS - Traditional Modern Fashion',
   description: 'Discover our exquisite collection of traditional Algerian fashion designed for the modern woman. Free delivery across Algeria.',
