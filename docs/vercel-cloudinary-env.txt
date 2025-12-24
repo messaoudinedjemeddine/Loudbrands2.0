@@ -1,0 +1,16 @@
+# Vercel Environment Variables for Cloudinary
+# Add these environment variables in your Vercel dashboard or via CLI
+
+# Cloudinary Configuration
+CLOUDINARY_CLOUD_NAME=ddtetstxq
+CLOUDINARY_API_KEY=248835256494799
+CLOUDINARY_API_SECRET=pQpG5r6QfXzbIeUdPmZbYhQcp0I
+
+# Optional: Set max file size (default is 10MB)
+MAX_FILE_SIZE=10485760
+
+# To set via Vercel CLI:
+# vercel env add CLOUDINARY_CLOUD_NAME
+# vercel env add CLOUDINARY_API_KEY
+# vercel env add CLOUDINARY_API_SECRET
+# vercel env add MAX_FILE_SIZE
