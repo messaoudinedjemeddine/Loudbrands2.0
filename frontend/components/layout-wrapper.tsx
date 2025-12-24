@@ -13,8 +13,8 @@ export function LayoutWrapper({ children }: LayoutWrapperProps) {
   const isAdminRoute = pathname?.startsWith('/admin')
 
   return (
-    <div className="min-h-screen">
-      <main>
+    <div className="min-h-screen flex flex-col">
+      <main className="flex-1">
         {children}
       </main>
       {!isAdminRoute && <Footer />}

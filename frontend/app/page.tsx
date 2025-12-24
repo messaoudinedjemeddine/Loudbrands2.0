@@ -187,6 +187,16 @@ export default function HomePage() {
         {/* Hero Video Background */}
         {/* Hero Video Background */}
         <div className="absolute inset-0 w-full h-full">
+          {/* LCP Optimized Background Image */}
+          <Image
+            src="/images/Djawhara Green2.jpg"
+            alt="LOUD BRANDS Hero"
+            fill
+            className="absolute inset-0 w-full h-full object-cover -z-10"
+            priority
+            sizes="100vw"
+          />
+
           <video
             id="hero-video"
             className="absolute inset-0 w-full h-full object-cover"
@@ -195,19 +205,8 @@ export default function HomePage() {
             loop
             playsInline
             preload="metadata"
-            poster="/images/Djawhara Green2.jpg"
           >
             <source src="/videos/hero-video.mp4" type="video/mp4" />
-
-            {/* Fallback image if video fails to load */}
-            <Image
-              src="/images/Djawhara Green2.jpg"
-              alt="LOUD BRANDS Hero"
-              fill
-              className="absolute inset-0 w-full h-full object-cover"
-              priority
-              sizes="100vw"
-            />
           </video>
         </div>
 
