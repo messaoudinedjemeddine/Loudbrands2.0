@@ -239,10 +239,15 @@ function LabelsSection() {
     }
 
     const handlePrint = async (product: any) => {
+        if (!product) {
+            toast.error('Produit introuvable')
+            return
+        }
+        
         setGeneratingId(product.id)
         try {
             // Check if product is an accessory (no sizes or category is accessoires)
-            const categorySlug = product.category?.slug?.toLowerCase() || ''
+            const categorySlug = product?.category?.slug?.toLowerCase() || ''
             const isAccessoire = categorySlug.includes('accessoire') || 
                                 categorySlug.includes('accessories') ||
                                 !product.sizes || 
@@ -262,8 +267,8 @@ function LabelsSection() {
 
             if (isAccessoire) {
                 // For accessories: use total stock and product reference only (no size)
-                const totalStock = product.stock || 0
-                const barcodeValue = product.reference || product.id
+                const totalStock = product?.stock || 0
+                const barcodeValue = product?.reference || product?.id || 'N/A'
 
                 // Generate labels based on total stock
                 for (let i = 0; i < totalStock; i++) {
@@ -279,7 +284,7 @@ function LabelsSection() {
 
                     // Product Name (Truncated)
                     doc.setFontSize(8)
-                    doc.text(product.name.substring(0, 25), x + 5, y + 10)
+                    doc.text((product.name || 'Produit').substring(0, 25), x + 5, y + 10)
 
                     // QR Code (Centered)
                     // 35x35mm QR code
@@ -305,7 +310,7 @@ function LabelsSection() {
                 }
             } else {
                 // For products with sizes: use existing logic
-                for (const size of product.sizes || []) {
+                for (const size of product?.sizes || []) {
                     // Determine x,y based on grid
                     const x = col * colWidth
                     const y = row * rowHeight
@@ -319,7 +324,7 @@ function LabelsSection() {
 
                     // Product Name (Truncated)
                     doc.setFontSize(8)
-                    doc.text(product.name.substring(0, 25), x + 5, y + 10)
+                    doc.text((product.name || 'Produit').substring(0, 25), x + 5, y + 10)
 
                     // QR Code (Centered)
                     // 35x35mm QR code
@@ -356,10 +361,12 @@ function LabelsSection() {
         }
     }
 
-    const filteredProducts = products.filter(p =>
+    const filteredProducts = products.filter(p => 
+        p != null && p != undefined
+    ).filter(p =>
         !searchQuery ||
-        p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.reference?.toLowerCase().includes(searchQuery.toLowerCase())
+        p?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p?.reference?.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
     return (
@@ -400,9 +407,9 @@ function LabelsSection() {
                         </div>
                     ) : (
                         <div className="space-y-2">
-                            {filteredProducts.map(product => (
+                            {filteredProducts.filter(p => p != null).map(product => (
                                 <div
-                                    key={product.id}
+                                    key={product?.id || Math.random()}
                                     className="border rounded-lg p-3 flex items-center justify-between hover:bg-muted/50 transition-colors"
                                 >
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -410,8 +417,8 @@ function LabelsSection() {
                                             <img src={product.image} alt="" className="w-12 h-12 rounded object-cover flex-shrink-0" />
                                         )}
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="font-bold text-sm truncate">{product.name}</h3>
-                                            <p className="text-xs text-muted-foreground truncate">{product.reference}</p>
+                                            <h3 className="font-bold text-sm truncate">{product?.name || 'Produit sans nom'}</h3>
+                                            <p className="text-xs text-muted-foreground truncate">{product?.reference || 'N/A'}</p>
                                             <div className="flex gap-1.5 mt-1.5 flex-wrap">
                                                 {(() => {
                                                     const categorySlug = product.category?.slug?.toLowerCase() || ''
@@ -500,7 +507,7 @@ function LabelsSection() {
             <Dialog open={showPreview} onOpenChange={setShowPreview}>
                 <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
                     <DialogHeader>
-                        <DialogTitle>Aperçu des Étiquettes - {selectedProduct?.name}</DialogTitle>
+                        <DialogTitle>Aperçu des Étiquettes - {selectedProduct?.name || 'Produit'}</DialogTitle>
                         <DialogDescription>
                             {(() => {
                                 const categorySlug = selectedProduct?.category?.slug?.toLowerCase() || ''
@@ -530,7 +537,7 @@ function LabelsSection() {
                                     <div className="border rounded-lg p-4">
                                         <div className="flex items-center justify-between mb-2">
                                             <div>
-                                                <p className="font-bold">{selectedProduct.name}</p>
+                                                <p className="font-bold">{selectedProduct?.name || 'Produit sans nom'}</p>
                                                 <p className="text-sm text-muted-foreground">Accessoire (Pas de taille)</p>
                                                 <p className="text-xs text-muted-foreground font-mono">{barcodeValue}</p>
                                             </div>
@@ -552,7 +559,7 @@ function LabelsSection() {
                                         <div key={size.id} className="border rounded-lg p-4">
                                             <div className="flex items-center justify-between mb-2">
                                                 <div>
-                                                    <p className="font-bold">{selectedProduct.name}</p>
+                                                    <p className="font-bold">{selectedProduct?.name || 'Produit sans nom'}</p>
                                                     <p className="text-sm text-muted-foreground">Taille : {size.size}</p>
                                                     <p className="text-xs text-muted-foreground font-mono">{barcodeValue}</p>
                                                 </div>
