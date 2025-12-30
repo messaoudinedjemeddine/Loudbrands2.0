@@ -487,8 +487,8 @@ export default function CheckoutPage() {
                       </Select>
                     </div>
 
-                    {/* Commune Selection */}
-                    {formData.wilayaId && (
+                    {/* Commune Selection - Only show for Home Delivery */}
+                    {formData.wilayaId && formData.deliveryType !== 'PICKUP' && (
                       <div>
                         <Label htmlFor="commune">البلدية *</Label>
                         <Select value={formData.communeId} onValueChange={(value) => handleInputChange('communeId', value)}>
