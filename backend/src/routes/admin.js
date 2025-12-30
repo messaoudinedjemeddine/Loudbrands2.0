@@ -788,50 +788,16 @@ router.patch('/orders/:id/status', async (req, res) => {
     }
 
     // STOCK MANAGEMENT LOGIC
+    // Stock is NOT decremented on order creation or confirmation
+    // Stock is only decremented when scanning items in the smart inventory sortie section
     const oldStatus = currentOrder.callCenterStatus;
     const newStatus = callCenterStatus || oldStatus;
-
-    // If confirming order (changing to CONFIRMED from any other status)
-    if (newStatus === 'CONFIRMED' && oldStatus !== 'CONFIRMED') {
-      console.log(`📦 Reducing stock for order ${id} (${oldStatus} → CONFIRMED)`);
-
-      // Reduce stock for each item
-      for (const item of currentOrder.items) {
-        if (item.productSizeId) {
-          await prisma.productSize.update({
-            where: { id: item.productSizeId },
-            data: {
-              stock: {
-                decrement: item.quantity
-              }
-            }
-          });
-          console.log(`  ✓ Reduced ${item.quantity} from size ${item.productSizeId}`);
-        }
-      }
-    }
 
     // If canceling order (changing to CANCELED)
     if (newStatus === 'CANCELED' && oldStatus !== 'CANCELED') {
       console.log(`❌ Canceling order ${id} (${oldStatus} → CANCELED)`);
-
-      // If order was previously confirmed, restore stock
-      if (oldStatus === 'CONFIRMED') {
-        console.log(`  📦 Restoring stock for previously confirmed order`);
-        for (const item of currentOrder.items) {
-          if (item.productSizeId) {
-            await prisma.productSize.update({
-              where: { id: item.productSizeId },
-              data: {
-                stock: {
-                  increment: item.quantity
-                }
-              }
-            });
-            console.log(`  ✓ Restored ${item.quantity} to size ${item.productSizeId}`);
-          }
-        }
-      }
+      
+      // No stock restoration needed since we don't decrement on confirmation
 
       // Delete Yalidine tracking information
       if (currentOrder.trackingNumber || currentOrder.yalidineShipmentId) {
@@ -910,27 +876,10 @@ router.delete('/orders/:id', async (req, res) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    // 1. Restore stock if order was CONFIRMED
-    if (order.callCenterStatus === 'CONFIRMED') {
-      console.log(`  📦 Restoring stock for confirmed order`);
-      for (const item of order.items) {
-        if (item.productSizeId && item.size) { // ensure we have size info
-          // If productSizeId isn't stored directly (schema varies), we might need to look it up 
-          // But based on previous cancellation logic, it seems we use productSizeId if available.
-          // Checking cancellation logic in same file (lines 818-834):
-          // "if (item.productSizeId) ... await prisma.productSize.update ..."
-          // I will match that logic.
-          if (item.productSizeId) {
-            await prisma.productSize.update({
-              where: { id: item.productSizeId },
-              data: { stock: { increment: item.quantity } }
-            });
-          }
-        }
-      }
-    }
+    // No stock restoration needed since we don't decrement stock on order creation or confirmation
+    // Stock is only decremented when scanning items in the smart inventory sortie section
 
-    // 2. Delete from Yalidine if there's a tracking number
+    // 1. Delete from Yalidine if there's a tracking number
     if (order.trackingNumber) {
       console.log(`  🚚 Removing Yalidine parcel: ${order.trackingNumber}`);
       try {

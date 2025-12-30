@@ -255,28 +255,7 @@ router.post('/', async (req, res) => {
         }
       });
 
-      // Update stock
-      for (const item of orderData.items) {
-        if (item.sizeId) {
-          await tx.productSize.update({
-            where: { id: item.sizeId },
-            data: {
-              stock: {
-                decrement: item.quantity
-              }
-            }
-          });
-        } else {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: {
-              stock: {
-                decrement: item.quantity
-              }
-            }
-          });
-        }
-      }
+      // Stock is NOT decremented here - it will be decremented when scanning in the smart inventory sortie section
 
       return newOrder;
     });
