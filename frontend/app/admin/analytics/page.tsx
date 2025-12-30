@@ -432,16 +432,17 @@ export default function AdminAnalyticsPage() {
                       }}
                       className="h-[300px] w-full"
                     >
-                      <BarChart data={ordersTimeline.timeline} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                      <BarChart data={ordersTimeline.timeline} margin={{ top: 20, right: 30, left: 20, bottom: 100 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis 
                           dataKey="label" 
                           angle={-45} 
                           textAnchor="end" 
-                          height={80}
-                          tick={{ fontSize: 12 }}
+                          height={120}
+                          tick={{ fontSize: 11 }}
+                          interval={0}
                         />
-                        <YAxis tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 11 }} width={50} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Bar 
                           dataKey="confirmedOrders" 
@@ -465,16 +466,17 @@ export default function AdminAnalyticsPage() {
                       }}
                       className="h-[300px] w-full"
                     >
-                      <BarChart data={ordersTimeline.timeline} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                      <BarChart data={ordersTimeline.timeline} margin={{ top: 20, right: 30, left: 20, bottom: 100 }}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis 
                           dataKey="label" 
                           angle={-45} 
                           textAnchor="end" 
-                          height={80}
-                          tick={{ fontSize: 12 }}
+                          height={120}
+                          tick={{ fontSize: 11 }}
+                          interval={0}
                         />
-                        <YAxis tick={{ fontSize: 12 }} />
+                        <YAxis tick={{ fontSize: 11 }} width={50} />
                         <ChartTooltip content={<ChartTooltipContent />} />
                         <Bar 
                           dataKey="newOrders" 
@@ -520,19 +522,20 @@ export default function AdminAnalyticsPage() {
                   }}
                   className="h-[300px] w-full"
                 >
-                  <RechartsLineChart data={timeSeries} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
+                  <RechartsLineChart data={timeSeries} margin={{ top: 20, right: 40, left: 20, bottom: 80 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
                       dataKey="date" 
-                      tick={{ fontSize: 12 }}
+                      tick={{ fontSize: 11 }}
                       angle={-45}
                       textAnchor="end"
-                      height={80}
+                      height={100}
+                      interval={0}
                     />
-                    <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
+                    <YAxis yAxisId="left" tick={{ fontSize: 11 }} width={60} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} width={60} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                    <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }} />
                     <Line
                       yAxisId="left"
                       type="monotone"
@@ -583,10 +586,15 @@ export default function AdminAnalyticsPage() {
                     <Pie
                       data={categoryChartData}
                       cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={80}
+                      cy="45%"
+                      labelLine={true}
+                      label={({ name, percent }) => {
+                        if (percent > 0.05) {
+                          return `${name}: ${(percent * 100).toFixed(0)}%`
+                        }
+                        return ''
+                      }}
+                      outerRadius={70}
                       fill="#8884d8"
                       dataKey="value"
                     >
@@ -595,6 +603,11 @@ export default function AdminAnalyticsPage() {
                       ))}
                     </Pie>
                     <ChartTooltip content={<ChartTooltipContent />} />
+                    <Legend 
+                      verticalAlign="bottom" 
+                      height={60}
+                      wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }}
+                    />
                   </RechartsPieChart>
                 </ChartContainer>
               </CardContent>
@@ -690,16 +703,17 @@ export default function AdminAnalyticsPage() {
                   }}
                   className="h-[300px] w-full"
                 >
-                  <BarChart data={cityChartData} margin={{ top: 20, right: 30, left: 20, bottom: 100 }}>
+                  <BarChart data={cityChartData} margin={{ top: 20, right: 30, left: 20, bottom: 120 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis 
                       dataKey="name" 
                       angle={-45} 
                       textAnchor="end" 
-                      height={100}
-                      tick={{ fontSize: 12 }}
+                      height={140}
+                      tick={{ fontSize: 11 }}
+                      interval={0}
                     />
-                    <YAxis tick={{ fontSize: 12 }} />
+                    <YAxis tick={{ fontSize: 11 }} width={50} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Bar dataKey="orders" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -732,10 +746,10 @@ export default function AdminAnalyticsPage() {
                 }}
                 className="h-[300px] w-full"
               >
-                <BarChart data={productChartData} layout="vertical" margin={{ top: 20, right: 30, left: 150, bottom: 20 }}>
+                <BarChart data={productChartData} layout="vertical" margin={{ top: 20, right: 30, left: 180, bottom: 20 }}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tick={{ fontSize: 12 }} />
-                  <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} />
+                  <XAxis type="number" tick={{ fontSize: 11 }} width={60} />
+                  <YAxis dataKey="name" type="category" width={170} tick={{ fontSize: 10 }} />
                   <ChartTooltip content={<ChartTooltipContent />} />
                   <Bar dataKey="revenue" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} />
                 </BarChart>
