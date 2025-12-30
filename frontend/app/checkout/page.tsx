@@ -438,7 +438,7 @@ export default function CheckoutPage() {
                     <Label className="text-base font-medium mb-3 block">نوع التوصيل</Label>
                     <RadioGroup
                       value={formData.deliveryType}
-                      onValueChange={(value) => handleInputChange('deliveryType', value)}
+                      onValueChange={(value: string) => handleInputChange('deliveryType', value)}
                       className="grid grid-cols-1 sm:grid-cols-2 gap-4"
                     >
                       <div className={`flex items-center space-x-2 space-x-reverse border rounded-lg p-4 cursor-pointer hover:bg-muted/50 transition-colors ${formData.deliveryType === 'HOME_DELIVERY' ? 'border-primary bg-primary/5' : ''}`}>
