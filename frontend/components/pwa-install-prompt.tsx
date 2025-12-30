@@ -41,13 +41,25 @@ export function PWAInstallPrompt() {
   const isAdmin = pathname?.startsWith('/admin');
 
   useEffect(() => {
+    // Only show for admin pages
+    if (!isAdmin) {
+      return;
+    }
+
     // Check media query for desktop/mobile
     const checkDesktop = () => {
-      setIsDesktop(window.matchMedia('(min-width: 768px)').matches);
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+      setIsDesktop(!isMobile);
     };
 
     checkDesktop();
     window.addEventListener('resize', checkDesktop);
+
+    // Only show on mobile devices
+    if (window.matchMedia('(min-width: 768px)').matches) {
+      setIsDesktop(true);
+      return; // Don't show on desktop
+    }
 
     // Check if app is already installed
     if (window.matchMedia('(display-mode: standalone)').matches) {
@@ -55,17 +67,17 @@ export function PWAInstallPrompt() {
       return;
     }
 
-    // Check if user previously dismissed the prompt
-    const dismissed = localStorage.getItem('pwa-prompt-dismissed');
+    // Check if user previously dismissed the prompt (admin-specific)
+    const dismissed = localStorage.getItem('pwa-prompt-dismissed-admin');
     if (dismissed === 'true') {
       setIsDismissed(true);
       return;
     }
 
-    // Show prompt after a delay (5 seconds)
+    // Show prompt after a delay (3 seconds for admin)
     const timer = setTimeout(() => {
       setShowPrompt(true);
-    }, 5000);
+    }, 3000);
 
     // Listen for the beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -88,7 +100,7 @@ export function PWAInstallPrompt() {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, []);
+  }, [isAdmin]);
 
   const handleInstallClick = async () => {
     if (deferredPrompt) {
@@ -118,18 +130,18 @@ export function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    localStorage.setItem('pwa-prompt-dismissed', 'true');
+    // Use admin-specific localStorage key
+    localStorage.setItem('pwa-prompt-dismissed-admin', 'true');
     setIsDismissed(true);
   };
 
-  if (isInstalled || !showPrompt || isDismissed) {
+  // Only show for admin pages on mobile
+  if (!isAdmin || isInstalled || !showPrompt || isDismissed || isDesktop) {
     return null;
   }
 
-  const title = isAdmin ? "Install Admin App" : "Install Loud Brands";
-  const description = isAdmin
-    ? "Get quick access to your admin dashboard directly from your home screen."
-    : "Get the best shopping experience with our mobile app.";
+  const title = "Install Admin Dashboard";
+  const description = "Get quick access to your admin dashboard directly from your home screen. Manage orders, products, and more on the go!";
 
   const PromptContent = () => (
     <div className="flex flex-col items-center space-y-4 py-4">
@@ -167,30 +179,19 @@ export function PWAInstallPrompt() {
     </div>
   );
 
-  if (isDesktop) {
-    return (
-      <Dialog open={showPrompt} onOpenChange={(open) => !open && handleDismiss()}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="sr-only">{title}</DialogTitle>
-            <DialogDescription className="sr-only">{description}</DialogDescription>
-          </DialogHeader>
-          <PromptContent />
-        </DialogContent>
-      </Dialog>
-    );
-  }
-
+  // Always use Drawer for mobile admin prompt
   return (
     <Drawer open={showPrompt} onOpenChange={(open) => !open && handleDismiss()}>
-      <DrawerContent>
-        <DrawerHeader className="text-left">
+      <DrawerContent className="max-h-[85vh]">
+        <DrawerHeader className="text-center pb-2">
           <DrawerTitle className="sr-only">{title}</DrawerTitle>
           <DrawerDescription className="sr-only">{description}</DrawerDescription>
         </DrawerHeader>
         <PromptContent />
-        <DrawerFooter className="pt-2">
-          {/* Footer content if needed */}
+        <DrawerFooter className="pt-2 pb-4">
+          <p className="text-xs text-muted-foreground text-center px-4">
+            Install the app for faster access to your admin dashboard
+          </p>
         </DrawerFooter>
       </DrawerContent>
     </Drawer>

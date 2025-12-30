@@ -30,6 +30,7 @@ import {
 import { useAuthStore } from '@/lib/store'
 import { useTheme } from 'next-themes'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { PWAInstallPrompt } from '@/components/pwa-install-prompt'
 
 // Role-based navigation configuration
 const getNavigationByRole = (role: string) => {
@@ -294,6 +295,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           </main>
         </div>
       </div>
+      {/* PWA Install Prompt - Only shows on mobile for admin dashboard */}
+      <PWAInstallPrompt />
     </div>
   )
 }
