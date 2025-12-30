@@ -1,0 +1,20 @@
+{
+  "name": "loudbrands-fullstack",
+  "version": "1.0.0",
+  "description": "Loudbrands fullstack application",
+  "main": "backend/src/server.js",
+  "scripts": {
+    "start": "cd backend && npm start",
+    "heroku-postbuild": "cd backend && npm install --omit=dev && npx prisma generate && npx prisma migrate deploy"
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "keywords": [
+    "loudbrands",
+    "ecommerce",
+    "fullstack"
+  ],
+  "author": "Messaoudine Djemeddine",
+  "license": "MIT"
+}

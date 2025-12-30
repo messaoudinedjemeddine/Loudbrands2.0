@@ -1,0 +1,16 @@
+# Vercel Environment Variables to Import
+# Copy these into your Vercel Dashboard → Settings → Environment Variables
+
+NEXT_PUBLIC_API_URL=https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com/api
+
+# Instructions:
+# 1. Go to https://vercel.com/dashboard
+# 2. Click on your "frontend" project
+# 3. Go to Settings → Environment Variables
+# 4. Click "Add New"
+# 5. Copy the variable above:
+#    Name: NEXT_PUBLIC_API_URL
+#    Value: https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com/api
+#    Environment: Production ✅ Preview ✅ Development ✅
+# 6. Click Save
+# 7. Go to Deployments → Redeploy
