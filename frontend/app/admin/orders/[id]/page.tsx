@@ -1407,6 +1407,36 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                {/* Delivery Snapshot - Read Only */}
+                {(order as any).deliveryDetails && (
+                  <div className="bg-blue-50/50 dark:bg-blue-900/10 p-4 rounded-lg border border-blue-100 dark:border-blue-800 space-y-3">
+                    <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300 mb-2">
+                      <MapPin className="w-4 h-4" />
+                      <h4 className="font-semibold text-sm">Détails de livraison enregistrés (Snapshot)</h4>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground text-xs block mb-1">Wilaya</span>
+                        <span className="font-medium">{(order as any).deliveryDetails.wilayaName || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground text-xs block mb-1">Commune</span>
+                        <span className="font-medium">{(order as any).deliveryDetails.communeName || 'N/A'}</span>
+                      </div>
+                      {(order as any).deliveryDetails.centerName && (
+                        <div className="col-span-2 pt-2 border-t border-blue-100 dark:border-blue-800">
+                          <span className="text-muted-foreground text-xs block mb-1">Bureau / Centre</span>
+                          <span className="font-medium flex items-center gap-2">
+                            <Package className="w-3 h-3" />
+                            {(order as any).deliveryDetails.centerName}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-4">
                   <div>
                     <label className="block text-sm font-medium mb-2">Type de Livraison</label>
