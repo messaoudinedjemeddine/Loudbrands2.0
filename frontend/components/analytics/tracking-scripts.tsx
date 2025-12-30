@@ -53,7 +53,13 @@ export function TrackingScripts() {
             {/* Meta Pixel */}
             <Script
                 id="fb-pixel"
-                strategy="afterInteractive"
+                strategy="lazyOnload"
+                onError={(e) => {
+                    // Silently handle Facebook Pixel loading errors
+                    if (process.env.NODE_ENV === 'development') {
+                        console.warn('Facebook Pixel failed to load:', e);
+                    }
+                }}
                 dangerouslySetInnerHTML={{
                     __html: `
             !function(f,b,e,v,n,t,s)

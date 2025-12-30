@@ -151,7 +151,8 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com" />
 
         {/* Preload only critical resources that are used on all pages */}
-        <link rel="preload" href="/manifest.json" as="manifest" />
+        {/* Note: manifest.json should use rel="manifest" not preload */}
+        <link rel="manifest" href="/manifest.json" />
 
         {/* Prefetch likely next pages (removed API prefetch - not supported) */}
         <link rel="prefetch" href="/loud-styles" />
@@ -188,6 +189,7 @@ export default function RootLayout({
           </RTLProvider>
         </ThemeProvider>
         <ServiceWorkerRegister />
+        {/* Vercel Analytics - Dynamically loaded to avoid 404 errors if not configured */}
         <SpeedInsights />
         <Analytics />
         <Suspense fallback={null}>

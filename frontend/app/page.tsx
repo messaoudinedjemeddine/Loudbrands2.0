@@ -137,31 +137,29 @@ export default function HomePage() {
   }, [])
 
   // Preload homepage-specific resources using useEffect (client-side only)
-  // MUST be called before any conditional returns
+  // Only preload images that are used immediately in the hero section
+  // Removed other preloads to avoid warnings about unused resources
   useEffect(() => {
     if (typeof window === 'undefined' || !mounted) return;
 
-    const preloads = [
-      { href: '/logo-mini.png', as: 'image', type: 'image/png' },
-      { href: '/loud-brands-logo.png', as: 'image', type: 'image/png' },
-      { href: '/images/Djawhara Green2.webp', as: 'image', type: 'image/webp' }
-    ];
-
-    preloads.forEach(({ href, as, type }) => {
-      const existingLink = document.querySelector(`link[rel="preload"][href="${href}"]`);
-      if (existingLink) return;
-
+    // Only preload the hero image since it's used immediately
+    // The other images are loaded by Next.js Image component which handles optimization
+    const heroImage = '/images/Djawhara Green2.webp';
+    const existingLink = document.querySelector(`link[rel="preload"][href="${heroImage}"]`);
+    
+    if (!existingLink) {
       try {
         const link = document.createElement('link');
         link.rel = 'preload';
-        link.as = as;
-        if (type) link.type = type;
-        link.href = href;
+        link.as = 'image';
+        link.type = 'image/webp';
+        link.href = heroImage;
+        link.setAttribute('fetchpriority', 'high');
         document.head.appendChild(link);
       } catch (e) {
         // Ignore preload errors
       }
-    });
+    }
   }, [mounted]);
 
   if (!mounted) return null
