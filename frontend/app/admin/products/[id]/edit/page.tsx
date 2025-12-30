@@ -170,8 +170,21 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     }))
   }
 
+  // Calculate sum of all size stocks
+  const totalSizeStock = productData.sizes.reduce((sum, size) => sum + (size.stock || 0), 0)
+  
+  // Check if total stock matches sum of size stocks (only for non-accessories)
+  const stockMismatch = !isAccessories && productData.sizes.length > 0 && productData.stock !== totalSizeStock
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    
+    // Validate stock match before submitting
+    if (stockMismatch) {
+      toast.error(`Total stock (${productData.stock}) does not match the sum of size quantities (${totalSizeStock}). Please adjust the values.`)
+      return
+    }
+    
     setIsLoading(true)
 
     try {
@@ -350,7 +363,13 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                     type="number"
                     value={productData.stock}
                     onChange={(e) => handleInputChange('stock', parseInt(e.target.value) || 0)}
+                    className={stockMismatch ? 'border-red-500' : ''}
                   />
+                  {stockMismatch && (
+                    <p className="text-sm text-red-500 font-medium">
+                      ⚠️ Total stock ({productData.stock}) does not match sum of sizes ({totalSizeStock})
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -425,7 +444,17 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
                 {productData.sizes.length > 0 && (
                   <div className="space-y-4">
-                    <h4 className="font-medium">Stock per Size</h4>
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-medium">Stock per Size</h4>
+                      <div className="text-sm">
+                        <span className={stockMismatch ? 'text-red-500 font-semibold' : 'text-muted-foreground'}>
+                          Total: {totalSizeStock}
+                        </span>
+                        {stockMismatch && (
+                          <span className="ml-2 text-red-500">(Expected: {productData.stock})</span>
+                        )}
+                      </div>
+                    </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       {productData.sizes.map((sizeData) => (
                         <div key={sizeData.size} className="flex items-center space-x-2">
@@ -440,6 +469,14 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                         </div>
                       ))}
                     </div>
+                    {stockMismatch && (
+                      <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                        <p className="text-sm text-red-700">
+                          <strong>Warning:</strong> The total stock must equal the sum of all size quantities. 
+                          Please adjust either the total stock or individual size quantities to match.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )}
               </CardContent>
@@ -465,7 +502,12 @@ export default function EditProductPage({ params }: EditProductPageProps) {
             <Button variant="outline" type="button" onClick={() => router.push('/admin/products')}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isLoading} className="elegant-gradient">
+            <Button 
+              type="submit" 
+              disabled={isLoading || stockMismatch} 
+              className="elegant-gradient"
+              title={stockMismatch ? 'Total stock must match sum of size quantities' : ''}
+            >
               <Save className="w-4 h-4 mr-2" />
               {isLoading ? 'Saving...' : 'Save Changes'}
             </Button>
