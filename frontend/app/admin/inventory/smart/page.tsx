@@ -241,6 +241,13 @@ function LabelsSection() {
     const handlePrint = async (product: any) => {
         setGeneratingId(product.id)
         try {
+            // Check if product is an accessory (no sizes or category is accessoires)
+            const categorySlug = product.category?.slug?.toLowerCase() || ''
+            const isAccessoire = categorySlug.includes('accessoire') || 
+                                categorySlug.includes('accessories') ||
+                                !product.sizes || 
+                                product.sizes.length === 0
+
             // User Request: 11cm width x 15cm height
             const doc = new jsPDF({
                 orientation: 'portrait',
@@ -253,42 +260,88 @@ function LabelsSection() {
             const colWidth = 55 // 110mm / 2
             const rowHeight = 75 // 150mm / 2
 
-            for (const size of product.sizes || []) {
-                // Determine x,y based on grid
-                const x = col * colWidth
-                const y = row * rowHeight
+            if (isAccessoire) {
+                // For accessories: use total stock and product reference only (no size)
+                const totalStock = product.stock || 0
+                const barcodeValue = product.reference || product.id
 
-                const barcodeValue = `${product.reference}-${size.size}`
-                const qrDataUrl = await QRCode.toDataURL(barcodeValue)
+                // Generate labels based on total stock
+                for (let i = 0; i < totalStock; i++) {
+                    // Determine x,y based on grid
+                    const x = col * colWidth
+                    const y = row * rowHeight
 
-                // Draw Border (Optional, helps visual separation)
-                doc.setDrawColor(200)
-                doc.rect(x + 2, y + 2, colWidth - 4, rowHeight - 4)
+                    const qrDataUrl = await QRCode.toDataURL(barcodeValue)
 
-                // Product Name (Truncated)
-                doc.setFontSize(8)
-                doc.text(product.name.substring(0, 25), x + 5, y + 10)
+                    // Draw Border (Optional, helps visual separation)
+                    doc.setDrawColor(200)
+                    doc.rect(x + 2, y + 2, colWidth - 4, rowHeight - 4)
 
-                // QR Code (Centered)
-                // 35x35mm QR code
-                doc.addImage(qrDataUrl, 'PNG', x + 10, y + 15, 35, 35)
+                    // Product Name (Truncated)
+                    doc.setFontSize(8)
+                    doc.text(product.name.substring(0, 25), x + 5, y + 10)
 
-                // Barcode Value (Small text at bottom)
-                doc.setFontSize(7)
-                doc.text(barcodeValue, x + 5, y + 55)
+                    // QR Code (Centered)
+                    // 35x35mm QR code
+                    doc.addImage(qrDataUrl, 'PNG', x + 10, y + 15, 35, 35)
 
-                // Advance Grid
-                col++
-                if (col >= 2) {
-                    col = 0
-                    row++
+                    // Barcode Value (Small text at bottom)
+                    doc.setFontSize(7)
+                    doc.text(barcodeValue, x + 5, y + 55)
+
+                    // Advance Grid
+                    col++
+                    if (col >= 2) {
+                        col = 0
+                        row++
+                    }
+
+                    // New Page if grid full (2x2 = 4 items)
+                    if (row >= 2) {
+                        doc.addPage()
+                        col = 0
+                        row = 0
+                    }
                 }
+            } else {
+                // For products with sizes: use existing logic
+                for (const size of product.sizes || []) {
+                    // Determine x,y based on grid
+                    const x = col * colWidth
+                    const y = row * rowHeight
 
-                // New Page if grid full (2x2 = 4 items)
-                if (row >= 2) {
-                    doc.addPage()
-                    col = 0
-                    row = 0
+                    const barcodeValue = `${product.reference}-${size.size}`
+                    const qrDataUrl = await QRCode.toDataURL(barcodeValue)
+
+                    // Draw Border (Optional, helps visual separation)
+                    doc.setDrawColor(200)
+                    doc.rect(x + 2, y + 2, colWidth - 4, rowHeight - 4)
+
+                    // Product Name (Truncated)
+                    doc.setFontSize(8)
+                    doc.text(product.name.substring(0, 25), x + 5, y + 10)
+
+                    // QR Code (Centered)
+                    // 35x35mm QR code
+                    doc.addImage(qrDataUrl, 'PNG', x + 10, y + 15, 35, 35)
+
+                    // Barcode Value (Small text at bottom)
+                    doc.setFontSize(7)
+                    doc.text(barcodeValue, x + 5, y + 55)
+
+                    // Advance Grid
+                    col++
+                    if (col >= 2) {
+                        col = 0
+                        row++
+                    }
+
+                    // New Page if grid full (2x2 = 4 items)
+                    if (row >= 2) {
+                        doc.addPage()
+                        col = 0
+                        row = 0
+                    }
                 }
             }
 
@@ -360,11 +413,27 @@ function LabelsSection() {
                                             <h3 className="font-bold text-sm truncate">{product.name}</h3>
                                             <p className="text-xs text-muted-foreground truncate">{product.reference}</p>
                                             <div className="flex gap-1.5 mt-1.5 flex-wrap">
-                                                {(product.sizes || []).map((size: any) => (
-                                                    <Badge key={size.id} variant="secondary" className="text-xs px-1.5 py-0">
-                                                        {size.size} ({size.stock || 0})
-                                                    </Badge>
-                                                ))}
+                                                {(() => {
+                                                    const categorySlug = product.category?.slug?.toLowerCase() || ''
+                                                    const isAccessoire = categorySlug.includes('accessoire') || 
+                                                                        categorySlug.includes('accessories') ||
+                                                                        !product.sizes || 
+                                                                        product.sizes.length === 0
+                                                    
+                                                    if (isAccessoire) {
+                                                        return (
+                                                            <Badge variant="secondary" className="text-xs px-1.5 py-0">
+                                                                Accessoire - Stock: {product.stock || 0}
+                                                            </Badge>
+                                                        )
+                                                    } else {
+                                                        return (product.sizes || []).map((size: any) => (
+                                                            <Badge key={size.id} variant="secondary" className="text-xs px-1.5 py-0">
+                                                                {size.size} ({size.stock || 0})
+                                                            </Badge>
+                                                        ))
+                                                    }
+                                                })()}
                                             </div>
                                         </div>
                                     </div>
@@ -433,29 +502,71 @@ function LabelsSection() {
                     <DialogHeader>
                         <DialogTitle>Aperçu des Étiquettes - {selectedProduct?.name}</DialogTitle>
                         <DialogDescription>
-                            Format du code-barres : {selectedProduct?.reference}-TAILLE
+                            {(() => {
+                                const categorySlug = selectedProduct?.category?.slug?.toLowerCase() || ''
+                                const isAccessoire = categorySlug.includes('accessoire') || 
+                                                    categorySlug.includes('accessories') ||
+                                                    !selectedProduct?.sizes || 
+                                                    selectedProduct.sizes.length === 0
+                                return isAccessoire 
+                                    ? `Format du code-barres : ${selectedProduct?.reference} (Accessoire - Stock total: ${selectedProduct?.stock || 0})`
+                                    : `Format du code-barres : ${selectedProduct?.reference}-TAILLE`
+                            })()}
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
-                        {selectedProduct?.sizes?.map((size: any) => {
-                            const barcodeValue = `${selectedProduct.reference}-${size.size}`
-                            return (
-                                <div key={size.id} className="border rounded-lg p-4">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <div>
-                                            <p className="font-bold">{selectedProduct.name}</p>
-                                            <p className="text-sm text-muted-foreground">Taille : {size.size}</p>
-                                            <p className="text-xs text-muted-foreground font-mono">{barcodeValue}</p>
+                        {(() => {
+                            const categorySlug = selectedProduct?.category?.slug?.toLowerCase() || ''
+                            const isAccessoire = categorySlug.includes('accessoire') || 
+                                                categorySlug.includes('accessories') ||
+                                                !selectedProduct?.sizes || 
+                                                selectedProduct?.sizes.length === 0
+
+                            if (isAccessoire) {
+                                // Show single preview for accessory with total stock
+                                const barcodeValue = selectedProduct?.reference || selectedProduct?.id
+                                const totalStock = selectedProduct?.stock || 0
+                                return (
+                                    <div className="border rounded-lg p-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <div>
+                                                <p className="font-bold">{selectedProduct.name}</p>
+                                                <p className="text-sm text-muted-foreground">Accessoire (Pas de taille)</p>
+                                                <p className="text-xs text-muted-foreground font-mono">{barcodeValue}</p>
+                                            </div>
+                                            <Badge variant="secondary">Stock total : {totalStock}</Badge>
                                         </div>
-                                        <Badge variant="secondary">Stock : {size.stock || 0}</Badge>
+                                        <div className="bg-muted p-4 rounded text-center">
+                                            <p className="text-xs text-muted-foreground mb-2">
+                                                {totalStock} étiquette(s) sera(ont) générée(s) lors de l'impression
+                                            </p>
+                                            <p className="font-mono text-sm">{barcodeValue}</p>
+                                        </div>
                                     </div>
-                                    <div className="bg-muted p-4 rounded text-center">
-                                        <p className="text-xs text-muted-foreground mb-2">Le code QR sera généré lors de l'impression</p>
-                                        <p className="font-mono text-sm">{barcodeValue}</p>
-                                    </div>
-                                </div>
-                            )
-                        })}
+                                )
+                            } else {
+                                // Show preview for products with sizes
+                                return selectedProduct?.sizes?.map((size: any) => {
+                                    const barcodeValue = `${selectedProduct.reference}-${size.size}`
+                                    return (
+                                        <div key={size.id} className="border rounded-lg p-4">
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div>
+                                                    <p className="font-bold">{selectedProduct.name}</p>
+                                                    <p className="text-sm text-muted-foreground">Taille : {size.size}</p>
+                                                    <p className="text-xs text-muted-foreground font-mono">{barcodeValue}</p>
+                                                </div>
+                                                <Badge variant="secondary">Stock : {size.stock || 0}</Badge>
+                                            </div>
+                                            <div className="bg-muted p-4 rounded text-center">
+                                                <p className="text-xs text-muted-foreground mb-2">Le code QR sera généré lors de l'impression</p>
+                                                <p className="font-mono text-sm">{barcodeValue}</p>
+                                            </div>
+                                        </div>
+                                    )
+                                })
+                            }
+                        })()}
                     </div>
                 </DialogContent>
             </Dialog>
