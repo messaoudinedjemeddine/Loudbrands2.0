@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
+import Image from 'next/image';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from './button';
 import { Card } from './card';
@@ -27,7 +28,13 @@ export function ImageUpload({
 
   const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0) return;
+    if (!files || files.length === 0) {
+      // Reset input value to allow selecting the same file again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
 
     console.log('Files selected:', files.length);
     setIsUploading(true);
@@ -36,7 +43,7 @@ export function ImageUpload({
       const formData = new FormData();
       Array.from(files).forEach((file) => {
         formData.append('images', file);
-        console.log('Adding file to FormData:', file.name, file.size);
+        console.log('Adding file to FormData:', file.name, file.size, file.type);
       });
 
       console.log('Sending upload request...');
@@ -58,10 +65,12 @@ export function ImageUpload({
         throw new Error('Authentication required. Please log in.');
       }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com/api'}/upload/images`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com/api';
+      const response = await fetch(`${apiUrl}/upload/images`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${authToken}`
+          // Don't set Content-Type header - let browser set it with boundary for FormData
         },
         body: formData,
       });
@@ -71,11 +80,22 @@ export function ImageUpload({
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Upload failed:', errorText);
-        throw new Error('Upload failed');
+        let errorMessage = 'Upload failed';
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || errorJson.message || errorMessage;
+        } catch {
+          errorMessage = errorText || errorMessage;
+        }
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
       console.log('Upload result:', result);
+      
+      if (!result.files || !Array.isArray(result.files)) {
+        throw new Error('Invalid response from server');
+      }
       
       const newImages = result.files.map((file: any) => ({
         url: file.url,
@@ -99,25 +119,43 @@ export function ImageUpload({
 
       toast({
         title: 'Success',
-        description: 'Images uploaded successfully',
+        description: `${newImages.length} image(s) uploaded successfully`,
       });
+
+      // Reset input value to allow selecting the same file again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     } catch (error) {
       console.error('Upload error:', error);
       toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to upload images',
+        title: 'Upload Error',
+        description: error instanceof Error ? error.message : 'Failed to upload images. Please try again.',
         variant: 'destructive',
       });
+      
+      // Reset input value on error
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     } finally {
       setIsUploading(false);
     }
   }, [images, onImagesChange, multiple, maxImages, toast]);
 
-  const handleButtonClick = () => {
+  const handleButtonClick = (e: React.MouseEvent | React.TouchEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     fileInputRef.current?.click();
   };
 
-  const handleUploadAreaClick = () => {
+  const handleUploadAreaClick = (e: React.MouseEvent | React.TouchEvent) => {
+    // Only trigger on direct clicks, not on button clicks
+    if ((e.target as HTMLElement).closest('button')) {
+      return;
+    }
+    e.preventDefault();
+    e.stopPropagation();
     fileInputRef.current?.click();
   };
 
@@ -143,8 +181,15 @@ export function ImageUpload({
     <div className={`space-y-4 ${className}`}>
       {/* Upload Area */}
       <Card 
-        className="p-6 border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors cursor-pointer"
+        className="p-6 border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors cursor-pointer touch-manipulation"
         onClick={handleUploadAreaClick}
+        onTouchStart={(e) => {
+          // Handle touch events for mobile
+          if (!(e.target as HTMLElement).closest('button')) {
+            e.preventDefault();
+            handleUploadAreaClick(e);
+          }
+        }}
       >
         <div className="text-center">
           <Upload className="mx-auto h-12 w-12 text-gray-400" />
@@ -153,20 +198,28 @@ export function ImageUpload({
               type="button"
               variant="outline"
               disabled={isUploading || (multiple && images.length >= maxImages)}
-              className="mb-2"
+              className="mb-2 touch-manipulation"
               onClick={handleButtonClick}
+              onTouchStart={(e) => {
+                e.stopPropagation();
+                handleButtonClick(e);
+              }}
             >
               {isUploading ? 'Uploading...' : 'Choose Images'}
             </Button>
+            <label htmlFor="image-upload" className="sr-only">
+              Upload images
+            </label>
             <input
               id="image-upload"
               type="file"
               multiple={multiple}
               accept="image/*"
               onChange={handleFileSelect}
-              className="hidden"
+              className="sr-only"
               disabled={isUploading || (multiple && images.length >= maxImages)}
               ref={fileInputRef}
+              aria-label="Upload images"
             />
             <p className="text-sm text-muted-foreground">
               {multiple 
@@ -184,10 +237,13 @@ export function ImageUpload({
           {images.map((image, index) => (
             <Card key={index} className="relative group">
               <div className="aspect-square relative overflow-hidden rounded-lg">
-                <img
+                <Image
                   src={image.url}
                   alt={image.alt || `Image ${index + 1}`}
-                  className="w-full h-full object-cover"
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  unoptimized={image.url.startsWith('http')}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2">
