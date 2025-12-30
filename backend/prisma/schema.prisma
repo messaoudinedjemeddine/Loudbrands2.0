@@ -209,7 +209,7 @@ model Order {
   deliveryStatus   DeliveryStatus    @default(NOT_READY)
   trackingNumber   String?           // Yalidine tracking number
   yalidineShipmentId String?         // Yalidine shipment ID
-  deliveryDetails  Json?             // Raw delivery details from frontend
+  // deliveryDetails removed
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
 
