@@ -116,7 +116,7 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // Generate order number
+    // Generate order number - starting from 000100
     // Find the highest order number to ensure we always increment properly
     // This handles cases where orders were deleted
     const allOrders = await prisma.order.findMany({
@@ -130,7 +130,7 @@ router.post('/', async (req, res) => {
       }
     });
 
-    let nextOrderNum = 1;
+    let nextOrderNum = 100; // Start from 100 (000100)
     if (allOrders.length > 0) {
       // Extract all order numbers and find the maximum
       const orderNumbers = allOrders
@@ -138,10 +138,11 @@ router.post('/', async (req, res) => {
           const match = o.orderNumber.match(/ORD-(\d+)/);
           return match ? parseInt(match[1]) : 0;
         })
-        .filter(n => n > 0);
+        .filter(n => n >= 100); // Only consider numbers >= 100
       
       if (orderNumbers.length > 0) {
-        nextOrderNum = Math.max(...orderNumbers) + 1;
+        const maxOrderNum = Math.max(...orderNumbers);
+        nextOrderNum = maxOrderNum >= 100 ? maxOrderNum + 1 : 100;
       }
     }
     const orderNumber = `ORD-${String(nextOrderNum).padStart(6, '0')}`;
@@ -151,6 +152,13 @@ router.post('/', async (req, res) => {
     const orderItems = [];
 
     for (const item of orderData.items) {
+      console.log(`🔍 Processing order item:`, {
+        productId: item.productId,
+        sizeId: item.sizeId,
+        size: item.size,
+        quantity: item.quantity
+      });
+
       const product = await prisma.product.findUnique({
         where: { id: item.productId },
         include: { sizes: true }
@@ -162,34 +170,70 @@ router.post('/', async (req, res) => {
         });
       }
 
+      console.log(`📦 Product found: ${product.name}`, {
+        productId: product.id,
+        hasSizes: product.sizes && product.sizes.length > 0,
+        sizes: product.sizes?.map(s => ({ id: s.id, size: s.size })) || []
+      });
+
       // Check stock
       let availableStock = product.stock;
       let sizeString = null;
       let foundSize = null;
 
-      if (item.sizeId) {
+      // If product has sizes, we need to find the correct size
+      if (product.sizes && product.sizes.length > 0) {
         // Try to find size by ID first
-        foundSize = product.sizes.find(s => s.id === item.sizeId);
-      }
+        if (item.sizeId) {
+          foundSize = product.sizes.find(s => s.id === item.sizeId);
+        }
 
-      // If sizeId not found or not provided, try to find by size string
-      if (!foundSize && item.size) {
-        foundSize = product.sizes.find(s => 
-          s.size.toLowerCase().trim() === item.size.toLowerCase().trim()
-        );
-      }
+        // If sizeId not found or not provided, try to find by size string
+        if (!foundSize && item.size) {
+          // Try exact match first
+          foundSize = product.sizes.find(s => 
+            s.size.toLowerCase().trim() === item.size.toLowerCase().trim()
+          );
+          
+          // If still not found, try partial match (handles cases like "M" matching "36,38")
+          if (!foundSize) {
+            foundSize = product.sizes.find(s => {
+              const sizeLower = s.size.toLowerCase().trim();
+              const itemSizeLower = item.size.toLowerCase().trim();
+              return sizeLower.includes(itemSizeLower) || itemSizeLower.includes(sizeLower);
+            });
+          }
+        }
 
-      // If we found a size (either by ID or string), use it
-      if (foundSize) {
-        availableStock = foundSize.stock;
-        sizeString = foundSize.size;
-        // Update sizeId to the correct one in case it was found by string
-        item.sizeId = foundSize.id;
-      } else if (item.sizeId || item.size) {
-        // Size was specified but not found
-        return res.status(400).json({
-          error: `Size "${item.size || item.sizeId}" not found for product: ${product.name}. Available sizes: ${product.sizes.map(s => s.size).join(', ') || 'None'}`
-        });
+        // If we found a size (either by ID or string), use it
+        if (foundSize) {
+          availableStock = foundSize.stock;
+          sizeString = foundSize.size;
+          // Update sizeId to the correct one in case it was found by string
+          item.sizeId = foundSize.id;
+        } else {
+          // Size was specified but not found - this is an error for products with sizes
+          const availableSizes = product.sizes.map(s => s.size).join(', ') || 'None';
+          console.error(`❌ Size not found for product: ${product.name}`, {
+            requestedSizeId: item.sizeId,
+            requestedSize: item.size,
+            availableSizes: product.sizes.map(s => ({ id: s.id, size: s.size }))
+          });
+          return res.status(400).json({
+            error: `Size "${item.size || item.sizeId || 'not specified'}" not found for product: ${product.name}. Available sizes: ${availableSizes}`,
+            productName: product.name,
+            requestedSize: item.size || item.sizeId,
+            availableSizes: product.sizes.map(s => ({ id: s.id, size: s.size }))
+          });
+        }
+      } else {
+        // Product has no sizes (accessories) - sizeId and size should be null/undefined
+        if (item.sizeId || item.size) {
+          console.warn(`Product ${product.name} has no sizes, but size was specified: ${item.sizeId || item.size}`);
+        }
+        // For products without sizes, we use the product stock directly
+        sizeString = null;
+        item.sizeId = null;
       }
 
       /* 
