@@ -2479,4 +2479,349 @@ router.get('/analytics/profit-by-category', async (req, res) => {
   }
 });
 
+// Comprehensive Analytics Dashboard Endpoint
+router.get('/analytics/comprehensive', async (req, res) => {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+    // Get all delivered orders (DONE status)
+    const deliveredOrders = await prisma.order.findMany({
+      where: {
+        deliveryStatus: 'DONE'
+      },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                category: {
+                  select: {
+                    id: true,
+                    name: true,
+                    nameAr: true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Calculate Total Revenue (sum of delivered orders subtotals)
+    const totalRevenue = deliveredOrders.reduce((sum, order) => sum + order.subtotal, 0);
+
+    // Calculate Total Net Profit (Selling Price - Buying Price for delivered items)
+    let totalNetProfit = 0;
+    deliveredOrders.forEach(order => {
+      order.items.forEach(item => {
+        const profitPerUnit = item.price - item.product.costPrice;
+        totalNetProfit += profitPerUnit * item.quantity;
+      });
+    });
+
+    // Calculate Stock Valuation
+    const allProducts = await prisma.product.findMany({
+      include: {
+        sizes: true
+      }
+    });
+
+    let stockValuationCost = 0; // At buying price
+    let stockValuationRetail = 0; // At selling price
+
+    allProducts.forEach(product => {
+      const totalStock = product.stock + product.sizes.reduce((sum, size) => sum + size.stock, 0);
+      stockValuationCost += product.costPrice * totalStock;
+      stockValuationRetail += product.price * totalStock;
+    });
+
+    // Calculate Delivery Success Rate (Yalidine Livre = orders with trackingNumber)
+    const shippedOrders = await prisma.order.findMany({
+      where: {
+        deliveryStatus: {
+          in: ['IN_TRANSIT', 'DONE']
+        }
+      }
+    });
+
+    const yalidineLivreOrders = shippedOrders.filter(order => order.trackingNumber).length;
+    const totalShipped = shippedOrders.length;
+    const deliverySuccessRate = totalShipped > 0 ? (yalidineLivreOrders / totalShipped) * 100 : 0;
+
+    // Get orders by city (for delivered orders)
+    const ordersByCityData = await prisma.order.groupBy({
+      by: ['cityId'],
+      where: {
+        deliveryStatus: 'DONE'
+      },
+      _count: {
+        cityId: true
+      }
+    });
+
+    const cityIds = ordersByCityData.map(item => item.cityId);
+    const cities = await prisma.city.findMany({
+      where: {
+        id: { in: cityIds }
+      },
+      select: {
+        id: true,
+        name: true,
+        nameAr: true
+      }
+    });
+
+    const ordersByCity = ordersByCityData.map(item => {
+      const city = cities.find(c => c.id === item.cityId);
+      return {
+        cityId: city?.id || item.cityId,
+        cityName: city?.name || 'Unknown',
+        cityNameAr: city?.nameAr,
+        orders: item._count.cityId
+      };
+    }).sort((a, b) => b.orders - a.orders);
+
+    // Get top categories (from delivered orders)
+    const categorySales = {};
+    deliveredOrders.forEach(order => {
+      order.items.forEach(item => {
+        if (item.product.category) {
+          const categoryId = item.product.category.id;
+          if (!categorySales[categoryId]) {
+            categorySales[categoryId] = {
+              categoryId,
+              quantity: 0,
+              revenue: 0
+            };
+          }
+          categorySales[categoryId].quantity += item.quantity;
+          categorySales[categoryId].revenue += item.price * item.quantity;
+        }
+      });
+    });
+
+    const topCategories = Object.values(categorySales)
+      .map(cat => {
+        // Find category from first order item that has this category
+        let categoryInfo = null;
+        for (const order of deliveredOrders) {
+          for (const item of order.items) {
+            if (item.product.category && item.product.category.id === cat.categoryId) {
+              categoryInfo = item.product.category;
+              break;
+            }
+          }
+          if (categoryInfo) break;
+        }
+        
+        return {
+          categoryId: cat.categoryId,
+          categoryName: categoryInfo?.name || 'Unknown',
+          categoryNameAr: categoryInfo?.nameAr,
+          quantity: cat.quantity,
+          revenue: cat.revenue
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    // Get top products (from delivered orders)
+    const productSales = {};
+    deliveredOrders.forEach(order => {
+      order.items.forEach(item => {
+        const productId = item.productId;
+        if (!productSales[productId]) {
+          productSales[productId] = {
+            productId,
+            name: item.product.name,
+            nameAr: item.product.nameAr,
+            image: item.product.images?.[0]?.url || '/placeholder.svg',
+            quantity: 0,
+            revenue: 0,
+            orderCount: 0
+          };
+        }
+        productSales[productId].quantity += item.quantity;
+        productSales[productId].revenue += item.price * item.quantity;
+        productSales[productId].orderCount += 1;
+      });
+    });
+
+    const topProducts = Object.values(productSales)
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10);
+
+    res.json({
+      financial: {
+        totalRevenue,
+        totalNetProfit,
+        stockValuation: {
+          cost: stockValuationCost,
+          retail: stockValuationRetail,
+          potentialProfit: stockValuationRetail - stockValuationCost
+        }
+      },
+      logistics: {
+        deliverySuccessRate,
+        yalidineLivreOrders,
+        totalShipped
+      },
+      ordersByCity,
+      topCategories,
+      topProducts
+    });
+  } catch (error) {
+    console.error('Comprehensive analytics error:', error);
+    res.status(500).json({ error: 'Failed to fetch comprehensive analytics' });
+  }
+});
+
+// Time-Series Analytics (Last 30 days)
+router.get('/analytics/time-series', async (req, res) => {
+  try {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    thirtyDaysAgo.setHours(0, 0, 0, 0);
+
+    // Get all delivered orders from last 30 days
+    const orders = await prisma.order.findMany({
+      where: {
+        deliveryStatus: 'DONE',
+        createdAt: {
+          gte: thirtyDaysAgo
+        }
+      },
+      include: {
+        items: {
+          include: {
+            product: true
+          }
+        }
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    });
+
+    // Group by date
+    const dailyData = {};
+    
+    // Initialize all 30 days
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(thirtyDaysAgo);
+      date.setDate(date.getDate() + i);
+      const dateKey = date.toISOString().split('T')[0];
+      dailyData[dateKey] = {
+        date: dateKey,
+        orders: 0,
+        revenue: 0,
+        profit: 0
+      };
+    }
+
+    // Process orders
+    orders.forEach(order => {
+      const dateKey = order.createdAt.toISOString().split('T')[0];
+      if (dailyData[dateKey]) {
+        dailyData[dateKey].orders += 1;
+        dailyData[dateKey].revenue += order.subtotal;
+        
+        // Calculate profit for this order
+        let orderProfit = 0;
+        order.items.forEach(item => {
+          const profitPerUnit = item.price - item.product.costPrice;
+          orderProfit += profitPerUnit * item.quantity;
+        });
+        dailyData[dateKey].profit += orderProfit;
+      }
+    });
+
+    // Convert to array and format dates
+    const timeSeriesData = Object.values(dailyData).map(item => ({
+      date: new Date(item.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      orders: item.orders,
+      revenue: item.revenue,
+      profit: item.profit
+    }));
+
+    res.json(timeSeriesData);
+  } catch (error) {
+    console.error('Time-series analytics error:', error);
+    res.status(500).json({ error: 'Failed to fetch time-series analytics' });
+  }
+});
+
+// Inventory Intelligence Endpoint
+router.get('/analytics/inventory-intelligence', async (req, res) => {
+  try {
+    const products = await prisma.product.findMany({
+      include: {
+        sizes: true,
+        category: {
+          select: {
+            name: true,
+            nameAr: true
+          }
+        },
+        brand: {
+          select: {
+            name: true
+          }
+        },
+        images: {
+          where: {
+            isPrimary: true
+          },
+          take: 1
+        }
+      }
+    });
+
+    const inventoryData = products.map(product => {
+      const totalStock = product.stock + product.sizes.reduce((sum, size) => sum + size.stock, 0);
+      const unitProfit = product.price - product.costPrice;
+      const totalPotentialProfit = unitProfit * totalStock;
+      const lowStockThreshold = 10; // Alert if stock < 10
+      const isLowStock = totalStock < lowStockThreshold;
+
+      // Check for low stock by size
+      const lowStockSizes = product.sizes.filter(size => size.stock < lowStockThreshold);
+
+      return {
+        id: product.id,
+        name: product.name,
+        nameAr: product.nameAr,
+        categoryName: product.category.name,
+        categoryNameAr: product.category.nameAr,
+        brandName: product.brand.name,
+        image: product.images[0]?.url || '/placeholder.svg',
+        price: product.price,
+        costPrice: product.costPrice,
+        unitProfit,
+        totalStock,
+        totalPotentialProfit,
+        stockValuationCost: product.costPrice * totalStock,
+        stockValuationRetail: product.price * totalStock,
+        profitMargin: product.price > 0 ? ((unitProfit / product.price) * 100) : 0,
+        isLowStock,
+        lowStockSizes: lowStockSizes.map(size => ({
+          size: size.size,
+          stock: size.stock
+        }))
+      };
+    });
+
+    // Sort by total potential profit (descending)
+    inventoryData.sort((a, b) => b.totalPotentialProfit - a.totalPotentialProfit);
+
+    res.json(inventoryData);
+  } catch (error) {
+    console.error('Inventory intelligence error:', error);
+    res.status(500).json({ error: 'Failed to fetch inventory intelligence' });
+  }
+});
+
 module.exports = router;
