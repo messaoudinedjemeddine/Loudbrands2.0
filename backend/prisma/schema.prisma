@@ -292,7 +292,7 @@ model StockReceptionItem {
   id          String   @id @default(cuid())
   productName String
   reference   String?
-  size        String
+  size        String?  // Nullable for accessories
   quantity    Int
   barcode     String?
 

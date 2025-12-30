@@ -13,7 +13,7 @@ const receptionSchema = z.object({
     items: z.array(z.object({
         productName: z.string().min(1),
         reference: z.string().optional(),
-        size: z.string().min(1),
+        size: z.string().nullable().optional(), // Allow null for accessories
         quantity: z.number().int().positive(),
         barcode: z.string().optional()
     })).min(1, 'At least one item is required')
@@ -59,7 +59,10 @@ router.post('/receptions', async (req, res) => {
             // Find product by reference
             const product = await prisma.product.findUnique({
                 where: { reference: item.reference },
-                include: { sizes: true }
+                include: { 
+                    sizes: true,
+                    category: true // Include category to check if it's an accessory
+                }
             });
 
             if (!product) {
@@ -68,39 +71,68 @@ router.post('/receptions', async (req, res) => {
                 continue;
             }
 
-            // Find size (insensitive and trimmed)
-            const targetSize = item.size.trim().toLowerCase();
-            const sizeObj = product.sizes.find(s => s.size.trim().toLowerCase() === targetSize);
+            // Check if product is an accessory
+            const categorySlug = product.category?.slug?.toLowerCase() || '';
+            const isAccessoire = categorySlug.includes('accessoire') || 
+                                categorySlug.includes('accessories') ||
+                                !product.sizes || 
+                                product.sizes.length === 0;
 
-            if (!sizeObj) {
-                console.log(`[StockIn] Size not found: ${item.size} for ${item.reference}. Available: ${product.sizes.map(s => s.size).join(', ')}`);
-                results.push({ item, status: 'failed', reason: `Size "${item.size}" not found. Available: ${product.sizes.map(s => s.size).join(', ')}` });
-                continue;
+            if (isAccessoire) {
+                // For accessories, update product stock directly (no size-based stock)
+                const oldStock = product.stock || 0;
+                const newStock = oldStock + item.quantity;
+
+                console.log(`[StockIn] Updating accessory ${item.reference}: ${oldStock} -> ${newStock}`);
+
+                await prisma.product.update({
+                    where: { id: product.id },
+                    data: { stock: newStock }
+                });
+
+                results.push({ item, status: 'success' });
+            } else {
+                // For regular products, require size
+                if (!item.size || item.size.trim() === '') {
+                    console.log(`[StockIn] Size required for product: ${item.reference}`);
+                    results.push({ item, status: 'failed', reason: `Size is required for product "${product.name}". Format: ${product.reference}-TAILLE` });
+                    continue;
+                }
+
+                // Find size (insensitive and trimmed)
+                const targetSize = item.size.trim().toLowerCase();
+                const sizeObj = product.sizes.find(s => s.size.trim().toLowerCase() === targetSize);
+
+                if (!sizeObj) {
+                    console.log(`[StockIn] Size not found: ${item.size} for ${item.reference}. Available: ${product.sizes.map(s => s.size).join(', ')}`);
+                    results.push({ item, status: 'failed', reason: `Size "${item.size}" not found. Available: ${product.sizes.map(s => s.size).join(', ')}` });
+                    continue;
+                }
+
+                // Update stock
+                const oldStock = sizeObj.stock;
+                const newStock = oldStock + item.quantity;
+
+                console.log(`[StockIn] Updating ${item.reference} [${sizeObj.size}]: ${oldStock} -> ${newStock}`);
+
+                await prisma.productSize.update({
+                    where: { id: sizeObj.id },
+                    data: { stock: newStock }
+                });
+
+                // Update total product stock
+                const totalStock = await prisma.productSize.aggregate({
+                    where: { productId: product.id },
+                    _sum: { stock: true }
+                });
+
+                await prisma.product.update({
+                    where: { id: product.id },
+                    data: { stock: totalStock._sum.stock || 0 }
+                });
+
+                results.push({ item, status: 'success' });
             }
-
-            // Update stock
-            const oldStock = sizeObj.stock;
-            const newStock = oldStock + item.quantity;
-
-            console.log(`[StockIn] Updating ${item.reference} [${sizeObj.size}]: ${oldStock} -> ${newStock}`);
-
-            await prisma.productSize.update({
-                where: { id: sizeObj.id },
-                data: { stock: newStock }
-            });
-
-            // Update total product stock
-            const totalStock = await prisma.productSize.aggregate({
-                where: { productId: product.id },
-                _sum: { stock: true }
-            });
-
-            await prisma.product.update({
-                where: { id: product.id },
-                data: { stock: totalStock._sum.stock || 0 }
-            });
-
-            results.push({ item, status: 'success' });
         }
 
         res.json({

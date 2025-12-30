@@ -21,6 +21,7 @@ import { useAuthStore } from '@/lib/store'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
 import { useLocaleStore } from '@/lib/locale-store'
+import { PWAInstallPrompt } from '@/components/pwa-install-prompt'
 
 export default function AdminLoginPage() {
   const [mounted, setMounted] = useState(false)
@@ -297,6 +298,8 @@ export default function AdminLoginPage() {
           </CardContent>
         </Card>
       </motion.div>
+      {/* PWA Install Prompt - Shows on mobile for admin login */}
+      <PWAInstallPrompt />
     </div>
   )
 }

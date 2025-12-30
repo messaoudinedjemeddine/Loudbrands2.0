@@ -606,29 +606,157 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
 
         setIsLoading(true)
         try {
-            // Parse barcode: REFERENCE-SIZE
-            const parts = barcode.trim().split('-')
-            if (parts.length < 2) {
-                toast.error('Format : RÉFÉRENCE-TAILLE (Ex: TSHIRT-M)')
-                return
-            }
+            const barcodeValue = barcode.trim()
+            let reference = barcodeValue
+            let size: string | null = null
 
-            const size = parts[parts.length - 1]
-            const reference = parts.slice(0, -1).join('-')
-
-            // Optimistic search
-            const response = await api.products.getAll({ search: reference, limit: 1 }) as any
-            const products = response.products || []
-            const product = products.find((p: any) => p.reference === reference)
-
+            // Strategy 1: Try exact reference match first (for accessories)
+            // Search for product by reference (exact match)
+            let response = await api.products.getAll({ search: barcodeValue, limit: 100 }) as any
+            let products = response.products || []
+            let product = products.find((p: any) => p.reference === barcodeValue)
+            
+            // If not found, try broader search
             if (!product) {
-                toast.error(`Réf "${reference}" introuvable`)
-                return
+                response = await api.products.getAll({ limit: 1000 }) as any
+                products = response.products || []
+                product = products.find((p: any) => p.reference === barcodeValue)
+            }
+            
+            if (product) {
+                // Check if it's an accessory FIRST
+                const categorySlug = product.category?.slug?.toLowerCase() || ''
+                const isAccessoire = categorySlug.includes('accessoire') || 
+                                    categorySlug.includes('accessories') ||
+                                    !product.sizes || 
+                                    product.sizes.length === 0
+                
+                if (isAccessoire) {
+                    // It's an accessory - use reference only, no size
+                    reference = barcodeValue
+                    size = null
+                    // Skip to adding item - don't check for size format
+                } else {
+                    // Product has sizes - check if barcode includes size
+                    const parts = barcodeValue.split('-')
+                    if (parts.length >= 2) {
+                        const possibleSize = parts[parts.length - 1]
+                        const possibleReference = parts.slice(0, -1).join('-')
+                        
+                        if (possibleReference === product.reference) {
+                            const sizeObj = product.sizes?.find((s: any) => s.size === possibleSize)
+                            if (sizeObj) {
+                                reference = possibleReference
+                                size = possibleSize
+                            } else {
+                                toast.error(`Taille "${possibleSize}" introuvable pour "${product.name}"`)
+                                return
+                            }
+                        } else {
+                            // Barcode doesn't match REFERENCE-SIZE format
+                            toast.error(`Produit "${product.name}" nécessite une taille. Format: ${product.reference}-TAILLE`)
+                            return
+                        }
+                    } else {
+                        // Barcode is just reference, but product needs size
+                        toast.error(`Produit "${product.name}" nécessite une taille. Format: ${product.reference}-TAILLE`)
+                        return
+                    }
+                }
+            } else {
+                // Strategy 2: Try parsing as REFERENCE-SIZE format
+                const parts = barcodeValue.split('-')
+                if (parts.length >= 2) {
+                    const possibleSize = parts[parts.length - 1]
+                    const possibleReference = parts.slice(0, -1).join('-')
+                    
+                    // Search for product by reference
+                    if (!product) {
+                        // Try searching with the possible reference
+                        response = await api.products.getAll({ search: possibleReference, limit: 50 }) as any
+                        products = response.products || []
+                    }
+                    product = products.find((p: any) => p.reference === possibleReference)
+                    
+                    if (product) {
+                        // Check if product is an accessory
+                        const categorySlug = product.category?.slug?.toLowerCase() || ''
+                        const isAccessoire = categorySlug.includes('accessoire') || 
+                                            categorySlug.includes('accessories') ||
+                                            !product.sizes || 
+                                            product.sizes.length === 0
+                        
+                        if (isAccessoire) {
+                            // It's an accessory - ignore the size part, use reference only
+                            reference = product.reference
+                            size = null
+                        } else {
+                            // Product has sizes, validate the size
+                            const sizeObj = product.sizes?.find((s: any) => s.size === possibleSize)
+                            if (sizeObj) {
+                                reference = possibleReference
+                                size = possibleSize
+                            } else {
+                                toast.error(`Taille "${possibleSize}" introuvable pour "${product.name}"`)
+                                return
+                            }
+                        }
+                    } else {
+                        // Product not found - try searching by partial match
+                        product = products.find((p: any) => 
+                            p.reference?.toLowerCase().includes(barcodeValue.toLowerCase()) ||
+                            barcodeValue.toLowerCase().includes(p.reference?.toLowerCase())
+                        )
+                        
+                        if (product) {
+                            // Check if it's an accessory
+                            const categorySlug = product.category?.slug?.toLowerCase() || ''
+                            const isAccessoire = categorySlug.includes('accessoire') || 
+                                                categorySlug.includes('accessories') ||
+                                                !product.sizes || 
+                                                product.sizes.length === 0
+                            
+                            if (isAccessoire && product.reference === barcodeValue) {
+                                reference = product.reference
+                                size = null
+                            } else {
+                                toast.error(`Référence "${barcodeValue}" introuvable ou format incorrect`)
+                                return
+                            }
+                        } else {
+                            toast.error(`Référence "${barcodeValue}" introuvable`)
+                            return
+                        }
+                    }
+                } else {
+                    // Single part - could be accessory reference
+                    // Search for exact match
+                    product = products.find((p: any) => p.reference === barcodeValue)
+                    
+                    if (product) {
+                        const categorySlug = product.category?.slug?.toLowerCase() || ''
+                        const isAccessoire = categorySlug.includes('accessoire') || 
+                                            categorySlug.includes('accessories') ||
+                                            !product.sizes || 
+                                            product.sizes.length === 0
+                        
+                        if (isAccessoire) {
+                            reference = barcodeValue
+                            size = null
+                        } else {
+                            toast.error(`Produit "${product.name}" nécessite une taille. Format: ${product.reference}-TAILLE`)
+                            return
+                        }
+                    } else {
+                        toast.error(`Référence "${barcodeValue}" introuvable`)
+                        return
+                    }
+                }
             }
 
-            const sizeObj = product.sizes?.find((s: any) => s.size === size)
-            if (!sizeObj) {
-                toast.error(`Taille "${size}" introuvable`)
+            // Verify product was found
+            if (!product) {
+                toast.error(`Référence "${barcodeValue}" introuvable`)
                 return
             }
 
@@ -645,17 +773,17 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                 const newItems = [...sessionItems]
                 newItems[existingItemIndex].quantity += qty
                 setSessionItems(newItems)
-                toast.success(`+${qty} ${product.name} (${size})`)
+                toast.success(`+${qty} ${product.name}${size ? ` (${size})` : ' (Accessoire)'}`)
             } else {
                 setSessionItems(prev => [{
                     product,
-                    size,
+                    size: size || null,
                     quantity: qty,
                     reference,
                     barcode: barcode.trim(),
                     timestamp: new Date()
                 }, ...prev])
-                toast.success(`Ajouté: ${product.name} (${size})`)
+                toast.success(`Ajouté: ${product.name}${size ? ` (${size})` : ' (Accessoire)'}`)
             }
 
             setBarcode('')
@@ -686,7 +814,7 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                 items: sessionItems.map(item => ({
                     productName: item.product.name,
                     reference: item.reference,
-                    size: item.size,
+                    size: item.size || null, // null for accessories
                     quantity: item.quantity,
                     barcode: item.barcode
                 }))
@@ -710,7 +838,7 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                     barcode: item.barcode,
                     productName: item.product.name,
                     productReference: item.reference,
-                    size: item.size,
+                    size: item.size || null, // null for accessories
                     quantity: item.quantity,
                     oldStock: 0,
                     newStock: 0,
@@ -833,7 +961,7 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                                                     <div className="font-medium text-sm truncate max-w-[150px]">{item.product.name}</div>
                                                     <div className="text-xs text-muted-foreground">{item.reference}</div>
                                                 </TableCell>
-                                                <TableCell className="py-2">{item.size}</TableCell>
+                                                <TableCell className="py-2">{item.size || 'Accessoire'}</TableCell>
                                                 <TableCell className="text-right py-2 font-bold">+{item.quantity}</TableCell>
                                                 <TableCell className="py-2">
                                                     <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-red-500"

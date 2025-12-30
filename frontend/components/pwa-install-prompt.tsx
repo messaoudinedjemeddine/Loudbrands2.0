@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, Smartphone } from 'lucide-react';
+import { Download, Smartphone, Share2, Plus } from 'lucide-react';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -36,15 +37,25 @@ export function PWAInstallPrompt() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
   const [isDesktop, setIsDesktop] = useState(true);
+  const [isIOS, setIsIOS] = useState(false);
 
   const pathname = usePathname();
-  const isAdmin = pathname?.startsWith('/admin');
+  const isAdmin = pathname?.startsWith('/admin') || pathname === '/admin/login';
 
   useEffect(() => {
-    // Only show for admin pages
+    // Only show for admin pages (including login page)
     if (!isAdmin) {
       return;
     }
+
+    // Detect iOS
+    const checkIOS = () => {
+      const isIOSDevice = /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+                         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      setIsIOS(isIOSDevice);
+    };
+
+    checkIOS();
 
     // Check media query for desktop/mobile
     const checkDesktop = () => {
@@ -74,10 +85,11 @@ export function PWAInstallPrompt() {
       return;
     }
 
-    // Show prompt after a delay (3 seconds for admin)
+    // Show prompt after a delay (2 seconds for admin login page, 3 seconds for other admin pages)
+    const delay = pathname === '/admin/login' ? 2000 : 3000;
     const timer = setTimeout(() => {
       setShowPrompt(true);
-    }, 3000);
+    }, delay);
 
     // Listen for the beforeinstallprompt event
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -100,30 +112,37 @@ export function PWAInstallPrompt() {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, [isAdmin]);
+  }, [isAdmin, pathname]);
 
   const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      // Use the browser's install prompt
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
+    if (isIOS) {
+      // For iOS, show detailed instructions
+      setShowPrompt(false);
+      // Show iOS instructions in a more user-friendly way
+      // The instructions will be shown in the prompt content itself
+      return;
+    }
 
-      if (outcome === 'accepted') {
-        console.log('User accepted the install prompt');
-        setShowPrompt(false);
-      } else {
-        console.log('User dismissed the install prompt');
+    if (deferredPrompt) {
+      // Use the browser's install prompt (Android/Chrome)
+      try {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+
+        if (outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+          setShowPrompt(false);
+        } else {
+          console.log('User dismissed the install prompt');
+        }
+      } catch (error) {
+        console.error('Error showing install prompt:', error);
       }
 
       setDeferredPrompt(null);
     } else {
       // Fallback for browsers that don't support beforeinstallprompt
-      // Show instructions for manual installation
-      const instructions = /iPhone|iPad|iPod/.test(navigator.userAgent)
-        ? 'Tap the Share button and select "Add to Home Screen"'
-        : 'Click the browser menu and select "Install App"';
-
-      alert(`To install this app:\n\n${instructions}`);
+      toast.info('Please use your browser menu to install this app');
       setShowPrompt(false);
     }
   };
@@ -135,7 +154,7 @@ export function PWAInstallPrompt() {
     setIsDismissed(true);
   };
 
-  // Only show for admin pages on mobile
+  // Only show for admin pages on mobile (including login page)
   if (!isAdmin || isInstalled || !showPrompt || isDismissed || isDesktop) {
     return null;
   }
@@ -160,20 +179,37 @@ export function PWAInstallPrompt() {
           {description}
         </p>
       </div>
+
+      {/* iOS-specific instructions */}
+      {isIOS && (
+        <div className="w-full bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
+          <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
+            Instructions pour iOS:
+          </p>
+          <ol className="text-xs text-blue-800 dark:text-blue-200 space-y-2 text-left list-decimal list-inside">
+            <li>Appuyez sur le bouton <Share2 className="w-3 h-3 inline" /> <strong>Partager</strong> en bas de l'écran</li>
+            <li>Faites défiler et sélectionnez <Plus className="w-3 h-3 inline" /> <strong>"Sur l'écran d'accueil"</strong></li>
+            <li>Appuyez sur <strong>"Ajouter"</strong> en haut à droite</li>
+          </ol>
+        </div>
+      )}
+
       <div className="flex flex-col w-full gap-2 sm:flex-row sm:gap-4 px-4 sm:px-0">
-        <Button
-          onClick={handleInstallClick}
-          className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90"
-        >
-          <Download className="w-4 h-4 mr-2" />
-          Install Now
-        </Button>
+        {!isIOS && (
+          <Button
+            onClick={handleInstallClick}
+            className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Install Now
+          </Button>
+        )}
         <Button
           variant="outline"
           onClick={handleDismiss}
           className="w-full sm:w-auto"
         >
-          Maybe Later
+          {isIOS ? 'Fermer' : 'Maybe Later'}
         </Button>
       </div>
     </div>
