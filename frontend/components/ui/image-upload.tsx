@@ -143,6 +143,13 @@ export function ImageUpload({
     }
   }, [images, onImagesChange, multiple, maxImages, toast]);
 
+  const handleButtonClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Directly trigger file input click
+    fileInputRef.current?.click();
+  };
+
   const handleUploadAreaClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Only trigger on direct clicks, not on button/label clicks
     if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('label')) {
@@ -192,26 +199,15 @@ export function ImageUpload({
               ref={fileInputRef}
               aria-label="Upload images"
             />
-            <label 
-              htmlFor="image-upload" 
-              className="cursor-pointer inline-block"
-              onClick={(e) => {
-                // Prevent label click from bubbling to card
-                e.stopPropagation();
-              }}
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isUploading || (multiple && images.length >= maxImages)}
+              className="mb-2"
+              onClick={handleButtonClick}
             >
-              <span className="inline-block">
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isUploading || (multiple && images.length >= maxImages)}
-                  className="mb-2"
-                  asChild={false}
-                >
-                  {isUploading ? 'Uploading...' : 'Choose Images'}
-                </Button>
-              </span>
-            </label>
+              {isUploading ? 'Uploading...' : 'Choose Images'}
+            </Button>
             <p className="text-sm text-muted-foreground">
               {multiple 
                 ? `Upload up to ${maxImages} images (${images.length}/${maxImages})`

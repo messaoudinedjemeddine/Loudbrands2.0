@@ -234,8 +234,14 @@ function LoudStylesProductsContent() {
   }
 
   const ProductCard = ({ product, index }: { product: Product, index: number }) => {
-    // Convert sizes to string array for rendering
-    const sizeStrings = ['M', 'L', 'XL', 'XXL'];
+    // Check if product is in accessoires category
+    const categorySlug = typeof product.category === 'string' 
+      ? product.category.toLowerCase() 
+      : product.category?.slug?.toLowerCase() || '';
+    const isAccessoires = categorySlug.includes('accessoire') || categorySlug.includes('accessories');
+    
+    // Convert sizes to string array for rendering (only if not accessoires)
+    const sizeStrings = isAccessoires ? [] : ['M', 'L', 'XL', 'XXL'];
 
     return (
       <motion.div

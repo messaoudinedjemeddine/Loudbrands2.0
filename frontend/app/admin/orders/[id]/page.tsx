@@ -155,6 +155,12 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     nameAr?: string
     image?: string
     price: number
+    category?: {
+      id: string
+      name: string
+      slug: string
+    }
+    sizes?: Array<{ id: string; size: string; stock: number }> | string[]
   }>>([])
   const [productSearch, setProductSearch] = useState('')
   const [loadingProducts, setLoadingProducts] = useState(false)
@@ -533,7 +539,9 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
             name: product.name,
             nameAr: product.nameAr,
             image: product.image || '/placeholder-product.jpg',
-            price: product.price
+            price: product.price,
+            category: product.category,
+            sizes: product.sizes || []
           }))
 
           console.log('Processed produits from admin:', produitsWithImages.length)
@@ -557,7 +565,9 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
           name: product.name,
           nameAr: product.nameAr,
           image: product.image || '/placeholder-product.jpg',
-          price: product.price
+          price: product.price,
+          category: product.category,
+          sizes: product.sizes || []
         })) || []
 
         console.log('Processed produits from regular endpoint:', produitsWithImages.length)
@@ -805,12 +815,37 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   console.log('Filtered produits:', filteredProducts.length)
   console.log('Search term:', productSearch)
 
+  // Helper function to check if a product is accessoires
+  const isProductAccessoires = (productId: string) => {
+    const product = availableProducts.find(p => p.id === productId)
+    if (!product) {
+      // Check order items for category info
+      const orderItem = orderItems.find(item => item.product.id === productId)
+      // If product has no sizes, it's likely an accessoire
+      return false // Will check sizes instead
+    }
+    // Check category slug
+    const categorySlug = product.category?.slug?.toLowerCase() || ''
+    if (categorySlug.includes('accessoire') || categorySlug.includes('accessories')) {
+      return true
+    }
+    // If product has no sizes, treat as accessoire
+    if (!product.sizes || product.sizes.length === 0) {
+      return true
+    }
+    return false
+  }
+
   // Sauvegarder order items changes
   const saveOrderItems = async () => {
     if (!order || isReadOnly) return
 
-    // Validate that all pieces have sizes
+    // Validate that all pieces have sizes (except for accessoires)
     const itemsWithMissingSizes = orderItems.filter(item => {
+      // Skip validation for accessoires products
+      const isAccessoires = isProductAccessoires(item.product.id)
+      if (isAccessoires) return false
+      
       if (item.pieces && item.pieces.length > 0) {
         return item.pieces.some(piece => !piece.size || piece.size.trim() === '')
       }
@@ -1352,21 +1387,36 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                             ) : null
                           })()}
                         </div>
-                        <Select
-                          value={newItem.size}
-                          onValueChange={(value) => setNewItem(prev => ({ ...prev, size: value }))}
-                        >
-                          <SelectTrigger className="h-9">
-                            <SelectValue placeholder="Taille (requis)" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {SIZE_OPTIONS.map((size) => (
-                              <SelectItem key={size} value={size}>
-                                {size}
+                        {(() => {
+                          const selectedProduct = availableProducts.find(p => p.id === newItem.productId)
+                          const isAccessoires = selectedProduct ? (
+                            selectedProduct.category?.slug?.toLowerCase().includes('accessoire') ||
+                            selectedProduct.category?.slug?.toLowerCase().includes('accessories') ||
+                            !selectedProduct.sizes || selectedProduct.sizes.length === 0
+                          ) : false
+                          
+                          if (isAccessoires) {
+                            return null // Don't show size selector for accessoires
+                          }
+                          
+                          return (
+                            <Select
+                              value={newItem.size}
+                              onValueChange={(value) => setNewItem(prev => ({ ...prev, size: value }))}
+                            >
+                              <SelectTrigger className="h-9">
+                                <SelectValue placeholder="Taille (requis)" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {SIZE_OPTIONS.map((size) => (
+                                  <SelectItem key={size} value={size}>
+                                    {size}
                               </SelectItem>
                             ))}
                           </SelectContent>
                         </Select>
+                          )
+                        })()}
                         <Button
                           onClick={addNewItem}
                           className="h-9"

@@ -94,6 +94,10 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
 
   const [isMobile, setIsMobile] = useState(false)
 
+  // Check if product is in accessoires category
+  const categorySlug = product?.category?.slug?.toLowerCase() || '';
+  const isAccessoires = categorySlug.includes('accessoire') || categorySlug.includes('accessories');
+
   // All hooks must be called before any conditional returns
   useEffect(() => {
     setMounted(true)
@@ -110,12 +114,12 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   }, [])
 
   useEffect(() => {
-    // Auto-select first size if available
-    if (product?.sizes && product.sizes.length > 0 && !selectedSize) {
+    // Auto-select first size if available (only for non-accessoires)
+    if (!isAccessoires && product?.sizes && product.sizes.length > 0 && !selectedSize) {
       const firstSize = product.sizes[0];
       setSelectedSize(typeof firstSize === 'string' ? firstSize : firstSize.size)
     }
-  }, [product?.sizes, selectedSize])
+  }, [product?.sizes, selectedSize, isAccessoires])
 
 
   // Safety check for product - AFTER all hooks but before conditional return
@@ -148,7 +152,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   }
 
   const handleAddToCart = () => {
-    if (!selectedSize && product.sizes && product.sizes.length > 0) {
+    // Only require size if product has sizes and is not accessoires
+    if (!isAccessoires && !selectedSize && product.sizes && product.sizes.length > 0) {
       toast.error(isRTL ? 'يرجى اختيار المقاس' : 'Please select a size')
       return
     }
@@ -161,8 +166,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
       name: isRTL ? product.nameAr || product.name : product.name,
       price: product.price,
       image: product.images[0],
-      size: selectedSize || undefined,
-      sizeId: selectedSizeObj?.id
+      size: isAccessoires ? undefined : (selectedSize || undefined),
+      sizeId: isAccessoires ? undefined : selectedSizeObj?.id
     })
 
     // Track AddToCart Event
@@ -261,6 +266,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   }
 
   const getDisplaySizes = () => {
+    // Don't show sizes for accessoires
+    if (isAccessoires) return [];
     return ['M', 'L', 'XL', 'XXL'];
   }
 
@@ -633,9 +640,10 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       size="lg"
                       variant="outline"
                       className="h-11 sm:h-12 lg:h-14 border-2 border-foreground text-foreground hover:bg-foreground hover:text-background font-semibold shadow-elegant transition-all duration-300 text-sm sm:text-base"
-                      disabled={product.sizes && product.sizes.length > 0 && !selectedSize}
+                      disabled={!isAccessoires && product.sizes && product.sizes.length > 0 && !selectedSize}
                       onClick={() => {
-                        if (product.sizes && product.sizes.length > 0 && !selectedSize) {
+                        // Only require size if product has sizes and is not accessoires
+                        if (!isAccessoires && product.sizes && product.sizes.length > 0 && !selectedSize) {
                           toast.error(isRTL ? 'يرجى اختيار المقاس' : 'Please select a size')
                           return
                         }
@@ -647,8 +655,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                           name: isRTL ? product.nameAr || product.name : product.name,
                           price: product.price,
                           image: product.images[0],
-                          size: selectedSize || undefined,
-                          sizeId: selectedSizeObj?.id
+                          size: isAccessoires ? undefined : (selectedSize || undefined),
+                          sizeId: isAccessoires ? undefined : selectedSizeObj?.id
                         })
 
                         // Redirect to checkout
