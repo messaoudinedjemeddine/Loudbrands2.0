@@ -585,6 +585,10 @@ export const api = {
     getComprehensiveAnalytics: () => apiClient.request('/admin/analytics/comprehensive'),
     getTimeSeriesAnalytics: () => apiClient.request('/admin/analytics/time-series'),
     getInventoryIntelligence: () => apiClient.request('/admin/analytics/inventory-intelligence'),
+    getOrdersTimeline: (period?: string) => {
+      const params = period ? `?period=${period}` : '';
+      return apiClient.request(`/admin/analytics/orders-timeline${params}`);
+    },
   },
 
   // Shipping (Yalidine)

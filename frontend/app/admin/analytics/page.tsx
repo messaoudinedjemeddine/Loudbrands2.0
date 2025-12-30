@@ -8,13 +8,16 @@ import {
   TrendingUp,
   Package,
   Truck,
-  AlertTriangle,
   BarChart3,
   PieChart,
   LineChart,
   MapPin,
-  Search
+  Search,
+  ShoppingCart,
+  CheckCircle,
+  Calendar
 } from 'lucide-react'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AdminLayout } from '@/components/admin/admin-layout'
 import { api } from '@/lib/api'
 import { Input } from '@/components/ui/input'
@@ -125,30 +128,49 @@ export default function AdminAnalyticsPage() {
   const [timeSeries, setTimeSeries] = useState<TimeSeriesData[]>([])
   const [inventory, setInventory] = useState<InventoryItem[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [ordersTimeline, setOrdersTimeline] = useState<any>(null)
+  const [timelinePeriod, setTimelinePeriod] = useState<'days' | 'weeks' | 'months'>('days')
 
   useEffect(() => {
     setMounted(true)
     fetchAnalyticsData()
   }, [])
 
+  useEffect(() => {
+    if (mounted) {
+      fetchOrdersTimeline()
+    }
+  }, [timelinePeriod, mounted])
+
+  const fetchOrdersTimeline = async () => {
+    try {
+      const timelineData = await api.admin.getOrdersTimeline(timelinePeriod)
+      setOrdersTimeline(timelineData)
+    } catch (err) {
+      console.error('Error fetching orders timeline:', err)
+    }
+  }
+
   const fetchAnalyticsData = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      const [comprehensiveData, timeSeriesData, inventoryData] = await Promise.all([
+      const [comprehensiveData, timeSeriesData, inventoryData, timelineData] = await Promise.all([
         api.admin.getComprehensiveAnalytics(),
         api.admin.getTimeSeriesAnalytics(),
-        api.admin.getInventoryIntelligence()
+        api.admin.getInventoryIntelligence(),
+        api.admin.getOrdersTimeline(timelinePeriod)
       ])
 
       setAnalytics(comprehensiveData as ComprehensiveAnalytics)
       setTimeSeries(timeSeriesData as TimeSeriesData[])
       setInventory(inventoryData as InventoryItem[])
+      setOrdersTimeline(timelineData)
 
     } catch (err) {
       console.error('Error fetching analytics data:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load analytics data')
+      setError(err instanceof Error ? err.message : 'Échec du chargement des données analytiques')
     } finally {
       setLoading(false)
     }
@@ -172,7 +194,7 @@ export default function AdminAnalyticsPage() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Loading analytics data...</p>
+            <p className="text-muted-foreground">Chargement des données analytiques...</p>
           </div>
         </div>
       </AdminLayout>
@@ -189,7 +211,7 @@ export default function AdminAnalyticsPage() {
               onClick={fetchAnalyticsData}
               className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
             >
-              Retry
+              Réessayer
             </button>
           </div>
         </div>
@@ -201,7 +223,7 @@ export default function AdminAnalyticsPage() {
     return (
       <AdminLayout>
         <div className="text-center py-12">
-          <p className="text-muted-foreground">No analytics data available</p>
+          <p className="text-muted-foreground">Aucune donnée analytique disponible</p>
         </div>
       </AdminLayout>
     )
@@ -231,9 +253,9 @@ export default function AdminAnalyticsPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+            <h1 className="text-3xl font-bold">Tableau de Bord Analytique</h1>
             <p className="text-muted-foreground">
-              Comprehensive business intelligence and performance metrics
+              Intelligence d'affaires complète et métriques de performance
             </p>
           </div>
         </div>
@@ -247,7 +269,7 @@ export default function AdminAnalyticsPage() {
           >
             <Card className="border-l-4 border-l-green-500">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                <CardTitle className="text-sm font-medium">Revenus</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -255,7 +277,7 @@ export default function AdminAnalyticsPage() {
                   {analytics.financial.totalRevenue.toLocaleString()} DA
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  From confirmed orders
+                  Des commandes confirmées
                 </p>
               </CardContent>
             </Card>
@@ -268,7 +290,7 @@ export default function AdminAnalyticsPage() {
           >
             <Card className="border-l-4 border-l-blue-500">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
+                <CardTitle className="text-sm font-medium">Profit Net</CardTitle>
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -276,7 +298,7 @@ export default function AdminAnalyticsPage() {
                   {analytics.financial.totalNetProfit.toLocaleString()} DA
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Selling Price - Buying Price (per unit)
+                  Des commandes confirmées
                 </p>
               </CardContent>
             </Card>
@@ -289,7 +311,7 @@ export default function AdminAnalyticsPage() {
           >
             <Card className="border-l-4 border-l-purple-500">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Stock Valuation</CardTitle>
+                <CardTitle className="text-sm font-medium">Valeur du Stock (Achat)</CardTitle>
                 <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
@@ -297,9 +319,7 @@ export default function AdminAnalyticsPage() {
                   {analytics.financial.stockValuation.cost.toLocaleString()} DA
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  At Buying Price: {analytics.financial.stockValuation.cost.toLocaleString()} DA
-                  <br />
-                  At Selling Price: {analytics.financial.stockValuation.retail.toLocaleString()} DA
+                  Au prix d'achat
                 </p>
               </CardContent>
             </Card>
@@ -312,20 +332,164 @@ export default function AdminAnalyticsPage() {
           >
             <Card className="border-l-4 border-l-orange-500">
               <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Delivery Success</CardTitle>
-                <Truck className="h-4 w-4 text-muted-foreground" />
+                <CardTitle className="text-sm font-medium">Valeur du Stock (Vente)</CardTitle>
+                <Package className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {analytics.logistics.deliverySuccessRate.toFixed(1)}%
+                  {analytics.financial.stockValuation.retail.toLocaleString()} DA
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {analytics.logistics.yalidineLivreOrders} / {analytics.logistics.totalShipped} shipped
+                  Au prix de vente
                 </p>
               </CardContent>
             </Card>
           </motion.div>
         </div>
+
+        {/* Orders Timeline Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center">
+                  <Calendar className="w-5 h-5 mr-2" />
+                  Analyse des Commandes
+                </CardTitle>
+                <Tabs value={timelinePeriod} onValueChange={(value) => setTimelinePeriod(value as 'days' | 'weeks' | 'months')} className="w-auto">
+                  <TabsList>
+                    <TabsTrigger value="days">Jours</TabsTrigger>
+                    <TabsTrigger value="weeks">Semaines</TabsTrigger>
+                    <TabsTrigger value="months">Mois</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Stats Cards */}
+              {ordersTimeline && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <Card className="border-l-4 border-l-blue-500">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Nouvelles Commandes</p>
+                          <p className="text-2xl font-bold mt-1">
+                            {ordersTimeline.stats.totalNewOrders.toLocaleString()}
+                          </p>
+                        </div>
+                        <ShoppingCart className="h-8 w-8 text-blue-500" />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-l-4 border-l-green-500">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Commandes Confirmées</p>
+                          <p className="text-2xl font-bold mt-1 text-green-600">
+                            {ordersTimeline.stats.totalConfirmedOrders.toLocaleString()}
+                          </p>
+                        </div>
+                        <CheckCircle className="h-8 w-8 text-green-500" />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="border-l-4 border-l-purple-500">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Taux de Confirmation</p>
+                          <p className="text-2xl font-bold mt-1 text-purple-600">
+                            {ordersTimeline.stats.overallConfirmationRate.toFixed(1)}%
+                          </p>
+                        </div>
+                        <TrendingUp className="h-8 w-8 text-purple-500" />
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+
+              {/* Charts */}
+              {ordersTimeline && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  {/* Confirmed Orders Chart */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Commandes Confirmées</h3>
+                    <ChartContainer
+                      config={{
+                        confirmedOrders: {
+                          label: 'Commandes Confirmées',
+                          color: 'hsl(var(--chart-1))',
+                        },
+                      }}
+                      className="h-[300px] w-full"
+                    >
+                      <BarChart data={ordersTimeline.timeline} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="label" 
+                          angle={-45} 
+                          textAnchor="end" 
+                          height={80}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar 
+                          dataKey="confirmedOrders" 
+                          fill="hsl(var(--chart-1))" 
+                          radius={[4, 4, 0, 0]}
+                          name="Confirmées"
+                        />
+                      </BarChart>
+                    </ChartContainer>
+                  </div>
+
+                  {/* New Orders Chart */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Nouvelles Commandes</h3>
+                    <ChartContainer
+                      config={{
+                        newOrders: {
+                          label: 'Nouvelles Commandes',
+                          color: 'hsl(var(--chart-2))',
+                        },
+                      }}
+                      className="h-[300px] w-full"
+                    >
+                      <BarChart data={ordersTimeline.timeline} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="label" 
+                          angle={-45} 
+                          textAnchor="end" 
+                          height={80}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <YAxis tick={{ fontSize: 12 }} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar 
+                          dataKey="newOrders" 
+                          fill="hsl(var(--chart-2))" 
+                          radius={[4, 4, 0, 0]}
+                          name="Nouvelles"
+                        />
+                      </BarChart>
+                    </ChartContainer>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Middle Row - Line Chart and Pie Chart */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -339,7 +503,7 @@ export default function AdminAnalyticsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <LineChart className="w-5 h-5 mr-2" />
-                  Profit & Order Volume (Last 30 Days)
+                  Profit et Volume de Commandes (30 Derniers Jours)
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -350,19 +514,25 @@ export default function AdminAnalyticsPage() {
                       color: 'hsl(var(--chart-1))',
                     },
                     orders: {
-                      label: 'Orders',
+                      label: 'Commandes',
                       color: 'hsl(var(--chart-2))',
                     },
                   }}
-                  className="h-[300px]"
+                  className="h-[300px] w-full"
                 >
-                  <RechartsLineChart data={timeSeries}>
+                  <RechartsLineChart data={timeSeries} margin={{ top: 20, right: 30, left: 20, bottom: 20 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="date" />
-                    <YAxis yAxisId="left" />
-                    <YAxis yAxisId="right" orientation="right" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 12 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={80}
+                    />
+                    <YAxis yAxisId="left" tick={{ fontSize: 12 }} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 12 }} />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Legend />
+                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
                     <Line
                       yAxisId="left"
                       type="monotone"
@@ -377,7 +547,7 @@ export default function AdminAnalyticsPage() {
                       dataKey="orders"
                       stroke="hsl(var(--chart-2))"
                       strokeWidth={2}
-                      name="Orders"
+                      name="Commandes"
                     />
                   </RechartsLineChart>
                 </ChartContainer>
@@ -395,7 +565,7 @@ export default function AdminAnalyticsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <PieChart className="w-5 h-5 mr-2" />
-                  Sales by Category
+                  Ventes par Catégorie
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -407,7 +577,7 @@ export default function AdminAnalyticsPage() {
                     }
                     return acc
                   }, {} as Record<string, { label: string; color: string }>)}
-                  className="h-[300px]"
+                  className="h-[300px] w-full"
                 >
                   <RechartsPieChart>
                     <Pie
@@ -416,7 +586,7 @@ export default function AdminAnalyticsPage() {
                       cy="50%"
                       labelLine={false}
                       label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                      outerRadius={100}
+                      outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
                     >
@@ -444,7 +614,7 @@ export default function AdminAnalyticsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <Truck className="w-5 h-5 mr-2" />
-                  Delivery Success Rate (Yalidine Livre)
+                  Taux de Réussite de Livraison (Yalidine Livre)
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -479,17 +649,17 @@ export default function AdminAnalyticsPage() {
                           {analytics.logistics.deliverySuccessRate.toFixed(1)}%
                         </div>
                         <div className="text-sm text-muted-foreground mt-1">
-                          Success Rate
+                          Taux de Réussite
                         </div>
                       </div>
                     </div>
                   </div>
                   <div className="mt-4 text-center">
                     <p className="text-sm text-muted-foreground">
-                      {analytics.logistics.yalidineLivreOrders} orders with Yalidine tracking
+                      {analytics.logistics.yalidineLivreOrders} commandes avec suivi Yalidine
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      out of {analytics.logistics.totalShipped} total shipped
+                      sur {analytics.logistics.totalShipped} total expédiées
                     </p>
                   </div>
                 </div>
@@ -507,23 +677,29 @@ export default function AdminAnalyticsPage() {
               <CardHeader>
                 <CardTitle className="flex items-center">
                   <MapPin className="w-5 h-5 mr-2" />
-                  Orders by City
+                  Commandes par Ville
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <ChartContainer
                   config={{
                     orders: {
-                      label: 'Orders',
+                      label: 'Commandes',
                       color: 'hsl(var(--chart-1))',
                     },
                   }}
-                  className="h-[300px]"
+                  className="h-[300px] w-full"
                 >
-                  <BarChart data={cityChartData}>
+                  <BarChart data={cityChartData} margin={{ top: 20, right: 30, left: 20, bottom: 100 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
-                    <YAxis />
+                    <XAxis 
+                      dataKey="name" 
+                      angle={-45} 
+                      textAnchor="end" 
+                      height={100}
+                      tick={{ fontSize: 12 }}
+                    />
+                    <YAxis tick={{ fontSize: 12 }} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Bar dataKey="orders" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
                   </BarChart>
@@ -543,27 +719,27 @@ export default function AdminAnalyticsPage() {
             <CardHeader>
               <CardTitle className="flex items-center">
                 <BarChart3 className="w-5 h-5 mr-2" />
-                Top Performing Products
+                Produits les Plus Performants
               </CardTitle>
             </CardHeader>
             <CardContent>
-                <ChartContainer
-                  config={{
-                    revenue: {
-                      label: 'Revenue (DA)',
-                      color: 'hsl(var(--chart-1))',
-                    },
-                  }}
-                  className="h-[300px]"
-                >
-                  <BarChart data={productChartData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="name" type="category" width={150} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="revenue" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ChartContainer>
+              <ChartContainer
+                config={{
+                  revenue: {
+                    label: 'Revenus (DA)',
+                    color: 'hsl(var(--chart-1))',
+                  },
+                }}
+                className="h-[300px] w-full"
+              >
+                <BarChart data={productChartData} layout="vertical" margin={{ top: 20, right: 30, left: 150, bottom: 20 }}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" tick={{ fontSize: 12 }} />
+                  <YAxis dataKey="name" type="category" width={150} tick={{ fontSize: 12 }} />
+                  <ChartTooltip content={<ChartTooltipContent />} />
+                  <Bar dataKey="revenue" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ChartContainer>
             </CardContent>
           </Card>
         </motion.div>
@@ -579,12 +755,12 @@ export default function AdminAnalyticsPage() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center">
                   <Package className="w-5 h-5 mr-2" />
-                  Inventory Intelligence
+                  Intelligence d'Inventaire
                 </CardTitle>
                 <div className="relative w-64">
                   <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search products..."
+                    placeholder="Rechercher des produits..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-8"
@@ -597,22 +773,20 @@ export default function AdminAnalyticsPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Product</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Unit Profit</TableHead>
+                      <TableHead>Produit</TableHead>
+                      <TableHead>Prix de Vente (Unité)</TableHead>
+                      <TableHead>Prix d'Achat (Unité)</TableHead>
+                      <TableHead>Profit (Unité)</TableHead>
                       <TableHead>Stock</TableHead>
-                      <TableHead>Potential Profit</TableHead>
-                      <TableHead>Stock Value (Buying)</TableHead>
-                      <TableHead>Stock Value (Selling)</TableHead>
-                      <TableHead>Profit Margin</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead>Profit Potentiel</TableHead>
+                      <TableHead>Marge de Profit</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredInventory.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={9} className="text-center py-8">
-                          <p className="text-muted-foreground">No products found</p>
+                        <TableCell colSpan={7} className="text-center py-8">
+                          <p className="text-muted-foreground">Aucun produit trouvé</p>
                         </TableCell>
                       </TableRow>
                     ) : (
@@ -635,7 +809,14 @@ export default function AdminAnalyticsPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className="text-sm">{item.categoryName}</span>
+                            <span className="font-medium">
+                              {item.price.toLocaleString()} DA
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-medium text-muted-foreground">
+                              {item.costPrice.toLocaleString()} DA
+                            </span>
                           </TableCell>
                           <TableCell>
                             <span className="font-medium text-green-600">
@@ -644,11 +825,6 @@ export default function AdminAnalyticsPage() {
                           </TableCell>
                           <TableCell>
                             <span className="font-medium">{item.totalStock}</span>
-                            {item.isLowStock && (
-                              <Badge variant="destructive" className="ml-2">
-                                Low Stock
-                              </Badge>
-                            )}
                           </TableCell>
                           <TableCell>
                             <span className="font-medium text-blue-600">
@@ -656,38 +832,9 @@ export default function AdminAnalyticsPage() {
                             </span>
                           </TableCell>
                           <TableCell>
-                            <span className="text-sm text-muted-foreground">
-                              {item.stockValuationCost.toLocaleString()} DA
-                            </span>
-                            <p className="text-xs text-muted-foreground">At buying price</p>
-                          </TableCell>
-                          <TableCell>
-                            <span className="text-sm">
-                              {item.stockValuationRetail.toLocaleString()} DA
-                            </span>
-                            <p className="text-xs text-muted-foreground">At selling price</p>
-                          </TableCell>
-                          <TableCell>
                             <Badge variant={item.profitMargin > 30 ? 'default' : 'secondary'}>
                               {item.profitMargin.toFixed(1)}%
                             </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {item.isLowStock ? (
-                              <div className="flex items-center space-x-1 text-orange-600">
-                                <AlertTriangle className="w-4 h-4" />
-                                <span className="text-xs">Low Stock</span>
-                              </div>
-                            ) : (
-                              <Badge variant="outline" className="text-green-600">
-                                In Stock
-                              </Badge>
-                            )}
-                            {item.lowStockSizes.length > 0 && (
-                              <div className="mt-1 text-xs text-muted-foreground">
-                                Low: {item.lowStockSizes.map(s => s.size).join(', ')}
-                              </div>
-                            )}
                           </TableCell>
                         </TableRow>
                       ))

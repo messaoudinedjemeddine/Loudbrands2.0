@@ -2797,6 +2797,144 @@ router.get('/analytics/time-series', async (req, res) => {
   }
 });
 
+// Orders Timeline Analytics - Confirmed Orders and New Orders by Time Period
+router.get('/analytics/orders-timeline', async (req, res) => {
+  try {
+    const { period = 'days' } = req.query; // days, weeks, months
+
+    let startDate = new Date();
+    
+    // Set start date based on period
+    if (period === 'days') {
+      startDate.setDate(startDate.getDate() - 30); // Last 30 days
+    } else if (period === 'weeks') {
+      startDate.setDate(startDate.getDate() - 84); // Last 12 weeks
+    } else if (period === 'months') {
+      startDate.setMonth(startDate.getMonth() - 12); // Last 12 months
+    }
+
+    startDate.setHours(0, 0, 0, 0);
+
+    // Get all orders in the period
+    const allOrders = await prisma.order.findMany({
+      where: {
+        createdAt: {
+          gte: startDate
+        }
+      },
+      select: {
+        id: true,
+        createdAt: true,
+        callCenterStatus: true
+      },
+      orderBy: {
+        createdAt: 'asc'
+      }
+    });
+
+    // Helper function to get week number
+    const getWeek = (date) => {
+      const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    };
+
+    // Group orders by date and status
+    const timelineData = {};
+    const dateLabels = [];
+
+    // Initialize all periods
+    const currentDate = new Date(startDate);
+    const endDate = new Date();
+    
+    while (currentDate <= endDate) {
+      let dateKey = '';
+      let label = '';
+
+      if (period === 'days') {
+        dateKey = currentDate.toISOString().split('T')[0];
+        label = currentDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+        currentDate.setDate(currentDate.getDate() + 1);
+      } else if (period === 'weeks') {
+        const week = getWeek(currentDate);
+        dateKey = `${currentDate.getFullYear()}-W${week.toString().padStart(2, '0')}`;
+        label = `Sem ${week}`;
+        currentDate.setDate(currentDate.getDate() + 7);
+      } else if (period === 'months') {
+        dateKey = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}`;
+        label = currentDate.toLocaleDateString('fr-FR', { month: 'short', year: 'numeric' });
+        currentDate.setMonth(currentDate.getMonth() + 1);
+      }
+
+      if (!timelineData[dateKey]) {
+        timelineData[dateKey] = {
+          date: dateKey,
+          label: label,
+          newOrders: 0,
+          confirmedOrders: 0
+        };
+        dateLabels.push(dateKey);
+      }
+    }
+
+    // Process orders
+    allOrders.forEach(order => {
+      let dateKey = '';
+      if (period === 'days') {
+        dateKey = order.createdAt.toISOString().split('T')[0];
+      } else if (period === 'weeks') {
+        const week = getWeek(order.createdAt);
+        dateKey = `${order.createdAt.getFullYear()}-W${week.toString().padStart(2, '0')}`;
+      } else if (period === 'months') {
+        dateKey = `${order.createdAt.getFullYear()}-${(order.createdAt.getMonth() + 1).toString().padStart(2, '0')}`;
+      }
+
+      if (timelineData[dateKey]) {
+        if (order.callCenterStatus === 'NEW') {
+          timelineData[dateKey].newOrders += 1;
+        } else if (order.callCenterStatus === 'CONFIRMED') {
+          timelineData[dateKey].confirmedOrders += 1;
+        }
+      }
+    });
+
+    // Convert to array and calculate confirmation rate
+    const result = dateLabels.map(key => {
+      const data = timelineData[key];
+      const total = data.newOrders + data.confirmedOrders;
+      const confirmationRate = total > 0 ? ((data.confirmedOrders / total) * 100) : 0;
+      
+      return {
+        ...data,
+        totalOrders: total,
+        confirmationRate: confirmationRate
+      };
+    });
+
+    // Calculate overall stats
+    const totalNewOrders = result.reduce((sum, item) => sum + item.newOrders, 0);
+    const totalConfirmedOrders = result.reduce((sum, item) => sum + item.confirmedOrders, 0);
+    const totalOrders = totalNewOrders + totalConfirmedOrders;
+    const overallConfirmationRate = totalOrders > 0 ? ((totalConfirmedOrders / totalOrders) * 100) : 0;
+
+    res.json({
+      period,
+      timeline: result,
+      stats: {
+        totalNewOrders,
+        totalConfirmedOrders,
+        totalOrders,
+        overallConfirmationRate
+      }
+    });
+  } catch (error) {
+    console.error('Orders timeline analytics error:', error);
+    res.status(500).json({ error: 'Failed to fetch orders timeline analytics' });
+  }
+});
+
 // Inventory Intelligence Endpoint
 router.get('/analytics/inventory-intelligence', async (req, res) => {
   try {
