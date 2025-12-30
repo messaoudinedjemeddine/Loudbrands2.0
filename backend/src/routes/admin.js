@@ -2546,7 +2546,16 @@ router.get('/analytics/comprehensive', async (req, res) => {
     let stockValuationRetail = 0; // At selling price
 
     allProducts.forEach(product => {
-      const totalStock = (product.stock || 0) + (product.sizes || []).reduce((sum, size) => sum + (size.stock || 0), 0);
+      // Stock = sum of sizes' stock if sizes exist, otherwise use product.stock
+      // Don't add product.stock + sizes.stock (that would double count)
+      let totalStock = 0;
+      if (product.sizes && product.sizes.length > 0) {
+        // If product has sizes, use sum of sizes' stock
+        totalStock = product.sizes.reduce((sum, size) => sum + (size.stock || 0), 0);
+      } else {
+        // If product has no sizes, use product.stock
+        totalStock = product.stock || 0;
+      }
       const costPrice = product.costPrice || 0;
       const price = product.price || 0;
       stockValuationCost += costPrice * totalStock;
@@ -2815,8 +2824,16 @@ router.get('/analytics/inventory-intelligence', async (req, res) => {
     });
 
     const inventoryData = products.map(product => {
-      // Calculate total stock: product.stock + sum of all sizes.stock
-      const totalStock = (product.stock || 0) + (product.sizes || []).reduce((sum, size) => sum + (size.stock || 0), 0);
+      // Stock = sum of sizes' stock if sizes exist, otherwise use product.stock
+      // Don't add product.stock + sizes.stock (that would double count)
+      let totalStock = 0;
+      if (product.sizes && product.sizes.length > 0) {
+        // If product has sizes, use sum of sizes' stock
+        totalStock = product.sizes.reduce((sum, size) => sum + (size.stock || 0), 0);
+      } else {
+        // If product has no sizes, use product.stock
+        totalStock = product.stock || 0;
+      }
       const costPrice = product.costPrice || 0;
       const price = product.price || 0;
       const unitProfit = price - costPrice;
