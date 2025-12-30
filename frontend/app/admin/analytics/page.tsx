@@ -255,7 +255,7 @@ export default function AdminAnalyticsPage() {
                   {analytics.financial.totalRevenue.toLocaleString()} DA
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  From delivered orders
+                  From confirmed orders
                 </p>
               </CardContent>
             </Card>
@@ -276,7 +276,7 @@ export default function AdminAnalyticsPage() {
                   {analytics.financial.totalNetProfit.toLocaleString()} DA
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Selling Price - Buying Price
+                  Selling Price - Buying Price (per unit)
                 </p>
               </CardContent>
             </Card>
@@ -297,9 +297,9 @@ export default function AdminAnalyticsPage() {
                   {analytics.financial.stockValuation.cost.toLocaleString()} DA
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Cost: {analytics.financial.stockValuation.cost.toLocaleString()} DA
+                  At Buying Price: {analytics.financial.stockValuation.cost.toLocaleString()} DA
                   <br />
-                  Retail: {analytics.financial.stockValuation.retail.toLocaleString()} DA
+                  At Selling Price: {analytics.financial.stockValuation.retail.toLocaleString()} DA
                 </p>
               </CardContent>
             </Card>
@@ -602,8 +602,8 @@ export default function AdminAnalyticsPage() {
                       <TableHead>Unit Profit</TableHead>
                       <TableHead>Stock</TableHead>
                       <TableHead>Potential Profit</TableHead>
-                      <TableHead>Stock Value (Cost)</TableHead>
-                      <TableHead>Stock Value (Retail)</TableHead>
+                      <TableHead>Stock Value (Buying)</TableHead>
+                      <TableHead>Stock Value (Selling)</TableHead>
                       <TableHead>Profit Margin</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
@@ -659,11 +659,13 @@ export default function AdminAnalyticsPage() {
                             <span className="text-sm text-muted-foreground">
                               {item.stockValuationCost.toLocaleString()} DA
                             </span>
+                            <p className="text-xs text-muted-foreground">At buying price</p>
                           </TableCell>
                           <TableCell>
                             <span className="text-sm">
                               {item.stockValuationRetail.toLocaleString()} DA
                             </span>
+                            <p className="text-xs text-muted-foreground">At selling price</p>
                           </TableCell>
                           <TableCell>
                             <Badge variant={item.profitMargin > 30 ? 'default' : 'secondary'}>

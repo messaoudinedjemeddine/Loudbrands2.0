@@ -2486,10 +2486,10 @@ router.get('/analytics/comprehensive', async (req, res) => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     thirtyDaysAgo.setHours(0, 0, 0, 0);
 
-    // Get all delivered orders (DONE status)
-    const deliveredOrders = await prisma.order.findMany({
+    // Get all confirmed orders (CONFIRMED callCenterStatus)
+    const confirmedOrders = await prisma.order.findMany({
       where: {
-        deliveryStatus: 'DONE'
+        callCenterStatus: 'CONFIRMED'
       },
       include: {
         items: {
@@ -2502,6 +2502,12 @@ router.get('/analytics/comprehensive', async (req, res) => {
                     name: true,
                     nameAr: true
                   }
+                },
+                images: {
+                  where: {
+                    isPrimary: true
+                  },
+                  take: 1
                 }
               }
             }
@@ -2510,16 +2516,23 @@ router.get('/analytics/comprehensive', async (req, res) => {
       }
     });
 
-    // Calculate Total Revenue (sum of delivered orders subtotals)
-    const totalRevenue = deliveredOrders.reduce((sum, order) => sum + order.subtotal, 0);
+    // Calculate Total Revenue (sum of confirmed orders subtotals)
+    const totalRevenue = confirmedOrders.reduce((sum, order) => sum + (order.subtotal || 0), 0);
 
-    // Calculate Total Net Profit (Selling Price - Buying Price for delivered items)
+    // Calculate Total Net Profit (Selling Price - Buying Price for confirmed items)
     let totalNetProfit = 0;
-    deliveredOrders.forEach(order => {
-      order.items.forEach(item => {
-        const profitPerUnit = item.price - item.product.costPrice;
-        totalNetProfit += profitPerUnit * item.quantity;
-      });
+    confirmedOrders.forEach(order => {
+      if (order.items && order.items.length > 0) {
+        order.items.forEach(item => {
+          if (item.product) {
+            const itemPrice = item.price || 0;
+            const costPrice = item.product.costPrice || 0;
+            const quantity = item.quantity || 0;
+            const profitPerUnit = itemPrice - costPrice;
+            totalNetProfit += profitPerUnit * quantity;
+          }
+        });
+      }
     });
 
     // Calculate Stock Valuation
@@ -2533,9 +2546,11 @@ router.get('/analytics/comprehensive', async (req, res) => {
     let stockValuationRetail = 0; // At selling price
 
     allProducts.forEach(product => {
-      const totalStock = product.stock + product.sizes.reduce((sum, size) => sum + size.stock, 0);
-      stockValuationCost += product.costPrice * totalStock;
-      stockValuationRetail += product.price * totalStock;
+      const totalStock = (product.stock || 0) + (product.sizes || []).reduce((sum, size) => sum + (size.stock || 0), 0);
+      const costPrice = product.costPrice || 0;
+      const price = product.price || 0;
+      stockValuationCost += costPrice * totalStock;
+      stockValuationRetail += price * totalStock;
     });
 
     // Calculate Delivery Success Rate (Yalidine Livre = orders with trackingNumber)
@@ -2551,11 +2566,11 @@ router.get('/analytics/comprehensive', async (req, res) => {
     const totalShipped = shippedOrders.length;
     const deliverySuccessRate = totalShipped > 0 ? (yalidineLivreOrders / totalShipped) * 100 : 0;
 
-    // Get orders by city (for delivered orders)
+    // Get orders by city (for confirmed orders)
     const ordersByCityData = await prisma.order.groupBy({
       by: ['cityId'],
       where: {
-        deliveryStatus: 'DONE'
+        callCenterStatus: 'CONFIRMED'
       },
       _count: {
         cityId: true
@@ -2584,30 +2599,34 @@ router.get('/analytics/comprehensive', async (req, res) => {
       };
     }).sort((a, b) => b.orders - a.orders);
 
-    // Get top categories (from delivered orders)
+    // Get top categories (from confirmed orders)
     const categorySales = {};
-    deliveredOrders.forEach(order => {
-      order.items.forEach(item => {
-        if (item.product.category) {
-          const categoryId = item.product.category.id;
-          if (!categorySales[categoryId]) {
-            categorySales[categoryId] = {
-              categoryId,
-              quantity: 0,
-              revenue: 0
-            };
+    confirmedOrders.forEach(order => {
+      if (order.items && order.items.length > 0) {
+        order.items.forEach(item => {
+          if (item.product && item.product.category) {
+            const categoryId = item.product.category.id;
+            if (!categorySales[categoryId]) {
+              categorySales[categoryId] = {
+                categoryId,
+                quantity: 0,
+                revenue: 0
+              };
+            }
+            const quantity = item.quantity || 0;
+            const itemPrice = item.price || 0;
+            categorySales[categoryId].quantity += quantity;
+            categorySales[categoryId].revenue += itemPrice * quantity;
           }
-          categorySales[categoryId].quantity += item.quantity;
-          categorySales[categoryId].revenue += item.price * item.quantity;
-        }
-      });
+        });
+      }
     });
 
     const topCategories = Object.values(categorySales)
       .map(cat => {
         // Find category from first order item that has this category
         let categoryInfo = null;
-        for (const order of deliveredOrders) {
+        for (const order of confirmedOrders) {
           for (const item of order.items) {
             if (item.product.category && item.product.category.id === cat.categoryId) {
               categoryInfo = item.product.category;
@@ -2628,26 +2647,32 @@ router.get('/analytics/comprehensive', async (req, res) => {
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 10);
 
-    // Get top products (from delivered orders)
+    // Get top products (from confirmed orders)
     const productSales = {};
-    deliveredOrders.forEach(order => {
-      order.items.forEach(item => {
-        const productId = item.productId;
-        if (!productSales[productId]) {
-          productSales[productId] = {
-            productId,
-            name: item.product.name,
-            nameAr: item.product.nameAr,
-            image: item.product.images?.[0]?.url || '/placeholder.svg',
-            quantity: 0,
-            revenue: 0,
-            orderCount: 0
-          };
-        }
-        productSales[productId].quantity += item.quantity;
-        productSales[productId].revenue += item.price * item.quantity;
-        productSales[productId].orderCount += 1;
-      });
+    confirmedOrders.forEach(order => {
+      if (order.items && order.items.length > 0) {
+        order.items.forEach(item => {
+          if (item.product) {
+            const productId = item.productId;
+            if (!productSales[productId]) {
+              productSales[productId] = {
+                productId,
+                name: item.product.name || 'Unknown Product',
+                nameAr: item.product.nameAr,
+                image: item.product.images?.[0]?.url || '/placeholder.svg',
+                quantity: 0,
+                revenue: 0,
+                orderCount: 0
+              };
+            }
+            const quantity = item.quantity || 0;
+            const itemPrice = item.price || 0;
+            productSales[productId].quantity += quantity;
+            productSales[productId].revenue += itemPrice * quantity;
+            productSales[productId].orderCount += 1;
+          }
+        });
+      }
     });
 
     const topProducts = Object.values(productSales)
@@ -2686,10 +2711,10 @@ router.get('/analytics/time-series', async (req, res) => {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     thirtyDaysAgo.setHours(0, 0, 0, 0);
 
-    // Get all delivered orders from last 30 days
+    // Get all confirmed orders from last 30 days
     const orders = await prisma.order.findMany({
       where: {
-        deliveryStatus: 'DONE',
+        callCenterStatus: 'CONFIRMED',
         createdAt: {
           gte: thirtyDaysAgo
         }
@@ -2724,18 +2749,27 @@ router.get('/analytics/time-series', async (req, res) => {
 
     // Process orders
     orders.forEach(order => {
-      const dateKey = order.createdAt.toISOString().split('T')[0];
-      if (dailyData[dateKey]) {
-        dailyData[dateKey].orders += 1;
-        dailyData[dateKey].revenue += order.subtotal;
-        
-        // Calculate profit for this order
-        let orderProfit = 0;
-        order.items.forEach(item => {
-          const profitPerUnit = item.price - item.product.costPrice;
-          orderProfit += profitPerUnit * item.quantity;
-        });
-        dailyData[dateKey].profit += orderProfit;
+      if (order.createdAt) {
+        const dateKey = order.createdAt.toISOString().split('T')[0];
+        if (dailyData[dateKey]) {
+          dailyData[dateKey].orders += 1;
+          dailyData[dateKey].revenue += order.subtotal || 0;
+          
+          // Calculate profit for this order
+          let orderProfit = 0;
+          if (order.items && order.items.length > 0) {
+            order.items.forEach(item => {
+              if (item.product) {
+                const itemPrice = item.price || 0;
+                const costPrice = item.product.costPrice || 0;
+                const quantity = item.quantity || 0;
+                const profitPerUnit = itemPrice - costPrice;
+                orderProfit += profitPerUnit * quantity;
+              }
+            });
+          }
+          dailyData[dateKey].profit += orderProfit;
+        }
       }
     });
 
@@ -2781,35 +2815,38 @@ router.get('/analytics/inventory-intelligence', async (req, res) => {
     });
 
     const inventoryData = products.map(product => {
-      const totalStock = product.stock + product.sizes.reduce((sum, size) => sum + size.stock, 0);
-      const unitProfit = product.price - product.costPrice;
+      // Calculate total stock: product.stock + sum of all sizes.stock
+      const totalStock = (product.stock || 0) + (product.sizes || []).reduce((sum, size) => sum + (size.stock || 0), 0);
+      const costPrice = product.costPrice || 0;
+      const price = product.price || 0;
+      const unitProfit = price - costPrice;
       const totalPotentialProfit = unitProfit * totalStock;
       const lowStockThreshold = 10; // Alert if stock < 10
       const isLowStock = totalStock < lowStockThreshold;
 
       // Check for low stock by size
-      const lowStockSizes = product.sizes.filter(size => size.stock < lowStockThreshold);
+      const lowStockSizes = (product.sizes || []).filter(size => (size.stock || 0) < lowStockThreshold);
 
       return {
         id: product.id,
-        name: product.name,
+        name: product.name || 'Unknown Product',
         nameAr: product.nameAr,
-        categoryName: product.category.name,
-        categoryNameAr: product.category.nameAr,
-        brandName: product.brand.name,
-        image: product.images[0]?.url || '/placeholder.svg',
-        price: product.price,
-        costPrice: product.costPrice,
+        categoryName: product.category?.name || 'Uncategorized',
+        categoryNameAr: product.category?.nameAr,
+        brandName: product.brand?.name || 'Unknown Brand',
+        image: product.images?.[0]?.url || '/placeholder.svg',
+        price: price,
+        costPrice: costPrice,
         unitProfit,
         totalStock,
         totalPotentialProfit,
-        stockValuationCost: product.costPrice * totalStock,
-        stockValuationRetail: product.price * totalStock,
-        profitMargin: product.price > 0 ? ((unitProfit / product.price) * 100) : 0,
+        stockValuationCost: costPrice * totalStock,
+        stockValuationRetail: price * totalStock,
+        profitMargin: price > 0 ? ((unitProfit / price) * 100) : 0,
         isLowStock,
         lowStockSizes: lowStockSizes.map(size => ({
-          size: size.size,
-          stock: size.stock
+          size: size.size || 'N/A',
+          stock: size.stock || 0
         }))
       };
     });
