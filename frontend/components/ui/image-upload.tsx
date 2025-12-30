@@ -143,19 +143,13 @@ export function ImageUpload({
     }
   }, [images, onImagesChange, multiple, maxImages, toast]);
 
-  const handleButtonClick = (e: React.MouseEvent | React.TouchEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    fileInputRef.current?.click();
-  };
-
-  const handleUploadAreaClick = (e: React.MouseEvent | React.TouchEvent) => {
-    // Only trigger on direct clicks, not on button clicks
-    if ((e.target as HTMLElement).closest('button')) {
+  const handleUploadAreaClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Only trigger on direct clicks, not on button/label clicks
+    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('label')) {
       return;
     }
-    e.preventDefault();
     e.stopPropagation();
+    // Trigger file input click
     fileInputRef.current?.click();
   };
 
@@ -181,46 +175,43 @@ export function ImageUpload({
     <div className={`space-y-4 ${className}`}>
       {/* Upload Area */}
       <Card 
-        className="p-6 border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors cursor-pointer touch-manipulation"
+        className="p-6 border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors cursor-pointer"
         onClick={handleUploadAreaClick}
-        onTouchStart={(e) => {
-          // Handle touch events for mobile
-          if (!(e.target as HTMLElement).closest('button')) {
-            e.preventDefault();
-            handleUploadAreaClick(e);
-          }
-        }}
       >
         <div className="text-center">
           <Upload className="mx-auto h-12 w-12 text-gray-400" />
           <div className="mt-4">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isUploading || (multiple && images.length >= maxImages)}
-              className="mb-2 touch-manipulation"
-              onClick={handleButtonClick}
-              onTouchStart={(e) => {
-                e.stopPropagation();
-                handleButtonClick(e);
-              }}
-            >
-              {isUploading ? 'Uploading...' : 'Choose Images'}
-            </Button>
-            <label htmlFor="image-upload" className="sr-only">
-              Upload images
-            </label>
             <input
               id="image-upload"
               type="file"
               multiple={multiple}
               accept="image/*"
               onChange={handleFileSelect}
-              className="sr-only"
+              className="hidden"
               disabled={isUploading || (multiple && images.length >= maxImages)}
               ref={fileInputRef}
               aria-label="Upload images"
             />
+            <label 
+              htmlFor="image-upload" 
+              className="cursor-pointer inline-block"
+              onClick={(e) => {
+                // Prevent label click from bubbling to card
+                e.stopPropagation();
+              }}
+            >
+              <span className="inline-block">
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={isUploading || (multiple && images.length >= maxImages)}
+                  className="mb-2"
+                  asChild={false}
+                >
+                  {isUploading ? 'Uploading...' : 'Choose Images'}
+                </Button>
+              </span>
+            </label>
             <p className="text-sm text-muted-foreground">
               {multiple 
                 ? `Upload up to ${maxImages} images (${images.length}/${maxImages})`
