@@ -220,15 +220,7 @@ router.post('/', async (req, res) => {
           notes: orderData.notes,
           cityId: city.id,
           deliveryDeskId: deliveryDeskId,
-          // Save raw delivery details for admin reference
-          deliveryDetails: {
-            wilayaId: String(orderData.wilayaId),
-            wilayaName: orderData.wilayaName,
-            communeId: orderData.communeId,
-            communeName: orderData.communeName,
-            centerId: orderData.deliveryDeskId,
-            centerName: orderData.deliveryDeskName
-          },
+          // deliveryDetails removed
           items: {
             create: orderItems
           }
