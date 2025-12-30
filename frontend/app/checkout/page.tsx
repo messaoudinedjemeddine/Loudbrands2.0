@@ -302,7 +302,8 @@ export default function CheckoutPage() {
         items: items.map(item => ({
           productId: item.id,
           quantity: item.quantity,
-          sizeId: item.sizeId
+          sizeId: item.sizeId,
+          size: item.size // Send size string as fallback
         })),
         // Add detailed delivery info details from formData
         communeId: formData.communeId || undefined,

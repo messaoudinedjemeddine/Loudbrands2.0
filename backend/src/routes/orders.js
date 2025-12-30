@@ -24,7 +24,8 @@ const createOrderSchema = z.object({
   items: z.array(z.object({
     productId: z.string(),
     quantity: z.number().min(1),
-    sizeId: z.string().optional()
+    sizeId: z.string().optional(),
+    size: z.string().optional() // Size string as fallback
   })).min(1, 'At least one item is required')
 }).refine((data) => {
   // For PICKUP orders, deliveryDeskId should be provided and not empty
@@ -116,16 +117,31 @@ router.post('/', async (req, res) => {
     }
 
     // Generate order number
-    // Fix: Find the latest order to increment properly (avoids collisions if orders were deleted or IDs modified manually)
-    const lastOrder = await prisma.order.findFirst({
-      orderBy: { createdAt: 'desc' }
+    // Find the highest order number to ensure we always increment properly
+    // This handles cases where orders were deleted
+    const allOrders = await prisma.order.findMany({
+      where: {
+        orderNumber: {
+          startsWith: 'ORD-'
+        }
+      },
+      select: {
+        orderNumber: true
+      }
     });
 
     let nextOrderNum = 1;
-    if (lastOrder && lastOrder.orderNumber && lastOrder.orderNumber.startsWith('ORD-')) {
-      const match = lastOrder.orderNumber.match(/ORD-(\d+)/);
-      if (match) {
-        nextOrderNum = parseInt(match[1]) + 1;
+    if (allOrders.length > 0) {
+      // Extract all order numbers and find the maximum
+      const orderNumbers = allOrders
+        .map(o => {
+          const match = o.orderNumber.match(/ORD-(\d+)/);
+          return match ? parseInt(match[1]) : 0;
+        })
+        .filter(n => n > 0);
+      
+      if (orderNumbers.length > 0) {
+        nextOrderNum = Math.max(...orderNumbers) + 1;
       }
     }
     const orderNumber = `ORD-${String(nextOrderNum).padStart(6, '0')}`;
@@ -149,16 +165,31 @@ router.post('/', async (req, res) => {
       // Check stock
       let availableStock = product.stock;
       let sizeString = null;
+      let foundSize = null;
 
       if (item.sizeId) {
-        const size = product.sizes.find(s => s.id === item.sizeId);
-        if (!size) {
-          return res.status(400).json({
-            error: `Size not found for product: ${product.name}`
-          });
-        }
-        availableStock = size.stock;
-        sizeString = size.size;
+        // Try to find size by ID first
+        foundSize = product.sizes.find(s => s.id === item.sizeId);
+      }
+
+      // If sizeId not found or not provided, try to find by size string
+      if (!foundSize && item.size) {
+        foundSize = product.sizes.find(s => 
+          s.size.toLowerCase().trim() === item.size.toLowerCase().trim()
+        );
+      }
+
+      // If we found a size (either by ID or string), use it
+      if (foundSize) {
+        availableStock = foundSize.stock;
+        sizeString = foundSize.size;
+        // Update sizeId to the correct one in case it was found by string
+        item.sizeId = foundSize.id;
+      } else if (item.sizeId || item.size) {
+        // Size was specified but not found
+        return res.status(400).json({
+          error: `Size "${item.size || item.sizeId}" not found for product: ${product.name}. Available sizes: ${product.sizes.map(s => s.size).join(', ') || 'None'}`
+        });
       }
 
       /* 
