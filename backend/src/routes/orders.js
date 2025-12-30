@@ -116,8 +116,19 @@ router.post('/', async (req, res) => {
     }
 
     // Generate order number
-    const orderCount = await prisma.order.count();
-    const orderNumber = `ORD-${String(orderCount + 1).padStart(6, '0')}`;
+    // Fix: Find the latest order to increment properly (avoids collisions if orders were deleted or IDs modified manually)
+    const lastOrder = await prisma.order.findFirst({
+      orderBy: { createdAt: 'desc' }
+    });
+
+    let nextOrderNum = 1;
+    if (lastOrder && lastOrder.orderNumber && lastOrder.orderNumber.startsWith('ORD-')) {
+      const match = lastOrder.orderNumber.match(/ORD-(\d+)/);
+      if (match) {
+        nextOrderNum = parseInt(match[1]) + 1;
+      }
+    }
+    const orderNumber = `ORD-${String(nextOrderNum).padStart(6, '0')}`;
 
     // Validate products and calculate totals
     let subtotal = 0;
