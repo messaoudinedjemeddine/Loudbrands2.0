@@ -37,6 +37,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 import { toast } from 'sonner'
 import { yalidineAPI } from '@/lib/yalidine-api'
 
@@ -857,7 +858,6 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
                                       <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                                         <span>Qté: {item.quantity}</span>
                                         {item.size && <span>• Taille: {item.size}</span>}
-                                        <span>• {item.price.toLocaleString()} DA</span>
                                       </div>
                                     </div>
                                   </div>
@@ -905,18 +905,32 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
 
                           {/* Action Buttons - Right Side */}
                           <div className="flex flex-col items-end space-y-2 ml-4">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedOrder(order)
-                                setShowNotesDialog(true)
-                                setNoteInput('')
-                              }}
-                            >
-                              <Edit className="w-4 h-4 mr-1" />
-                              {order.notes ? 'Modifier Note' : 'Ajouter Note'}
-                            </Button>
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setSelectedOrder(order)
+                                      setShowNotesDialog(true)
+                                      setNoteInput('')
+                                    }}
+                                  >
+                                    <Edit className="w-4 h-4 mr-1" />
+                                    {order.notes ? 'Modifier Note' : 'Ajouter Note'}
+                                  </Button>
+                                </TooltipTrigger>
+                                {order.notes && (
+                                  <TooltipContent side="left" className="max-w-md">
+                                    <div className="space-y-1">
+                                      <p className="font-semibold text-sm mb-2">Détails des Notes:</p>
+                                      <p className="text-xs whitespace-pre-wrap">{order.notes}</p>
+                                    </div>
+                                  </TooltipContent>
+                                )}
+                              </Tooltip>
+                            </TooltipProvider>
 
                             {whatsappLink && (
                               <Button
