@@ -819,9 +819,19 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
                                   <p className="text-sm font-medium text-muted-foreground">Téléphone</p>
                                   <p className="font-semibold">{order.customerPhone}</p>
                                 </div>
-                                <div>
-                                  <p className="text-sm font-medium text-muted-foreground">Total</p>
-                                  <p className="font-semibold text-green-600">{order.total.toLocaleString()} DA</p>
+                              </div>
+                              <div className="border-t pt-2 mt-2 space-y-1">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-muted-foreground">Prix des articles:</span>
+                                  <span className="font-medium">{order.subtotal.toLocaleString()} DA</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-muted-foreground">Frais de livraison:</span>
+                                  <span className="font-medium">{order.deliveryFee.toLocaleString()} DA</span>
+                                </div>
+                                <div className="flex justify-between text-sm pt-1 border-t">
+                                  <span className="font-medium">Total:</span>
+                                  <span className="font-semibold text-green-600">{order.total.toLocaleString()} DA</span>
                                 </div>
                               </div>
                             </div>
