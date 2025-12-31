@@ -189,9 +189,13 @@ export default function RootLayout({
           </RTLProvider>
         </ThemeProvider>
         <ServiceWorkerRegister />
-        {/* Vercel Analytics - Dynamically loaded to avoid 404 errors if not configured */}
-        <SpeedInsights />
-        <Analytics />
+        {/* Vercel Analytics - Conditionally loaded to avoid 404 errors */}
+        {process.env.NEXT_PUBLIC_VERCEL_ENV && (
+          <>
+            <SpeedInsights />
+            <Analytics />
+          </>
+        )}
         <Suspense fallback={null}>
           <TrackingScripts />
         </Suspense>

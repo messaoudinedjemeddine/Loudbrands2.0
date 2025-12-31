@@ -50,10 +50,10 @@ export function TrackingScripts() {
                 }}
             />
 
-            {/* Meta Pixel */}
+            {/* Meta Pixel - Updated to use modern loading approach */}
             <Script
                 id="fb-pixel"
-                strategy="lazyOnload"
+                strategy="afterInteractive"
                 onError={(e) => {
                     // Silently handle Facebook Pixel loading errors
                     if (process.env.NODE_ENV === 'development') {
