@@ -14,7 +14,6 @@ import {
   Filter, 
   Edit,
   Trash2,
-  Eye,
   AlertTriangle,
   TrendingUp,
   TrendingDown
@@ -457,11 +456,6 @@ export default function AdminProductsPage() {
                         Date de Lancement: {new Date(product.launchAt).toLocaleString()}
                       </div>
                     )}
-                    <Button variant="outline" size="sm" asChild>
-                      <Link href={`/products/${product.id}`}>
-                        <Eye className="w-4 h-4" />
-                      </Link>
-                    </Button>
                     <Button variant="outline" size="sm" asChild>
                       <Link href={`/admin/products/${product.id}/edit`}>
                         <Edit className="w-4 h-4" />

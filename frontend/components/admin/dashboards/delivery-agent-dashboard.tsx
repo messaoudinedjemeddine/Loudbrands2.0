@@ -795,78 +795,131 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
                     const whatsappLink = getDeliveryAgentWhatsAppLink(order, status)
 
                     return (
-                      <div key={order.id} className={`flex items-center justify-between p-4 border rounded-lg ${isRTL ? 'flex-row-reverse' : ''}`}>
-                        <div className="flex-1">
-                          <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'} mb-2`}>
-                            <h4 className="font-medium">#{order.orderNumber}</h4>
-                            <Badge variant="outline">{order.customerPhone}</Badge>
-                          </div>
-                          {order.trackingNumber && (
-                            <div className="text-sm text-muted-foreground mb-2">
-                              <span className="font-medium">Yalidine Tracking:</span>
-                              <span className="ml-2 font-mono bg-blue-50 px-2 py-1 rounded text-blue-700">
-                                {order.trackingNumber}
-                              </span>
-                            </div>
-                          )}
-                          {status && (
-                            <div className="text-sm text-muted-foreground mb-2">
-                              <span className="font-medium">Yalidine Status:</span>
-                              <Badge variant={getStatusVariant(status) as any} className="ml-2">
-                                {status}
-                              </Badge>
-                            </div>
-                          )}
-                          <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-4' : 'space-x-4'} text-sm text-muted-foreground mb-2`}>
-                            <span>{order.customerName}</span>
-                            <span>{order.items.length} items</span>
-                            <span>{order.total.toLocaleString()} DA</span>
-                            <span>
-                              {order.deliveryType === 'HOME_DELIVERY' ? (
-                                <span className="flex items-center text-blue-600">
-                                  <Home className="w-4 h-4 mr-1" />
-                                  À domicile
-                                </span>
-                              ) : (
-                                <span className="flex items-center text-purple-600">
-                                  <Store className="w-4 h-4 mr-1" />
-                                  Bureau Yalidine
-                                </span>
+                      <div key={order.id} className="border rounded-lg p-4 space-y-4">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1 space-y-3">
+                            {/* Order Number and Status */}
+                            <div className="flex items-center space-x-3">
+                              <h4 className="font-semibold text-lg">#{order.orderNumber}</h4>
+                              {status && (
+                                <Badge variant={getStatusVariant(status) as any}>
+                                  {status}
+                                </Badge>
                               )}
-                            </span>
-                          </div>
-                          {order.deliveryAddress && (
-                            <div className="text-sm text-muted-foreground">
-                              <span className="font-medium">Address:</span> {order.deliveryAddress}
                             </div>
-                          )}
 
-                        </div>
-                        <div className={`flex items-center ${isRTL ? 'space-x-reverse space-x-2' : 'space-x-2'}`}>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setSelectedOrder(order)
-                              setShowNotesDialog(true)
-                              setNoteInput('')
-                            }}
-                          >
-                            <Edit className="w-4 h-4 mr-1" />
-                            Add Note
-                          </Button>
+                            {/* Client Information */}
+                            <div className="bg-muted/50 p-3 rounded-lg space-y-2">
+                              <div className="flex items-center space-x-4">
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">Client</p>
+                                  <p className="font-semibold">{order.customerName}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">Téléphone</p>
+                                  <p className="font-semibold">{order.customerPhone}</p>
+                                </div>
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground">Total</p>
+                                  <p className="font-semibold text-green-600">{order.total.toLocaleString()} DA</p>
+                                </div>
+                              </div>
+                            </div>
 
-                          {whatsappLink && (
+                            {/* Articles Commandés */}
+                            <div>
+                              <p className="text-sm font-medium text-muted-foreground mb-2">Articles Commandés:</p>
+                              <div className="space-y-2">
+                                {order.items.map((item) => (
+                                  <div key={item.id} className="flex items-center space-x-3 p-2 bg-muted/30 rounded">
+                                    {item.image && (
+                                      <img 
+                                        src={item.image} 
+                                        alt={item.product.name}
+                                        className="w-12 h-12 object-cover rounded"
+                                        onError={(e) => {
+                                          (e.target as HTMLImageElement).src = '/placeholder.svg'
+                                        }}
+                                      />
+                                    )}
+                                    <div className="flex-1">
+                                      <p className="font-medium text-sm">{item.product.name}</p>
+                                      <div className="flex items-center space-x-2 text-xs text-muted-foreground">
+                                        <span>Qté: {item.quantity}</span>
+                                        {item.size && <span>• Taille: {item.size}</span>}
+                                        <span>• {item.price.toLocaleString()} DA</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Tracking and Address */}
+                            {order.trackingNumber && (
+                              <div className="text-sm">
+                                <span className="font-medium">Yalidine Tracking:</span>
+                                <span className="ml-2 font-mono bg-blue-50 px-2 py-1 rounded text-blue-700">
+                                  {order.trackingNumber}
+                                </span>
+                              </div>
+                            )}
+                            {order.deliveryAddress && (
+                              <div className="text-sm">
+                                <span className="font-medium">Adresse:</span>
+                                <span className="ml-2">{order.deliveryAddress}</span>
+                                <span className="ml-2">
+                                  {order.deliveryType === 'HOME_DELIVERY' ? (
+                                    <Badge variant="outline" className="text-blue-600">
+                                      <Home className="w-3 h-3 mr-1" />
+                                      À domicile
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="outline" className="text-purple-600">
+                                      <Store className="w-3 h-3 mr-1" />
+                                      Bureau Yalidine
+                                    </Badge>
+                                  )}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Notes Display */}
+                            {order.notes && (
+                              <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                                <p className="text-sm font-medium text-yellow-800 mb-1">Notes:</p>
+                                <p className="text-sm text-yellow-900 whitespace-pre-wrap">{order.notes}</p>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Action Buttons - Right Side */}
+                          <div className="flex flex-col items-end space-y-2 ml-4">
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => window.open(whatsappLink, '_blank')}
-                              className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                              onClick={() => {
+                                setSelectedOrder(order)
+                                setShowNotesDialog(true)
+                                setNoteInput('')
+                              }}
                             >
-                              <MessageCircle className="w-4 h-4 mr-1" />
-                              WhatsApp
+                              <Edit className="w-4 h-4 mr-1" />
+                              {order.notes ? 'Modifier Note' : 'Ajouter Note'}
                             </Button>
-                          )}
+
+                            {whatsappLink && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => window.open(whatsappLink, '_blank')}
+                                className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                              >
+                                <MessageCircle className="w-4 h-4 mr-1" />
+                                WhatsApp
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
                     )
@@ -929,14 +982,6 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
                               Add Note
                             </Button>
                           )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleCallCustomer(shipment.customer_phone)}
-                          >
-                            <Phone className="w-4 h-4 mr-1" />
-                            Call
-                          </Button>
                           {shipment.customer_address && (
                             <Button
                               size="sm"
@@ -1011,14 +1056,6 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
                               WhatsApp
                             </Button>
                           )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleCallCustomer(shipment.customer_phone)}
-                          >
-                            <Phone className="w-4 h-4 mr-1" />
-                            Call
-                          </Button>
                           {shipment.customer_address && (
                             <Button
                               size="sm"
@@ -1093,14 +1130,6 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
                               WhatsApp
                             </Button>
                           )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleCallCustomer(shipment.customer_phone)}
-                          >
-                            <Phone className="w-4 h-4 mr-1" />
-                            Call
-                          </Button>
                           {shipment.customer_address && (
                             <Button
                               size="sm"
@@ -1175,14 +1204,6 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
                               WhatsApp
                             </Button>
                           )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleCallCustomer(shipment.customer_phone)}
-                          >
-                            <Phone className="w-4 h-4 mr-1" />
-                            Call
-                          </Button>
                           {shipment.customer_address && (
                             <Button
                               size="sm"
@@ -1260,14 +1281,6 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
                               Add Note
                             </Button>
                           )}
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleCallCustomer(shipment.customer_phone)}
-                          >
-                            <Phone className="w-4 h-4 mr-1" />
-                            Call
-                          </Button>
                           {shipment.customer_address && (
                             <Button
                               size="sm"
