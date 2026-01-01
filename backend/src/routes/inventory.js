@@ -1,8 +1,13 @@
 const express = require('express');
 const { z } = require('zod');
 const { PrismaClient } = require('@prisma/client');
+const { authenticateToken, requireStockManager } = require('../middleware/auth');
 const prisma = new PrismaClient();
 const router = express.Router();
+
+// All inventory routes require authentication and stock manager or admin role
+router.use(authenticateToken);
+router.use(requireStockManager);
 
 // Schema for creating a reception
 const receptionSchema = z.object({

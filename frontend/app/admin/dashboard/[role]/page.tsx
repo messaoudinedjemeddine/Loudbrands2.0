@@ -32,6 +32,13 @@ function DashboardContent() {
     // Redirect to appropriate dashboard based on user role
     if (mounted && user && role !== user.role.toLowerCase()) {
       router.push(`/admin/dashboard/${user.role.toLowerCase()}`)
+      return
+    }
+
+    // Stock manager doesn't have a dashboard, redirect to ateliers
+    if (mounted && user && role === 'stock_manager') {
+      router.push('/admin/ateliers')
+      return
     }
   }, [mounted, isAuthenticated, user, role, router])
 
@@ -67,6 +74,16 @@ function DashboardContent() {
         return <CallCenterDashboard />
       case 'agent_livraison':
         return <DeliveryAgentDashboard />
+      case 'stock_manager':
+        // Stock manager doesn't have a dashboard, show loading while redirecting
+        return (
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+              <p className="text-muted-foreground">Redirection...</p>
+            </div>
+          </div>
+        )
       default:
         return <AdminDashboard />
     }

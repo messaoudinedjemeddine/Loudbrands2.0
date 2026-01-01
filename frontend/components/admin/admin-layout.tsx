@@ -59,6 +59,11 @@ const getNavigationByRole = (role: string) => {
         { name: 'Commandes Confirmées', href: '/admin/dashboard/agent_livraison?tab=confirmed', icon: CheckCircle },
         { name: 'Expéditions Yalidine', href: '/admin/dashboard/agent_livraison?tab=all-parcels', icon: Package },
       ]
+    case 'STOCK_MANAGER':
+      return [
+        { name: 'Ateliers', href: '/admin/ateliers', icon: Building2 },
+        { name: 'Inventaire Intelligent', href: '/admin/inventory/smart', icon: Package },
+      ]
     default:
       return [
         { name: 'Tableau de Bord', href: '/admin/dashboard', icon: LayoutDashboard },
@@ -77,6 +82,8 @@ const getRoleDisplayName = (role: string) => {
       return 'Confirmatrice (Centre d\'Appel)'
     case 'AGENT_LIVRAISON':
       return 'Agent de Livraison'
+    case 'STOCK_MANAGER':
+      return 'Gestionnaire de Stock'
     default:
       return 'Utilisateur'
   }

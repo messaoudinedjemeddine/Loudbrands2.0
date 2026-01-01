@@ -55,7 +55,8 @@ const requireRole = (roles) => {
 const requireAdmin = requireRole(['ADMIN']);
 const requireConfirmatrice = requireRole(['ADMIN', 'CONFIRMATRICE']);
 const requireAgentLivraison = requireRole(['ADMIN', 'AGENT_LIVRAISON']);
-const requireAnyRole = requireRole(['ADMIN', 'CONFIRMATRICE', 'AGENT_LIVRAISON']);
+const requireStockManager = requireRole(['ADMIN', 'STOCK_MANAGER']);
+const requireAnyRole = requireRole(['ADMIN', 'CONFIRMATRICE', 'AGENT_LIVRAISON', 'STOCK_MANAGER']);
 
 module.exports = {
   authenticateToken,
@@ -63,5 +64,6 @@ module.exports = {
   requireAdmin,
   requireConfirmatrice,
   requireAgentLivraison,
+  requireStockManager,
   requireAnyRole
 };
