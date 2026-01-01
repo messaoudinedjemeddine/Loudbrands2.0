@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, Smartphone, Share2, Plus } from 'lucide-react';
+import { Download } from 'lucide-react';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -115,18 +115,11 @@ export function PWAInstallPrompt() {
   }, [isAdmin, pathname]);
 
   const handleInstallClick = async () => {
-    if (isIOS) {
-      // For iOS, show detailed instructions
-      setShowPrompt(false);
-      // Show iOS instructions in a more user-friendly way
-      // The instructions will be shown in the prompt content itself
-      return;
-    }
-
+    // Automatically trigger install prompt
     if (deferredPrompt) {
-      // Use the browser's install prompt (Android/Chrome)
       try {
-        deferredPrompt.prompt();
+        // Trigger the native install prompt immediately
+        await deferredPrompt.prompt();
         const { outcome } = await deferredPrompt.userChoice;
 
         if (outcome === 'accepted') {
@@ -140,6 +133,10 @@ export function PWAInstallPrompt() {
       }
 
       setDeferredPrompt(null);
+    } else if (isIOS) {
+      // For iOS, we can't auto-install, but we can show a simple message
+      toast.info('Pour installer: Appuyez sur Partager → "Sur l\'écran d\'accueil" → "Ajouter"');
+      setShowPrompt(false);
     } else {
       // Fallback for browsers that don't support beforeinstallprompt
       toast.info('Please use your browser menu to install this app');
@@ -180,36 +177,20 @@ export function PWAInstallPrompt() {
         </p>
       </div>
 
-      {/* iOS-specific instructions */}
-      {isIOS && (
-        <div className="w-full bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 rounded-lg p-4 space-y-3">
-          <p className="text-sm font-semibold text-blue-900 dark:text-blue-100">
-            Instructions pour iOS:
-          </p>
-          <ol className="text-xs text-blue-800 dark:text-blue-200 space-y-2 text-left list-decimal list-inside">
-            <li>Appuyez sur le bouton <Share2 className="w-3 h-3 inline" /> <strong>Partager</strong> en bas de l'écran</li>
-            <li>Faites défiler et sélectionnez <Plus className="w-3 h-3 inline" /> <strong>"Sur l'écran d'accueil"</strong></li>
-            <li>Appuyez sur <strong>"Ajouter"</strong> en haut à droite</li>
-          </ol>
-        </div>
-      )}
-
       <div className="flex flex-col w-full gap-2 sm:flex-row sm:gap-4 px-4 sm:px-0">
-        {!isIOS && (
-          <Button
-            onClick={handleInstallClick}
-            className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Install Now
-          </Button>
-        )}
+        <Button
+          onClick={handleInstallClick}
+          className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Install Now
+        </Button>
         <Button
           variant="outline"
           onClick={handleDismiss}
           className="w-full sm:w-auto"
         >
-          {isIOS ? 'Fermer' : 'Maybe Later'}
+          Maybe Later
         </Button>
       </div>
     </div>

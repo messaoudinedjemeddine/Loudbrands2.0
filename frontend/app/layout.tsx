@@ -8,6 +8,7 @@ import { LayoutWrapper } from '@/components/layout-wrapper';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
 import { PWAInstallPrompt } from '@/components/pwa-install-prompt';
 import { PWABanner } from '@/components/pwa-banner';
+import { PWAManifestUpdater } from '@/components/pwa-manifest-updater';
 
 import { Suspense } from 'react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
@@ -185,6 +186,8 @@ export default function RootLayout({
               {children}
             </LayoutWrapper>
             <Toaster />
+            {/* Update manifest based on route (admin vs client) */}
+            <PWAManifestUpdater />
             {/* Client PWA Banner - Shows on mobile for client-facing pages */}
             <PWABanner />
             {/* Employee PWA Prompt - Shows on admin login page (handled in login page component) */}

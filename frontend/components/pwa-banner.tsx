@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, X, Smartphone, Star, Zap, ArrowRight, Share2, Plus } from 'lucide-react';
+import { Download, X, Star, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -97,32 +97,32 @@ export function PWABanner() {
   }, []);
 
   const handleInstallClick = async () => {
-    if (isIOS) {
-      // For iOS, show instructions (banner will show iOS instructions)
-      return;
-    }
-
-    if (!deferredPrompt) {
+    // Automatically trigger install prompt
+    if (deferredPrompt) {
+      try {
+        // Trigger the native install prompt immediately
+        await deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        
+        if (outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+          setShowBanner(false);
+        } else {
+          console.log('User dismissed the install prompt');
+        }
+      } catch (error) {
+        console.error('Error showing install prompt:', error);
+      }
+      
+      setDeferredPrompt(null);
+    } else if (isIOS) {
+      // For iOS, we can't auto-install, but we can show a simple message
+      // The native share sheet will need to be triggered manually by the user
+      alert('Pour installer l\'app sur iOS:\n1. Appuyez sur le bouton Partager\n2. Sélectionnez "Sur l\'écran d\'accueil"\n3. Appuyez sur "Ajouter"');
+    } else {
       // Fallback for browsers that don't support beforeinstallprompt
       alert('To install this app, please use your browser\'s menu and select "Add to Home Screen" or "Install App"');
-      return;
     }
-
-    try {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      
-      if (outcome === 'accepted') {
-        console.log('User accepted the install prompt');
-        setShowBanner(false);
-      } else {
-        console.log('User dismissed the install prompt');
-      }
-    } catch (error) {
-      console.error('Error showing install prompt:', error);
-    }
-    
-    setDeferredPrompt(null);
   };
 
   const handleDismiss = () => {
@@ -195,21 +195,6 @@ export function PWABanner() {
           </div>
         </div>
         
-        {/* iOS Instructions */}
-        {isIOS && showBanner && (
-          <div className="mt-3 pt-3 border-t border-white/20">
-            <div className="bg-white/10 rounded-lg p-3 space-y-2">
-              <p className="text-xs font-semibold text-white mb-2">
-                Instructions pour iOS:
-              </p>
-              <ol className="text-xs text-white/90 space-y-1.5 list-decimal list-inside">
-                <li>Appuyez sur <Share2 className="w-3 h-3 inline" /> <strong>Partager</strong> en bas de l'écran</li>
-                <li>Faites défiler et sélectionnez <Plus className="w-3 h-3 inline" /> <strong>"Sur l'écran d'accueil"</strong></li>
-                <li>Appuyez sur <strong>"Ajouter"</strong> en haut à droite</li>
-              </ol>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
