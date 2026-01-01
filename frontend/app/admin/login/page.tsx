@@ -92,7 +92,7 @@ export default function AdminLoginPage() {
       }
 
       // Check if user has admin role
-      const adminRoles = ['ADMIN', 'CONFIRMATRICE', 'AGENT_LIVRAISON']
+      const adminRoles = ['ADMIN', 'CONFIRMATRICE', 'AGENT_LIVRAISON', 'STOCK_MANAGER']
       if (!adminRoles.includes(data.user.role)) {
         toast.error('Accès refusé. Privilèges administrateur requis.')
         setErrors({
@@ -112,6 +112,9 @@ export default function AdminLoginPage() {
           break
         case 'AGENT_LIVRAISON':
           router.push('/agent-livraison/dashboard')
+          break
+        case 'STOCK_MANAGER':
+          router.push('/admin/ateliers')
           break
         case 'ADMIN':
         default:
