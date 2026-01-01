@@ -8,14 +8,16 @@ import { Bell, ShoppingCart } from 'lucide-react';
 
 interface SSENotification {
   type: string;
-  title: string;
-  message: string;
+  title?: string;
+  message?: string;
   orderId?: string;
   orderNumber?: string;
   customerName?: string;
   total?: number;
   url?: string;
   timestamp: string;
+  userId?: string;
+  userRole?: string;
 }
 
 export function SSENotifications() {
