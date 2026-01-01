@@ -26,7 +26,9 @@ import {
   Save,
   Printer,
   Home,
-  Store
+  Store,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
@@ -38,6 +40,15 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import { 
+  Pagination, 
+  PaginationContent, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious,
+  PaginationEllipsis
+} from '@/components/ui/pagination'
 import { toast } from 'sonner'
 import { yalidineAPI } from '@/lib/yalidine-api'
 
@@ -228,6 +239,9 @@ export function DeliveryAgentDashboard() {
   const [confirmedStatusFilter, setConfirmedStatusFilter] = useState<string>('all')
   // Tab filter for Confirmed Orders (quick status tabs)
   const [confirmedTabFilter, setConfirmedTabFilter] = useState<string>('all')
+  // Pagination for Confirmed Orders
+  const [confirmedCurrentPage, setConfirmedCurrentPage] = useState<number>(1)
+  const [confirmedItemsPerPage, setConfirmedItemsPerPage] = useState<number>(10)
 
   // Yalidine status options for filtering
   const yalidineStatuses = [
@@ -530,11 +544,15 @@ https://loudbrandss.com/track-order?tracking=${trackingNumber}
     if (status === 'En attente du client') {
       const desk = shipment?.to_commune_name || order.deliveryDesk?.name || 'le bureau Yalidine'
       const wilaya = shipment?.to_wilaya_name || order.city?.name || ''
+      const deskAddress = order.deliveryAddress || shipment?.customer_address || desk
       message = `مرحبًا ${customerName} 🌸
 نعلمك أن طلبيتك:
 ${articles}
 رقم التتبع: (${tracking}) 📦
-وصلت إلى مكتب ياليدين (${desk} / ${wilaya}) 🏢
+وصلت إلى مكتب ياليدين:
+🏢 المكتب: ${desk}
+📍 العنوان: ${deskAddress}
+${wilaya ? `🌍 الولاية: ${wilaya}` : ''}
 
 يرجى التوجه إلى المكتب لاستلام الطلبية في أقرب وقت.
 شكرًا لثقتك بنا 🤍
@@ -572,32 +590,43 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
       if (order.deliveryType === 'PICKUP') {
         // Desk delivery
         const desk = shipment?.to_commune_name || order.deliveryDesk?.name || 'المكتب المطلوب'
-        const deskAddress = order.deliveryAddress || desk
+        const deskAddress = order.deliveryAddress || shipment?.customer_address || desk
+        const wilaya = shipment?.to_wilaya_name || order.city?.name || ''
         message = `مرحبا ${customerName} 🌸
 بخصوص طلبيتك:
 ${articles}
 رقم التتبع: (${tracking}) 📦
 
 شركة التوصيل yalidine حاولت الاتصال بك
-لإستلامها من عنوان (${deskAddress})
+لإستلامها من:
+🏢 المكتب: ${desk}
+📍 العنوان: ${deskAddress}
+${wilaya ? `🌍 الولاية: ${wilaya}` : ''}
 
 لكن لم يتم الرد على الهاتف لتأكيد الاستلام
 وتم تسجيلها كـ Tentative échouée 🚫
 
-📞 يرجى الرد والتقدّم للمكتب (${deskAddress}) في أقرب وقت لإستلامها
+📞 يرجى الرد والتقدّم للمكتب في أقرب وقت لإستلامها
 وتفادي إلغاء الطلبية
 
 شكرا لتفهمك 🤍
 Loudstyles`
       } else {
         // Home delivery
-        const homeAddress = order.deliveryAddress || 'المنزل المطلوب'
+        const homeAddress = order.deliveryAddress || shipment?.customer_address || 'المنزل المطلوب'
+        const commune = shipment?.to_commune_name || ''
+        const wilaya = shipment?.to_wilaya_name || order.city?.name || ''
+        let addressInfo = `📍 العنوان: ${homeAddress}`
+        if (commune) addressInfo += `\n🏘️ البلدية: ${commune}`
+        if (wilaya) addressInfo += `\n🌍 الولاية: ${wilaya}`
+        
         message = `مرحبا ${customerName} 🌸
 بخصوص طلبيتك:
 ${articles}
 رقم التتبع: (${tracking}) 📦
 
-عامل التوصيل yalidine حاول الإتصال بك لتسليمها إلى عنوان (${homeAddress})
+عامل التوصيل yalidine حاول الإتصال بك لتسليمها إلى:
+${addressInfo}
 
 لكن لم يتم الرد على الهاتف لتأكيد الاستلام
 وتم تسجيلها كـ Tentative échouée 🚫
@@ -646,21 +675,42 @@ Loudstyles`
     if (status === 'En attente du client') {
       const desk = shipment.to_commune_name || order?.deliveryDesk?.name || 'le bureau Yalidine'
       const wilaya = shipment.to_wilaya_name || order?.city?.name || ''
+      const deskAddress = order?.deliveryAddress || shipment.customer_address || desk
       message = `مرحبًا ${customerName} 🌸
 نعلمك أن طلبيتك:
 ${articles}
 رقم التتبع: (${tracking}) 📦
-وصلت إلى مكتب ياليدين (${desk} / ${wilaya}) 🏢
+وصلت إلى مكتب ياليدين:
+🏢 المكتب: ${desk}
+📍 العنوان: ${deskAddress}
+${wilaya ? `🌍 الولاية: ${wilaya}` : ''}
 
 يرجى التوجه إلى المكتب لاستلام الطلبية في أقرب وقت.
 شكرًا لثقتك بنا 🤍
 Loudstyles`
     } else if (status === 'Sorti en livraison') {
+      // Get delivery address or desk based on delivery type
+      let deliveryInfo = ''
+      if (order && order.deliveryType === 'PICKUP') {
+        const desk = shipment.to_commune_name || order.deliveryDesk?.name || 'المكتب المطلوب'
+        const deskAddress = order.deliveryAddress || shipment.customer_address || desk
+        deliveryInfo = `🏢 المكتب: ${desk}\n📍 العنوان: ${deskAddress}`
+      } else {
+        const wilaya = shipment.to_wilaya_name || order?.city?.name || ''
+        const commune = shipment.to_commune_name || ''
+        const homeAddress = order?.deliveryAddress || shipment.customer_address || 'العنوان المطلوب'
+        deliveryInfo = `📍 العنوان: ${homeAddress}`
+        if (commune) deliveryInfo += `\n🏘️ البلدية: ${commune}`
+        if (wilaya) deliveryInfo += `\n🌍 الولاية: ${wilaya}`
+      }
+      
       message = `مرحبا ${customerName} 🌸
 نعلمك أن طلبيتك:
 ${articles}
 برقم التتبع (${tracking}) 📦
 راهي عند عامل التوصيل 🚚
+
+${deliveryInfo}
 
 عامل التوصيل راح يتصل بك قريبًا،
 يرجى الرد على الهاتف لتأكيد الاستلام 📞
@@ -689,18 +739,22 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
         // Desk delivery
         const desk = shipment.to_commune_name || order.deliveryDesk?.name || 'المكتب المطلوب'
         const deskAddress = order.deliveryAddress || shipment.customer_address || desk
+        const wilaya = shipment.to_wilaya_name || order.city?.name || ''
         message = `مرحبا ${customerName} 🌸
 بخصوص طلبيتك:
 ${articles}
 رقم التتبع: (${tracking}) 📦
 
 شركة التوصيل yalidine حاولت الاتصال بك
-لإستلامها من عنوان (${deskAddress})
+لإستلامها من:
+🏢 المكتب: ${desk}
+📍 العنوان: ${deskAddress}
+${wilaya ? `🌍 الولاية: ${wilaya}` : ''}
 
 لكن لم يتم الرد على الهاتف لتأكيد الاستلام
 وتم تسجيلها كـ Tentative échouée 🚫
 
-📞 يرجى الرد والتقدّم للمكتب (${deskAddress}) في أقرب وقت لإستلامها
+📞 يرجى الرد والتقدّم للمكتب في أقرب وقت لإستلامها
 وتفادي إلغاء الطلبية
 
 شكرا لتفهمك 🤍
@@ -708,12 +762,19 @@ Loudstyles`
       } else {
         // Home delivery
         const homeAddress = order?.deliveryAddress || shipment.customer_address || 'المنزل المطلوب'
+        const commune = shipment.to_commune_name || ''
+        const wilaya = shipment.to_wilaya_name || order?.city?.name || ''
+        let addressInfo = `📍 العنوان: ${homeAddress}`
+        if (commune) addressInfo += `\n🏘️ البلدية: ${commune}`
+        if (wilaya) addressInfo += `\n🌍 الولاية: ${wilaya}`
+        
         message = `مرحبا ${customerName} 🌸
 بخصوص طلبيتك:
 ${articles}
 رقم التتبع: (${tracking}) 📦
 
-عامل التوصيل yalidine حاول الإتصال بك لتسليمها إلى عنوان (${homeAddress})
+عامل التوصيل yalidine حاول الإتصال بك لتسليمها إلى:
+${addressInfo}
 
 لكن لم يتم الرد على الهاتف لتأكيد الاستلام
 وتم تسجيلها كـ Tentative échouée 🚫
@@ -868,6 +929,7 @@ Loudstyles`
                   <Select value={confirmedStatusFilter} onValueChange={(value) => {
                     setConfirmedStatusFilter(value)
                     setConfirmedTabFilter('all') // Reset tab when using dropdown
+                    setConfirmedCurrentPage(1) // Reset to first page when changing filter
                   }}>
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Filter by status" />
@@ -887,6 +949,7 @@ Loudstyles`
               {/* Status Tabs */}
               <Tabs value={confirmedTabFilter} onValueChange={(value) => {
                 setConfirmedTabFilter(value)
+                setConfirmedCurrentPage(1) // Reset to first page when changing tabs
                 if (value !== 'all') {
                   setConfirmedStatusFilter(value) // Sync dropdown with tab
                 }
@@ -946,6 +1009,30 @@ Loudstyles`
                 </TabsList>
               </Tabs>
 
+              {/* Items Per Page Selector and Pagination Info */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm text-muted-foreground">Orders per page:</Label>
+                  <Select 
+                    value={confirmedItemsPerPage.toString()} 
+                    onValueChange={(value) => {
+                      setConfirmedItemsPerPage(Number(value))
+                      setConfirmedCurrentPage(1) // Reset to first page when changing items per page
+                    }}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
               {/* Orders List */}
               {(() => {
                 // Filter orders based on both tab and dropdown filter
@@ -965,13 +1052,26 @@ Loudstyles`
                   )
                 }
 
+                // Calculate pagination
+                const totalOrders = filteredOrders.length
+                const totalPages = Math.ceil(totalOrders / confirmedItemsPerPage)
+                const startIndex = (confirmedCurrentPage - 1) * confirmedItemsPerPage
+                const endIndex = startIndex + confirmedItemsPerPage
+                const paginatedOrders = filteredOrders.slice(startIndex, endIndex)
+
                 if (filteredOrders.length === 0) {
                   return <p className="text-muted-foreground text-center py-8">No confirmed orders found</p>
                 }
 
                 return (
                   <div className="space-y-4">
-                    {filteredOrders.map((order) => {
+                    {/* Pagination Info */}
+                    <div className="text-sm text-muted-foreground">
+                      Showing {startIndex + 1}-{Math.min(endIndex, totalOrders)} of {totalOrders} orders
+                    </div>
+
+                    {/* Orders */}
+                    {paginatedOrders.map((order) => {
                     const status = getYalidineStatusForOrder(order)
                     const whatsappLink = getDeliveryAgentWhatsAppLink(order, status)
                     // Find Yalidine shipment for this order to get wilaya and commune names
@@ -1145,6 +1245,76 @@ Loudstyles`
                       </div>
                     )
                   })}
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="mt-6">
+                        <Pagination>
+                          <PaginationContent>
+                            <PaginationItem>
+                              <PaginationPrevious 
+                                href="#"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  if (confirmedCurrentPage > 1) {
+                                    setConfirmedCurrentPage(confirmedCurrentPage - 1)
+                                  }
+                                }}
+                                className={confirmedCurrentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                              />
+                            </PaginationItem>
+                            
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                              // Show first page, last page, current page, and pages around current
+                              if (
+                                page === 1 ||
+                                page === totalPages ||
+                                (page >= confirmedCurrentPage - 1 && page <= confirmedCurrentPage + 1)
+                              ) {
+                                return (
+                                  <PaginationItem key={page}>
+                                    <PaginationLink
+                                      href="#"
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        setConfirmedCurrentPage(page)
+                                      }}
+                                      isActive={confirmedCurrentPage === page}
+                                      className="cursor-pointer"
+                                    >
+                                      {page}
+                                    </PaginationLink>
+                                  </PaginationItem>
+                                )
+                              } else if (
+                                page === confirmedCurrentPage - 2 ||
+                                page === confirmedCurrentPage + 2
+                              ) {
+                                return (
+                                  <PaginationItem key={page}>
+                                    <PaginationEllipsis />
+                                  </PaginationItem>
+                                )
+                              }
+                              return null
+                            })}
+                            
+                            <PaginationItem>
+                              <PaginationNext 
+                                href="#"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  if (confirmedCurrentPage < totalPages) {
+                                    setConfirmedCurrentPage(confirmedCurrentPage + 1)
+                                  }
+                                }}
+                                className={confirmedCurrentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                              />
+                            </PaginationItem>
+                          </PaginationContent>
+                        </Pagination>
+                      </div>
+                    )}
                   </div>
                 )
               })()}
