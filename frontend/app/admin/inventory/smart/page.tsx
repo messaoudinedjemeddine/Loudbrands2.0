@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import Image from 'next/image'
 import { AdminLayout } from '@/components/admin/admin-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -413,9 +414,29 @@ function LabelsSection() {
                                     className="border rounded-lg p-3 flex items-center justify-between hover:bg-muted/50 transition-colors"
                                 >
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
-                                        {product.image && (
-                                            <img src={product.image} alt="" className="w-12 h-12 rounded object-cover flex-shrink-0" />
-                                        )}
+                                        <div className="relative w-12 h-12 rounded overflow-hidden flex-shrink-0 bg-muted">
+                                            {(() => {
+                                                const imageUrl = product.image || product.images?.[0]?.url || product.images?.[0]
+                                                return imageUrl ? (
+                                                    <Image
+                                                        src={imageUrl}
+                                                        alt={product.name || 'Product'}
+                                                        fill
+                                                        className="object-cover"
+                                                        unoptimized={imageUrl?.startsWith('http')}
+                                                        onError={(e) => {
+                                                            // Fallback if image fails to load
+                                                            const target = e.target as HTMLImageElement
+                                                            target.style.display = 'none'
+                                                        }}
+                                                    />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center bg-muted text-muted-foreground text-xs">
+                                                        No Image
+                                                    </div>
+                                                )
+                                            })()}
+                                        </div>
                                         <div className="flex-1 min-w-0">
                                             <h3 className="font-bold text-sm truncate">{product?.name || 'Produit sans nom'}</h3>
                                             <p className="text-xs text-muted-foreground truncate">{product?.reference || 'N/A'}</p>

@@ -3,6 +3,7 @@ const { z } = require('zod');
 const { PrismaClient } = require('@prisma/client');
 const { getWilayaById, getWilayaName } = require('../utils/wilaya-mapper');
 const DeliveryDeskMapper = require('../utils/delivery-desk-mapper');
+const whatsappService = require('../services/whatsapp');
 const router = express.Router();
 
 const prisma = new PrismaClient();
@@ -322,7 +323,8 @@ router.post('/', async (req, res) => {
         include: {
           items: {
             include: {
-              product: true
+              product: true,
+              productSize: true
             }
           },
           city: true,
@@ -388,6 +390,19 @@ router.post('/', async (req, res) => {
       }
     } catch (notifyError) {
       console.error('Failed to send admin notifications:', notifyError);
+    }
+
+    // Send WhatsApp notification to admin
+    try {
+      const whatsappResult = await whatsappService.sendOrderNotification(order);
+      if (whatsappResult.success) {
+        console.log(`WhatsApp notification sent successfully via ${whatsappResult.provider}`);
+      } else {
+        console.warn('WhatsApp notification failed:', whatsappResult.error);
+      }
+    } catch (whatsappError) {
+      // Don't fail the order creation if WhatsApp fails
+      console.error('Failed to send WhatsApp notification:', whatsappError);
     }
 
     res.status(201).json({

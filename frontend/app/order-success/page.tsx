@@ -2,6 +2,7 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Image from 'next/image'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -298,17 +299,26 @@ function OrderSuccessContent() {
                         {orderDetails.items.map((item, index) => (
                           <div key={index} className="flex items-center gap-4 bg-background/50 p-3 rounded-lg">
                             <div className="relative w-16 h-16 bg-muted rounded-md overflow-hidden flex-shrink-0">
-                              {item.image ? (
-                                <img
-                                  src={item.image}
-                                  alt={item.name}
-                                  className="object-cover w-full h-full"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                  <ShoppingBag className="w-6 h-6" />
-                                </div>
-                              )}
+                              {(() => {
+                                const imageUrl = item.image || (item as any).images?.[0]?.url || (item as any).images?.[0] || (item as any).product?.image || (item as any).product?.images?.[0]?.url || (item as any).product?.images?.[0]
+                                return imageUrl ? (
+                                  <Image
+                                    src={imageUrl}
+                                    alt={item.name}
+                                    fill
+                                    className="object-cover"
+                                    unoptimized={imageUrl?.startsWith('http')}
+                                    onError={(e) => {
+                                      const target = e.target as HTMLImageElement
+                                      target.style.display = 'none'
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                                    <ShoppingBag className="w-6 h-6" />
+                                  </div>
+                                )
+                              })()}
                             </div>
                             <div className="flex-1 text-right">
                               <h4 className="font-medium text-sm line-clamp-1">{item.name}</h4>
