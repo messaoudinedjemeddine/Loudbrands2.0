@@ -184,7 +184,9 @@ export default function RootLayout({
               {children}
             </LayoutWrapper>
             <Toaster />
-            {/* <PWAInstallPrompt /> */}
+            {/* Client PWA Banner - Shows on mobile for client-facing pages */}
+            <PWABanner />
+            {/* Employee PWA Prompt - Shows on admin login page (handled in login page component) */}
 
           </RTLProvider>
         </ThemeProvider>
