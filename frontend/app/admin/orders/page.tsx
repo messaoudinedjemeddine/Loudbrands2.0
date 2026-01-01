@@ -149,7 +149,7 @@ const getWhatsAppLink = (order: Order) => {
   // Format order items: "quantity x product name [size]"
   const itemsText = order.items.map(item => {
     const productName = item.product.name || item.name || 'منتج'
-    const size = item.size || item.productSize?.size
+    const size = item.size
     const sizeText = size ? ` [${size}]` : ''
     return `${item.quantity}x ${productName}${sizeText}`
   }).join(', ')
