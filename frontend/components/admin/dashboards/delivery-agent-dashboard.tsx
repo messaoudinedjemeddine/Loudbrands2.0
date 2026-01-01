@@ -28,7 +28,8 @@ import {
   Home,
   Store,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Search
 } from 'lucide-react'
 import Link from 'next/link'
 import { useSearchParams, useRouter, usePathname } from 'next/navigation'
@@ -242,6 +243,8 @@ export function DeliveryAgentDashboard() {
   // Pagination for Confirmed Orders
   const [confirmedCurrentPage, setConfirmedCurrentPage] = useState<number>(1)
   const [confirmedItemsPerPage, setConfirmedItemsPerPage] = useState<number>(10)
+  // Search for Confirmed Orders
+  const [confirmedSearchQuery, setConfirmedSearchQuery] = useState<string>('')
 
   // Yalidine status options for filtering
   const yalidineStatuses = [
@@ -650,6 +653,30 @@ ${addressInfo}
 شكرا لتفهمك 🤍
 Loudstyles`
       }
+    } else if (status === 'Livré') {
+      message = `مرحبا ${customerName} 🌸
+
+نشكرك جزيل الشكر على اختيارك لنا وثقتك في Loudstyles! 🙏
+
+نتمنى أن تكون طلبيتك:
+${articles}
+رقم التتبع: (${tracking}) 📦
+
+قد وصلت إليك بحالة ممتازة وأنك راضٍ/ة عن تجربتك معنا.
+
+نقدر رأيك كثيراً ونرغب في تحسين خدماتنا باستمرار. 
+لذلك نود أن نعرف:
+✨ كيف كانت تجربتك مع موقعنا؟
+✨ ما رأيك في المنتجات التي استلمتها؟
+✨ هل لديك أي اقتراحات لتحسين خدمتنا؟
+
+نرجو منك مشاركة تجربتك معنا عبر رسالة نصية على صفحتنا على Instagram:
+📱 https://www.instagram.com/loudstyless/
+
+رأيك مهم جداً لنا ويساعدنا في تقديم أفضل خدمة لجميع عملائنا.
+
+شكراً جزيلاً لوقتك وثقتك بنا! 🤍
+Loudstyles`
     } else {
       return null // No message for other statuses
     }
@@ -794,6 +821,30 @@ ${addressInfo}
 شكرا لتفهمك 🤍
 Loudstyles`
       }
+    } else if (status === 'Livré') {
+      message = `مرحبا ${customerName} 🌸
+
+نشكرك جزيل الشكر على اختيارك لنا وثقتك في Loudstyles! 🙏
+
+نتمنى أن تكون طلبيتك:
+${articles}
+رقم التتبع: (${tracking}) 📦
+
+قد وصلت إليك بحالة ممتازة وأنك راضٍ/ة عن تجربتك معنا.
+
+نقدر رأيك كثيراً ونرغب في تحسين خدماتنا باستمرار. 
+لذلك نود أن نعرف:
+✨ كيف كانت تجربتك مع موقعنا؟
+✨ ما رأيك في المنتجات التي استلمتها؟
+✨ هل لديك أي اقتراحات لتحسين خدمتنا؟
+
+نرجو منك مشاركة تجربتك معنا عبر رسالة نصية على صفحتنا على Instagram:
+📱 https://www.instagram.com/loudstyless/
+
+رأيك مهم جداً لنا ويساعدنا في تقديم أفضل خدمة لجميع عملائنا.
+
+شكراً جزيلاً لوقتك وثقتك بنا! 🤍
+Loudstyles`
     } else {
       return null
     }
@@ -1024,11 +1075,34 @@ Loudstyles`
                       (getYalidineStatusForOrder(order) === 'Echèc livraison' || getYalidineStatusForOrder(order) === 'Echec de livraison')
                     ).length})
                   </TabsTrigger>
+                  <TabsTrigger 
+                    value="Livré" 
+                    className="flex-shrink-0 bg-green-600 text-white data-[state=active]:bg-green-700"
+                  >
+                    Livré ({orders.filter(order => 
+                      order.callCenterStatus === 'CONFIRMED' && 
+                      getYalidineStatusForOrder(order) === 'Livré'
+                    ).length})
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
 
-              {/* Items Per Page Selector and Pagination Info */}
-              <div className="flex items-center justify-between mb-4">
+              {/* Search and Items Per Page Selector */}
+              <div className="flex items-center justify-between mb-4 gap-4">
+                <div className="flex-1 max-w-md">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      placeholder="Rechercher par nom, téléphone ou tracking..."
+                      value={confirmedSearchQuery}
+                      onChange={(e) => {
+                        setConfirmedSearchQuery(e.target.value)
+                        setConfirmedCurrentPage(1) // Reset to first page when searching
+                      }}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
                 <div className="flex items-center gap-2">
                   <Label className="text-sm text-muted-foreground">Orders per page:</Label>
                   <Select 
@@ -1078,6 +1152,17 @@ Loudstyles`
                   )
                 }
 
+                // Apply search filter
+                if (confirmedSearchQuery.trim()) {
+                  const searchLower = confirmedSearchQuery.toLowerCase().trim()
+                  filteredOrders = filteredOrders.filter(order => {
+                    const nameMatch = order.customerName?.toLowerCase().includes(searchLower)
+                    const phoneMatch = order.customerPhone?.toLowerCase().includes(searchLower)
+                    const trackingMatch = order.trackingNumber?.toLowerCase().includes(searchLower)
+                    return nameMatch || phoneMatch || trackingMatch
+                  })
+                }
+
                 // Calculate pagination
                 const totalOrders = filteredOrders.length
                 const totalPages = Math.ceil(totalOrders / confirmedItemsPerPage)
@@ -1090,9 +1175,9 @@ Loudstyles`
                 }
 
                 return (
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     {/* Pagination Info */}
-                    <div className="text-sm text-muted-foreground">
+                    <div className="text-xs text-muted-foreground">
                       Showing {startIndex + 1}-{Math.min(endIndex, totalOrders)} of {totalOrders} orders
                     </div>
 
@@ -1106,42 +1191,42 @@ Loudstyles`
                     const communeName = shipment?.to_commune_name || ''
 
                     return (
-                      <div key={order.id} className="border rounded-lg p-4 space-y-4">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1 space-y-3">
+                      <div key={order.id} className="border rounded-lg p-3 space-y-2">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex-1 space-y-2 min-w-0">
                             {/* Order Number and Status */}
-                            <div className="flex items-center space-x-3">
-                              <h4 className="font-semibold text-lg">#{order.orderNumber}</h4>
+                            <div className="flex items-center space-x-2">
+                              <h4 className="font-semibold text-base">#{order.orderNumber}</h4>
                               {status && (
-                                <Badge variant={getStatusVariant(status) as any}>
+                                <Badge variant={getStatusVariant(status) as any} className="text-xs">
                                   {status}
                                 </Badge>
                               )}
                             </div>
 
                             {/* Client Information */}
-                            <div className="bg-muted/50 p-3 rounded-lg space-y-2">
+                            <div className="bg-muted/50 p-2 rounded-lg">
                               <div className="flex items-center space-x-4">
                                 <div>
-                                  <p className="text-sm font-medium text-muted-foreground">Client</p>
-                                  <p className="font-semibold">{order.customerName}</p>
+                                  <p className="text-xs font-medium text-muted-foreground">Client</p>
+                                  <p className="font-semibold text-sm">{order.customerName}</p>
                                 </div>
                                 <div>
-                                  <p className="text-sm font-medium text-muted-foreground">Téléphone</p>
-                                  <p className="font-semibold">{order.customerPhone}</p>
+                                  <p className="text-xs font-medium text-muted-foreground">Téléphone</p>
+                                  <p className="font-semibold text-sm">{order.customerPhone}</p>
                                 </div>
                               </div>
                             </div>
 
                             {/* Order Summary */}
-                            <div className="bg-muted/30 p-3 rounded-lg space-y-2">
-                              <p className="text-sm font-medium text-muted-foreground mb-2">Résumé de la commande:</p>
-                              <div className="space-y-1">
+                            <div className="bg-muted/30 p-2 rounded-lg space-y-1">
+                              <p className="text-xs font-medium text-muted-foreground mb-1">Résumé de la commande:</p>
+                              <div className="space-y-0.5">
                                 {order.items.map((item) => {
                                   const itemTotal = item.price * item.quantity
                                   const sizeStr = item.size ? ` [${item.size}]` : ''
                                   return (
-                                    <div key={item.id} className="flex justify-between text-sm">
+                                    <div key={item.id} className="flex justify-between text-xs">
                                       <span>
                                         {item.quantity}x {item.product.name}{sizeStr}
                                       </span>
@@ -1150,17 +1235,17 @@ Loudstyles`
                                   )
                                 })}
                               </div>
-                              <div className="border-t pt-2 mt-2 space-y-1">
-                                <div className="flex flex-col gap-1 text-sm">
+                              <div className="border-t pt-1 mt-1 space-y-0.5">
+                                <div className="flex flex-col gap-0.5 text-xs">
                                   <div className="flex justify-between items-start">
                                     <div className="flex-1">
                                       {order.deliveryType === 'HOME_DELIVERY' ? (
                                         <>
-                                          <div className="flex items-center gap-2 text-muted-foreground">
-                                            <span className="text-lg">🏠</span>
-                                            <span>Livraison à domicile:</span>
+                                          <div className="flex items-center gap-1 text-muted-foreground">
+                                            <span className="text-base">🏠</span>
+                                            <span className="text-xs">Livraison à domicile:</span>
                                           </div>
-                                          <div className="text-muted-foreground mt-0.5 ml-7 space-y-0.5">
+                                          <div className="text-muted-foreground mt-0.5 ml-5 space-y-0.5 text-xs">
                                             {wilayaName && <div>Wilaya: {wilayaName}</div>}
                                             {communeName && <div>Commune: {communeName}</div>}
                                             {order.deliveryAddress && <div>Adresse: {order.deliveryAddress}</div>}
@@ -1171,20 +1256,20 @@ Loudstyles`
                                         </>
                                       ) : (
                                         <>
-                                          <div className="flex items-center gap-2 text-muted-foreground">
-                                            <span className="text-lg">🏢</span>
-                                            <span>Bureau Yalidine:</span>
+                                          <div className="flex items-center gap-1 text-muted-foreground">
+                                            <span className="text-base">🏢</span>
+                                            <span className="text-xs">Bureau Yalidine:</span>
                                           </div>
-                                          <div className="text-muted-foreground mt-0.5 ml-7">
+                                          <div className="text-muted-foreground mt-0.5 ml-5 text-xs">
                                             {order.deliveryDesk?.name || order.deliveryAddress || 'Bureau non spécifié'}
                                           </div>
                                         </>
                                       )}
                                     </div>
-                                    <span className="font-medium ml-4">{order.deliveryFee.toLocaleString()} DA</span>
+                                    <span className="font-medium ml-2 text-xs">{order.deliveryFee.toLocaleString()} DA</span>
                                   </div>
                                 </div>
-                                <div className="flex justify-between text-sm pt-1 border-t">
+                                <div className="flex justify-between text-xs pt-0.5 border-t">
                                   <span className="font-medium">Total:</span>
                                   <span className="font-semibold text-green-600">{order.total.toLocaleString()} DA</span>
                                 </div>
@@ -1193,9 +1278,9 @@ Loudstyles`
 
                             {/* Yalidine Tracking */}
                             {order.trackingNumber && (
-                              <div className="text-sm">
+                              <div className="text-xs">
                                 <span className="font-medium">Yalidine Tracking:</span>
-                                <span className="ml-2 font-mono bg-blue-50 px-2 py-1 rounded text-blue-700">
+                                <span className="ml-2 font-mono bg-blue-50 px-1.5 py-0.5 rounded text-blue-700 text-xs">
                                   {order.trackingNumber}
                                 </span>
                               </div>
@@ -1204,7 +1289,7 @@ Loudstyles`
                             {/* Notes Display - Orange and Animated */}
                             {order.notes && (
                               <motion.div 
-                                className="bg-orange-50 border-2 border-orange-300 p-3 rounded-lg shadow-md"
+                                className="bg-orange-50 border-2 border-orange-300 p-2 rounded-lg shadow-md"
                                 initial={{ scale: 1 }}
                                 animate={{ 
                                   scale: [1, 1.02, 1],
@@ -1220,27 +1305,28 @@ Loudstyles`
                                   ease: "easeInOut"
                                 }}
                               >
-                                <p className="text-sm font-medium text-orange-800 mb-1">Notes:</p>
-                                <p className="text-sm text-orange-900 whitespace-pre-wrap">{order.notes}</p>
+                                <p className="text-xs font-medium text-orange-800 mb-0.5">Notes:</p>
+                                <p className="text-xs text-orange-900 whitespace-pre-wrap">{order.notes}</p>
                               </motion.div>
                             )}
                           </div>
 
                           {/* Action Buttons - Right Side */}
-                          <div className="flex flex-col items-end space-y-2 ml-4">
+                          <div className="flex flex-col items-end space-y-1.5 ml-3 flex-shrink-0">
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
                                   <Button
                                     size="sm"
                                     variant="outline"
+                                    className="text-xs h-7 px-2"
                                     onClick={() => {
                                       setSelectedOrder(order)
                                       setShowNotesDialog(true)
                                       setNoteInput('')
                                     }}
                                   >
-                                    <Edit className="w-4 h-4 mr-1" />
+                                    <Edit className="w-3 h-3 mr-1" />
                                     {order.notes ? 'Modifier Note' : 'Ajouter Note'}
                                   </Button>
                                 </TooltipTrigger>
@@ -1260,9 +1346,9 @@ Loudstyles`
                                 size="sm"
                                 variant="outline"
                                 onClick={() => window.open(whatsappLink, '_blank')}
-                                className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                                className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200 text-xs h-7 px-2"
                               >
-                                <MessageCircle className="w-4 h-4 mr-1" />
+                                <MessageCircle className="w-3 h-3 mr-1" />
                                 WhatsApp
                               </Button>
                             )}

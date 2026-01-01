@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import {
@@ -211,11 +212,24 @@ function OrdersContent() {
 
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [itemsPerPage, setItemsPerPage] = useState(10)
 
   useEffect(() => {
     setMounted(true)
-    fetchOrders()
-  }, [page]) // Refetch when page changes
+  }, [])
+
+  // Reset page to 1 when search query changes
+  useEffect(() => {
+    if (mounted && searchQuery.trim() && page !== 1) {
+      setPage(1)
+    }
+  }, [searchQuery, mounted])
+
+  useEffect(() => {
+    if (mounted) {
+      fetchOrders()
+    }
+  }, [page, itemsPerPage, searchQuery, mounted]) // Refetch when page, itemsPerPage, or search changes
 
   // Refresh orders when the page becomes visible (user returns from order detail)
   useEffect(() => {
@@ -241,7 +255,10 @@ function OrdersContent() {
   const fetchOrders = async () => {
     try {
       setLoading(true)
-      const response = await api.admin.getOrders({ page, limit: 50 }) as any
+      // If searching, fetch more orders to search through (200 orders), otherwise use pagination
+      const limit = searchQuery.trim() ? 200 : itemsPerPage
+      const fetchPage = searchQuery.trim() ? 1 : page
+      const response = await api.admin.getOrders({ page: fetchPage, limit }) as any
       setOrders(response.orders || [])
       setTotalPages(response.pagination?.pages || 1)
     } catch (error) {
@@ -255,13 +272,12 @@ function OrdersContent() {
   useEffect(() => {
     let filtered = [...orders]
 
-    // Search filter
+    // Search filter - only by name or phone number
     if (searchQuery) {
+      const searchLower = searchQuery.toLowerCase().trim()
       filtered = filtered.filter(order =>
-        order.orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        order.customerPhone.includes(searchQuery) ||
-        order.customerEmail?.toLowerCase().includes(searchQuery.toLowerCase())
+        order.customerName.toLowerCase().includes(searchLower) ||
+        order.customerPhone.includes(searchQuery)
       )
     }
 
@@ -627,9 +643,12 @@ function OrdersContent() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
-                  placeholder="Rechercher commandes, clients..."
+                  placeholder="Rechercher par nom ou téléphone..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onChange={(e) => {
+                    setSearchQuery(e.target.value)
+                    setPage(1) // Reset to first page when searching
+                  }}
                   className="pl-10"
                 />
               </div>
@@ -668,7 +687,29 @@ function OrdersContent() {
         {/* Orders Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Commandes ({filteredOrders.length})</CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle>Commandes ({filteredOrders.length})</CardTitle>
+              <div className="flex items-center gap-2">
+                <Label className="text-sm text-muted-foreground">Commandes par page:</Label>
+                <Select 
+                  value={itemsPerPage.toString()} 
+                  onValueChange={(value) => {
+                    setItemsPerPage(Number(value))
+                    setPage(1) // Reset to first page when changing items per page
+                  }}
+                >
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                    <SelectItem value="50">50</SelectItem>
+                    <SelectItem value="100">100</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="overflow-x-auto w-full">
@@ -688,7 +729,14 @@ function OrdersContent() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredOrders.map((order) => {
+                  {(() => {
+                    // Client-side pagination for filtered orders
+                    const startIndex = (page - 1) * itemsPerPage
+                    const endIndex = startIndex + itemsPerPage
+                    const paginatedFilteredOrders = filteredOrders.slice(startIndex, endIndex)
+                    const filteredTotalPages = Math.ceil(filteredOrders.length / itemsPerPage)
+
+                    return paginatedFilteredOrders.map((order) => {
                     const StatusIcon = statusIcons[order.callCenterStatus as keyof typeof statusIcons]
 
                     return (
@@ -905,7 +953,7 @@ function OrdersContent() {
                         </TableCell>
                       </TableRow>
                     )
-                  })}
+                  })()}
                 </TableBody>
               </Table>
 
@@ -920,29 +968,38 @@ function OrdersContent() {
               )}
 
               {/* Pagination Controls */}
-              <div className="flex items-center justify-between border-t p-4 mt-4">
-                <div className="text-sm text-muted-foreground">
-                  Page {page} sur {totalPages}
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                  >
-                    Précédent
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                    disabled={page === totalPages}
-                  >
-                    Suivant
-                  </Button>
-                </div>
-              </div>
+              {(() => {
+                const filteredTotalPages = Math.ceil(filteredOrders.length / itemsPerPage)
+                const startIndex = (page - 1) * itemsPerPage
+                const endIndex = Math.min(startIndex + itemsPerPage, filteredOrders.length)
+                
+                return (
+                  <div className="flex items-center justify-between border-t p-4 mt-4">
+                    <div className="text-sm text-muted-foreground">
+                      Affichage {startIndex + 1}-{endIndex} sur {filteredOrders.length} commandes
+                      {filteredTotalPages > 1 && ` • Page ${page} sur ${filteredTotalPages}`}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(p => Math.max(1, p - 1))}
+                        disabled={page === 1}
+                      >
+                        Précédent
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setPage(p => Math.min(filteredTotalPages, p + 1))}
+                        disabled={page >= filteredTotalPages}
+                      >
+                        Suivant
+                      </Button>
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
           </CardContent>
         </Card>
