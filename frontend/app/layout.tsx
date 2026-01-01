@@ -7,6 +7,7 @@ import { RTLProvider } from '@/components/rtl-provider';
 import { LayoutWrapper } from '@/components/layout-wrapper';
 import { ServiceWorkerRegister } from '@/components/service-worker-register';
 import { PWAInstallPrompt } from '@/components/pwa-install-prompt';
+import { PWABanner } from '@/components/pwa-banner';
 
 import { Suspense } from 'react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
