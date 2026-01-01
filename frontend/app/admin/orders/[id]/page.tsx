@@ -778,14 +778,13 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       return
     }
 
-    // Check if product is an accessory
+    // Check if product is an accessory (only check category, not sizes)
     const isAccessoires = product.category?.slug?.toLowerCase().includes('accessoire') ||
-                         product.category?.slug?.toLowerCase().includes('accessories') ||
-                         !product.sizes || product.sizes.length === 0
+                         product.category?.slug?.toLowerCase().includes('accessories')
 
     // Only require size for non-accessory products
     if (!isAccessoires && (!newItem.size || newItem.size.trim() === '')) {
-      toast.error('Please select a size for the item')
+      toast.error('Please select or enter a size for the item')
       return
     }
 
@@ -1401,14 +1400,20 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                         </div>
                         {(() => {
                           const selectedProduct = availableProducts.find(p => p.id === newItem.productId)
+                          
+                          // Only hide for accessories (check category, not sizes)
                           const isAccessoires = selectedProduct ? (
                             selectedProduct.category?.slug?.toLowerCase().includes('accessoire') ||
-                            selectedProduct.category?.slug?.toLowerCase().includes('accessories') ||
-                            !selectedProduct.sizes || selectedProduct.sizes.length === 0
+                            selectedProduct.category?.slug?.toLowerCase().includes('accessories')
                           ) : false
                           
                           if (isAccessoires) {
                             return null // Don't show size selector for accessoires
+                          }
+                          
+                          // Always show size selector if product is selected (even if no sizes available)
+                          if (!selectedProduct) {
+                            return null
                           }
                           
                           // Get available sizes from the product
@@ -1420,14 +1425,19 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                               : []
                           ) : []
                           
+                          // If no sizes available, show input field for manual entry
                           if (availableSizes.length === 0) {
                             return (
-                              <div className="text-sm text-muted-foreground p-2">
-                                No sizes available for this product
-                              </div>
+                              <Input
+                                value={newItem.size}
+                                onChange={(e) => setNewItem(prev => ({ ...prev, size: e.target.value }))}
+                                placeholder="Entrer la taille manuellement"
+                                className="h-9"
+                              />
                             )
                           }
                           
+                          // Show dropdown with available sizes
                           return (
                             <Select
                               value={newItem.size}
