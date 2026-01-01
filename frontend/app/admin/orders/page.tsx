@@ -146,9 +146,18 @@ const getWhatsAppLink = (order: Order) => {
   // Convert 05/06/07 to +213 format
   const formattedPhone = `213${phone.substring(1)}`
 
+  // Format order items: "quantity x product name [size]"
+  const itemsText = order.items.map(item => {
+    const productName = item.product.name || item.name || 'منتج'
+    const size = item.size || item.productSize?.size
+    const sizeText = size ? ` [${size}]` : ''
+    return `${item.quantity}x ${productName}${sizeText}`
+  }).join(', ')
+
   const text = `مرحبا ${order.customerName} 👋 معكم لود ستايلز
 تم تأكيد طلبك بنجاح ✅
 ${order.trackingNumber ? `رقم التتبع الخاص بك مع ياليدين هو: ${order.trackingNumber} 📦` : ''}
+${itemsText ? `\nالمنتجات:\n${itemsText}` : ''}
 يمكنك تتبع طلبك عبر الرابط: https://loudbrandss.com/track-order 🚚
 شكرا لثقتك بنا! 🙏`
 
