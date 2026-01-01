@@ -1021,15 +1021,33 @@ Loudstyles`
                                 })}
                               </div>
                               <div className="border-t pt-2 mt-2 space-y-1">
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-muted-foreground">
-                                    {order.deliveryType === 'HOME_DELIVERY' ? (
-                                      <span>Livraison à domicile</span>
-                                    ) : (
-                                      <span>Livraison au bureau Yalidine</span>
-                                    )}
-                                  </span>
-                                  <span className="font-medium">{order.deliveryFee.toLocaleString()} DA</span>
+                                <div className="flex flex-col gap-1 text-sm">
+                                  <div className="flex justify-between items-start">
+                                    <div className="flex-1">
+                                      {order.deliveryType === 'HOME_DELIVERY' ? (
+                                        <>
+                                          <div className="flex items-center gap-2 text-muted-foreground">
+                                            <span className="text-lg">🏠</span>
+                                            <span>Livraison à domicile:</span>
+                                          </div>
+                                          <div className="text-muted-foreground mt-0.5 ml-7">
+                                            {order.deliveryAddress || 'Adresse non spécifiée'}
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <div className="flex items-center gap-2 text-muted-foreground">
+                                            <span className="text-lg">🏢</span>
+                                            <span>Bureau Yalidine:</span>
+                                          </div>
+                                          <div className="text-muted-foreground mt-0.5 ml-7">
+                                            {order.deliveryDesk?.name || order.deliveryAddress || 'Bureau non spécifié'}
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
+                                    <span className="font-medium ml-4">{order.deliveryFee.toLocaleString()} DA</span>
+                                  </div>
                                 </div>
                                 <div className="flex justify-between text-sm pt-1 border-t">
                                   <span className="font-medium">Total:</span>
@@ -1045,27 +1063,6 @@ Loudstyles`
                                 <span className="ml-2 font-mono bg-blue-50 px-2 py-1 rounded text-blue-700">
                                   {order.trackingNumber}
                                 </span>
-                              </div>
-                            )}
-
-                            {/* Delivery Address */}
-                            {order.deliveryAddress && (
-                              <div className="text-sm">
-                                <span className="font-medium">Adresse de livraison:</span>
-                                <div className="mt-1 flex items-center gap-2">
-                                  {order.deliveryType === 'HOME_DELIVERY' ? (
-                                    <>
-                                      <span className="text-lg">🏠</span>
-                                      <span className="font-medium">À domicile</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <span className="text-lg">🏢</span>
-                                      <span className="font-medium">Bureau Yalidine</span>
-                                    </>
-                                  )}
-                                </div>
-                                <span className="ml-7 text-muted-foreground">{order.deliveryAddress}</span>
                               </div>
                             )}
 
