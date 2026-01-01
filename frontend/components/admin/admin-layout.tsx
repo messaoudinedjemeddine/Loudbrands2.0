@@ -31,6 +31,7 @@ import { useAuthStore } from '@/lib/store'
 import { useTheme } from 'next-themes'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { PWAInstallPrompt } from '@/components/pwa-install-prompt'
+import { SSENotifications } from '@/components/admin/sse-notifications'
 
 // Role-based navigation configuration
 const getNavigationByRole = (role: string) => {
@@ -304,6 +305,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </div>
       {/* PWA Install Prompt - Only shows on mobile for admin dashboard */}
       <PWAInstallPrompt />
+      {/* SSE Notifications - Real-time order notifications */}
+      <SSENotifications />
     </div>
   )
 }

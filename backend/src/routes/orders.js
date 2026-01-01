@@ -4,6 +4,7 @@ const { PrismaClient } = require('@prisma/client');
 const { getWilayaById, getWilayaName } = require('../utils/wilaya-mapper');
 const DeliveryDeskMapper = require('../utils/delivery-desk-mapper');
 const whatsappService = require('../services/whatsapp');
+const sseService = require('../services/sse-service');
 const router = express.Router();
 
 const prisma = new PrismaClient();
@@ -337,7 +338,37 @@ router.post('/', async (req, res) => {
       return newOrder;
     });
 
-    // Send notification to Admin users
+    // Send SSE notification to all connected admin users
+    try {
+      const adminUsers = await prisma.user.findMany({
+        where: { 
+          role: { in: ['ADMIN', 'CONFIRMATRICE', 'AGENT_LIVRAISON', 'STOCK_MANAGER'] }
+        }
+      });
+
+      const sseNotification = {
+        type: 'new_order',
+        title: 'Nouvelle Commande',
+        message: `Commande #${orderNumber} de ${orderData.customerName}. Total: ${total.toLocaleString()} DA`,
+        orderId: order.id,
+        orderNumber: orderNumber,
+        customerName: orderData.customerName,
+        total: total,
+        url: `/admin/orders/${order.id}`,
+        timestamp: new Date().toISOString()
+      };
+
+      // Broadcast to all admin users via SSE
+      adminUsers.forEach(user => {
+        sseService.sendToUser(user.id, sseNotification);
+      });
+
+      console.log(`SSE notification sent for new order: ${orderNumber}`);
+    } catch (sseError) {
+      console.error('Failed to send SSE notification:', sseError);
+    }
+
+    // Send push notification to Admin users (keep existing push notifications)
     try {
       const adminUsers = await prisma.user.findMany({
         where: { role: 'ADMIN' },
@@ -354,11 +385,6 @@ router.post('/', async (req, res) => {
       });
 
       const webpush = require('web-push');
-      // Configuration is already done in notifications.js or we re-do it here or in a separate config
-      // But we need to make sure web-push is configured with keys.
-      // Since it's global process, it might rely on env or we import the keys again.
-      // Best practice: utility file. For now, hardcoding keys here as well to be safe or import config.
-      // Actually, let's just use the keys directly here to avoid import issues if not configured globally.
       const publicVapidKey = process.env.VAPID_PUBLIC_KEY;
       const privateVapidKey = process.env.VAPID_PRIVATE_KEY;
 
@@ -369,7 +395,7 @@ router.post('/', async (req, res) => {
           privateVapidKey
         );
       } else {
-        console.warn('Skipping notifications: VAPID keys not configured');
+        console.warn('Skipping push notifications: VAPID keys not configured');
       }
 
       for (const user of adminUsers) {
@@ -389,7 +415,7 @@ router.post('/', async (req, res) => {
         }
       }
     } catch (notifyError) {
-      console.error('Failed to send admin notifications:', notifyError);
+      console.error('Failed to send admin push notifications:', notifyError);
     }
 
     // Send WhatsApp notification to admin

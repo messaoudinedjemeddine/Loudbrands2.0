@@ -14,6 +14,7 @@ const confirmatriceRoutes = require('./routes/confirmatrice');
 const agentLivraisonRoutes = require('./routes/agent-livraison');
 const uploadRoutes = require('./routes/upload');
 const shippingRoutes = require('./routes/shipping');
+const sseRoutes = require('./routes/sse');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -146,6 +147,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/shipping', shippingRoutes);
 app.use('/api/inventory', require('./routes/inventory'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/sse', sseRoutes);
 
 // 404 handler
 app.use('*', (req, res) => {
