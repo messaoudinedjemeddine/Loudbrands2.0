@@ -307,7 +307,7 @@ function OrderSuccessContent() {
                                     alt={item.name}
                                     fill
                                     className="object-cover"
-                                    unoptimized={imageUrl?.startsWith('http')}
+                                    unoptimized={imageUrl?.startsWith('http') || imageUrl?.includes('cloudinary.com')}
                                     onError={(e) => {
                                       const target = e.target as HTMLImageElement
                                       target.style.display = 'none'

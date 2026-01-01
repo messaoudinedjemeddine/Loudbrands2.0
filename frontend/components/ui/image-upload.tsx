@@ -230,7 +230,7 @@ export function ImageUpload({
                   fill
                   className="object-cover"
                   sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  unoptimized={image.url.startsWith('http')}
+                  unoptimized={image.url.startsWith('http') || image.url.includes('cloudinary.com')}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2">

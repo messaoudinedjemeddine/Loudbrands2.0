@@ -423,7 +423,7 @@ function LabelsSection() {
                                                         alt={product.name || 'Product'}
                                                         fill
                                                         className="object-cover"
-                                                        unoptimized={imageUrl?.startsWith('http')}
+                                                        unoptimized={imageUrl?.startsWith('http') || imageUrl?.includes('cloudinary.com')}
                                                         onError={(e) => {
                                                             // Fallback if image fails to load
                                                             const target = e.target as HTMLImageElement
