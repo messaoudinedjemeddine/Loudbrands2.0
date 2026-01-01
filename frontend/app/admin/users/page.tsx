@@ -21,7 +21,8 @@ import {
   Shield,
   User,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  Package
 } from 'lucide-react'
 import Link from 'next/link'
 import { AdminLayout } from '@/components/admin/admin-layout'
@@ -43,19 +44,22 @@ interface User {
 const roleColors = {
   ADMIN: 'bg-green-100 text-green-800',
   CONFIRMATRICE: 'bg-purple-100 text-purple-800',
-  AGENT_LIVRAISON: 'bg-orange-100 text-orange-800'
+  AGENT_LIVRAISON: 'bg-orange-100 text-orange-800',
+  STOCK_MANAGER: 'bg-blue-100 text-blue-800'
 }
 
 const roleIcons = {
   ADMIN: Shield,
   CONFIRMATRICE: Phone,
-  AGENT_LIVRAISON: Users
+  AGENT_LIVRAISON: Users,
+  STOCK_MANAGER: Package
 }
 
 const roleNames = {
   ADMIN: 'Admin',
   CONFIRMATRICE: 'Confirmatrice',
-  AGENT_LIVRAISON: 'Agent de livraison'
+  AGENT_LIVRAISON: 'Agent de livraison',
+  STOCK_MANAGER: 'Gestionnaire de Stock'
 }
 
 export default function AdminUsersPage() {
@@ -299,6 +303,7 @@ export default function AdminUsersPage() {
                   <SelectItem value="ADMIN">Admin</SelectItem>
                   <SelectItem value="CONFIRMATRICE">Confirmatrice</SelectItem>
                   <SelectItem value="AGENT_LIVRAISON">Agent de livraison</SelectItem>
+                  <SelectItem value="STOCK_MANAGER">Gestionnaire de Stock</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -375,6 +380,7 @@ export default function AdminUsersPage() {
                           <SelectItem value="ADMIN">Admin</SelectItem>
                           <SelectItem value="CONFIRMATRICE">Confirmatrice</SelectItem>
                           <SelectItem value="AGENT_LIVRAISON">Agent de livraison</SelectItem>
+                          <SelectItem value="STOCK_MANAGER">Gestionnaire de Stock</SelectItem>
                         </SelectContent>
                       </Select>
 

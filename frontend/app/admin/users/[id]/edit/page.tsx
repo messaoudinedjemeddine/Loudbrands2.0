@@ -220,6 +220,7 @@ export default function EditUserPage({ params }: EditUserPageProps) {
                       <SelectItem value="ADMIN">Admin</SelectItem>
                       <SelectItem value="AGENT_LIVRAISON">Agent de Livraison</SelectItem>
                       <SelectItem value="CONFIRMATRICE">Confirmatrice</SelectItem>
+                      <SelectItem value="STOCK_MANAGER">Gestionnaire de Stock</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
