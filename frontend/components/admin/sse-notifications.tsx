@@ -45,13 +45,18 @@ export function SSENotifications() {
       }
 
       // Get API URL and handle /api suffix properly
-      let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com/api';
+      // NEXT_PUBLIC_API_URL might be: https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com/api
+      let apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com';
+      
       // Remove trailing /api if present to avoid double /api/api
       apiUrl = apiUrl.replace(/\/api\/?$/, '');
-      // EventSource doesn't support custom headers, so we pass token as query parameter
+      
+      // Build SSE URL - ensure we have the base URL without /api, then add /api/sse
       const sseUrl = `${apiUrl}/api/sse/notifications?token=${encodeURIComponent(token)}`;
       
       console.log('🔗 Connecting to SSE endpoint:', sseUrl.replace(/token=[^&]+/, 'token=***'));
+      console.log('🔍 API URL before processing:', process.env.NEXT_PUBLIC_API_URL);
+      console.log('🔍 API URL after processing:', apiUrl);
 
       try {
         const eventSource = new EventSource(sseUrl);
