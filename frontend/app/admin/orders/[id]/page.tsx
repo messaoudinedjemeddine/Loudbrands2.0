@@ -1411,43 +1411,25 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                             return null // Don't show size selector for accessoires
                           }
                           
-                          // Always show size selector if product is selected (even if no sizes available)
+                          // Always show size selector if product is selected
                           if (!selectedProduct) {
                             return null
                           }
                           
-                          // Get available sizes from the product
-                          const availableSizes = selectedProduct?.sizes ? (
-                            Array.isArray(selectedProduct.sizes) && selectedProduct.sizes.length > 0
-                              ? selectedProduct.sizes.map((size: any) => 
-                                  typeof size === 'string' ? size : size.size
-                                )
-                              : []
-                          ) : []
+                          // Standard sizes dropdown
+                          const standardSizes = ['M', 'L', 'XL', 'XXL', 'XXXL']
                           
-                          // If no sizes available, show input field for manual entry
-                          if (availableSizes.length === 0) {
-                            return (
-                              <Input
-                                value={newItem.size}
-                                onChange={(e) => setNewItem(prev => ({ ...prev, size: e.target.value }))}
-                                placeholder="Entrer la taille manuellement"
-                                className="h-9"
-                              />
-                            )
-                          }
-                          
-                          // Show dropdown with available sizes
+                          // Show dropdown with standard sizes
                           return (
                             <Select
                               value={newItem.size}
                               onValueChange={(value) => setNewItem(prev => ({ ...prev, size: value }))}
                             >
                               <SelectTrigger className="h-9">
-                                <SelectValue placeholder="Taille (requis)" />
+                                <SelectValue placeholder="Sélectionner la taille" />
                               </SelectTrigger>
                               <SelectContent>
-                                {availableSizes.map((size: string) => (
+                                {standardSizes.map((size: string) => (
                                   <SelectItem key={size} value={size}>
                                     {size}
                                   </SelectItem>
