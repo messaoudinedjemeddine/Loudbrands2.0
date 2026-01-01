@@ -84,4 +84,13 @@ router.get('/notifications', async (req, res, next) => {
   }
 });
 
+// Test endpoint to verify SSE route is working
+router.get('/test', (req, res) => {
+  res.json({ 
+    message: 'SSE route is working',
+    timestamp: new Date().toISOString(),
+    totalClients: sseService.getTotalClients()
+  });
+});
+
 module.exports = router;
