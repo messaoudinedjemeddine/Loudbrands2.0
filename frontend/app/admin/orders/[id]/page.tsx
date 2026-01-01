@@ -168,11 +168,12 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
   // Dirty state trackers
   const isDeliveryDirty = order ? (
-    (deliveryData.deliveryType === 'PICKUP' && deliveryData.deliveryDeskId !== (order.deliveryDesk?.id || '')) ||
+    deliveryData.deliveryType !== order.deliveryType ||
+    (deliveryData.deliveryType === 'HOME_DELIVERY' && deliveryData.deliveryAddress !== (order.deliveryAddress || '')) ||
+    (deliveryData.deliveryType === 'PICKUP' && deliveryData.centerId !== ((order as any).deliveryDetails?.centerId || '')) ||
     deliveryData.deliveryFee !== order.deliveryFee ||
     deliveryData.wilayaId !== ((order as any).deliveryDetails?.wilayaId || '') ||
-    deliveryData.communeId !== ((order as any).deliveryDetails?.communeId || '') ||
-    (deliveryData.deliveryType === 'PICKUP' && deliveryData.centerId !== ((order as any).deliveryDetails?.centerId || ''))
+    deliveryData.communeId !== ((order as any).deliveryDetails?.communeId || '')
   ) : false
 
   // For items, we need a deep comparison or simplify by just checking length/content
@@ -429,11 +430,16 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       const communeName = communes.find(c => c.id.toString() === deliveryData.communeId)?.name
       const centerName = centers.find(c => c.center_id.toString() === deliveryData.centerId)?.name
 
+      // For PICKUP, use centerId as deliveryDeskId
+      const deliveryDeskId = deliveryData.deliveryType === 'PICKUP' 
+        ? (deliveryData.centerId || deliveryData.deliveryDeskId || undefined)
+        : undefined
+
       // Prepare update data
       const updateData = {
         deliveryType: deliveryData.deliveryType,
         deliveryAddress: deliveryData.deliveryType === 'HOME_DELIVERY' ? deliveryData.deliveryAddress?.trim() : undefined,
-        deliveryDeskId: deliveryData.deliveryType === 'PICKUP' ? (deliveryData.deliveryDeskId || undefined) : undefined, // Ensure we pass undefined if switching to Home
+        deliveryDeskId: deliveryDeskId, // Use centerId for PICKUP orders
         deliveryFee: newDeliveryFee,
         total: newTotal,
         // Sync detailed info
@@ -766,21 +772,27 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       return
     }
 
-    if (!newItem.size || newItem.size.trim() === '') {
-      toast.error('Please enter a size for the item')
-      return
-    }
-
     const product = availableProducts.find(p => p.id === newItem.productId)
     if (!product) {
       toast.error('Selected product not found')
       return
     }
 
+    // Check if product is an accessory
+    const isAccessoires = product.category?.slug?.toLowerCase().includes('accessoire') ||
+                         product.category?.slug?.toLowerCase().includes('accessories') ||
+                         !product.sizes || product.sizes.length === 0
+
+    // Only require size for non-accessory products
+    if (!isAccessoires && (!newItem.size || newItem.size.trim() === '')) {
+      toast.error('Please select a size for the item')
+      return
+    }
+
     // Create individual pieces for each quantity
     const pieces: OrderItemPiece[] = Array.from({ length: newItem.quantity }, (_, index) => ({
       id: `piece-${Date.now()}-${index}`,
-      size: newItem.size
+      size: isAccessoires ? '' : newItem.size
     }))
 
     const newOrderItem: OrderItem = {
@@ -789,7 +801,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       nameAr: product.nameAr,
       quantity: newItem.quantity,
       price: product.price,
-      size: newItem.size,
+      size: isAccessoires ? undefined : newItem.size,
       pieces: pieces,
       product: {
         id: product.id,
@@ -1399,6 +1411,23 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                             return null // Don't show size selector for accessoires
                           }
                           
+                          // Get available sizes from the product
+                          const availableSizes = selectedProduct?.sizes ? (
+                            Array.isArray(selectedProduct.sizes) && selectedProduct.sizes.length > 0
+                              ? selectedProduct.sizes.map((size: any) => 
+                                  typeof size === 'string' ? size : size.size
+                                )
+                              : []
+                          ) : []
+                          
+                          if (availableSizes.length === 0) {
+                            return (
+                              <div className="text-sm text-muted-foreground p-2">
+                                No sizes available for this product
+                              </div>
+                            )
+                          }
+                          
                           return (
                             <Select
                               value={newItem.size}
@@ -1408,13 +1437,13 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                                 <SelectValue placeholder="Taille (requis)" />
                               </SelectTrigger>
                               <SelectContent>
-                                {SIZE_OPTIONS.map((size) => (
+                                {availableSizes.map((size: string) => (
                                   <SelectItem key={size} value={size}>
                                     {size}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                           )
                         })()}
                         <Button
