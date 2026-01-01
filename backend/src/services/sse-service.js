@@ -14,34 +14,53 @@ class SSEService {
    * @param {Object} res - Express response object
    */
   addClient(userId, res) {
-    if (!this.clients.has(userId)) {
-      this.clients.set(userId, new Set());
+    try {
+      if (!this.clients.has(userId)) {
+        this.clients.set(userId, new Set());
+      }
+      this.clients.get(userId).add(res);
+
+      // Set up SSE headers - don't use writeHead if headers already sent
+      if (!res.headersSent) {
+        res.writeHead(200, {
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'Connection': 'keep-alive',
+          'X-Accel-Buffering': 'no', // Disable nginx buffering
+          'Access-Control-Allow-Origin': '*',
+          'Access-Control-Allow-Headers': 'Cache-Control'
+        });
+      } else {
+        // Headers already sent, just set them
+        res.setHeader('Content-Type', 'text/event-stream');
+        res.setHeader('Cache-Control', 'no-cache');
+        res.setHeader('Connection', 'keep-alive');
+        res.setHeader('X-Accel-Buffering', 'no');
+      }
+
+      // Send initial connection message
+      this.sendToClient(userId, res, {
+        type: 'connected',
+        message: 'SSE connection established',
+        timestamp: new Date().toISOString()
+      });
+
+      // Handle client disconnect
+      res.on('close', () => {
+        this.removeClient(userId, res);
+      });
+
+      // Handle errors
+      res.on('error', (error) => {
+        console.error(`SSE connection error for user ${userId}:`, error);
+        this.removeClient(userId, res);
+      });
+
+      console.log(`✅ SSE client connected: ${userId} (Total clients: ${this.getTotalClients()})`);
+    } catch (error) {
+      console.error(`❌ Error adding SSE client ${userId}:`, error);
+      throw error;
     }
-    this.clients.get(userId).add(res);
-
-    // Set up SSE headers
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no', // Disable nginx buffering
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Cache-Control'
-    });
-
-    // Send initial connection message
-    this.sendToClient(userId, res, {
-      type: 'connected',
-      message: 'SSE connection established',
-      timestamp: new Date().toISOString()
-    });
-
-    // Handle client disconnect
-    res.on('close', () => {
-      this.removeClient(userId, res);
-    });
-
-    console.log(`SSE client connected: ${userId} (Total clients: ${this.getTotalClients()})`);
   }
 
   /**

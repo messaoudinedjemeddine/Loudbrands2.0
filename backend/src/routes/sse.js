@@ -56,6 +56,7 @@ router.get('/notifications', async (req, res, next) => {
       sseService.removeClient(userId, res);
     });
   } catch (error) {
+    console.error('❌ SSE authentication error:', error.message);
     return res.status(401).json({ error: 'Invalid or expired token' });
   }
 });
