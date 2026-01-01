@@ -8,6 +8,18 @@ const router = express.Router();
  * GET /api/sse/notifications?token=xxx
  * Requires authentication via query parameter (EventSource doesn't support headers)
  */
+// Handle OPTIONS preflight for SSE
+router.options('/notifications', (req, res) => {
+  res.writeHead(200, {
+    'Access-Control-Allow-Origin': req.headers.origin || '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Max-Age': '86400'
+  });
+  res.end();
+});
+
 router.get('/notifications', async (req, res, next) => {
   // Extract token from query parameter (EventSource limitation)
   const token = req.query.token || req.headers.authorization?.replace('Bearer ', '');
@@ -47,8 +59,10 @@ router.get('/notifications', async (req, res, next) => {
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
       'X-Accel-Buffering': 'no', // Disable nginx buffering
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Headers': 'Cache-Control'
+      'Access-Control-Allow-Origin': req.headers.origin || '*',
+      'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Credentials': 'true'
     });
 
     // Send initial connection message immediately
