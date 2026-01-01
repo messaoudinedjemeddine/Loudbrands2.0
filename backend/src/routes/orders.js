@@ -363,18 +363,28 @@ router.post('/', async (req, res) => {
 
       // Broadcast to all admin users via SSE
       let notifiedCount = 0;
+      const totalClients = sseService.getTotalClients();
+      console.log(`📊 Broadcasting to ${adminUsers.length} admin users, ${totalClients} total SSE clients connected`);
+      
       adminUsers.forEach(user => {
+        const userClientCount = sseService.getUserClientCount(user.id);
+        console.log(`👤 User ${user.id} (${user.role}): ${userClientCount} active SSE connection(s)`);
+        
         const sent = sseService.sendToUser(user.id, sseNotification);
         if (sent) {
           notifiedCount++;
           console.log(`✅ SSE notification sent to user: ${user.id} (${user.role})`);
         } else {
-          console.log(`⚠️ No active SSE connection for user: ${user.id} (${user.role})`);
+          console.log(`⚠️ No active SSE connection for user: ${user.id} (${user.role}) - user may not be connected`);
         }
       });
 
       console.log(`📨 SSE notification sent to ${notifiedCount}/${adminUsers.length} connected admin users for order: ${orderNumber}`);
-      console.log(`🔌 Total SSE clients connected: ${sseService.getTotalClients()}`);
+      console.log(`🔌 Total SSE clients connected: ${totalClients}`);
+      
+      if (notifiedCount === 0 && totalClients > 0) {
+        console.warn(`⚠️ WARNING: ${totalClients} SSE clients connected but none matched admin users!`);
+      }
     } catch (sseError) {
       console.error('❌ Failed to send SSE notification:', sseError);
       console.error('Error details:', sseError.stack);

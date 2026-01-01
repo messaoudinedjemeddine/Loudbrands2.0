@@ -65,6 +65,8 @@ export function SSENotifications() {
 
         eventSource.onopen = () => {
           console.log('✅ SSE connection opened successfully');
+          console.log('🔗 SSE URL:', sseUrl.replace(/token=[^&]+/, 'token=***'));
+          console.log('👤 User:', user?.email, 'Role:', user?.role);
           setIsConnected(true);
           reconnectAttempts.current = 0;
           
@@ -73,6 +75,12 @@ export function SSENotifications() {
             clearTimeout(reconnectTimeoutRef.current);
             reconnectTimeoutRef.current = null;
           }
+          
+          // Show a test notification to confirm connection works
+          toast.success('Connexion SSE établie', {
+            description: 'Vous recevrez des notifications en temps réel pour les nouvelles commandes',
+            duration: 3000,
+          });
         };
 
         eventSource.onmessage = (event) => {
@@ -175,20 +183,14 @@ export function SSENotifications() {
     };
   }, [user, token, router]);
 
-  // Optional: Render connection status indicator (for debugging)
-  if (process.env.NODE_ENV === 'development') {
-    return (
-      <div className="fixed bottom-4 right-4 z-50">
-        <div className={`px-3 py-1 rounded-full text-xs ${
-          isConnected ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-        }`}>
-          SSE: {isConnected ? 'Connected' : 'Disconnected'}
-        </div>
+  // Render connection status indicator (always visible for debugging)
+  return (
+    <div className="fixed bottom-4 right-4 z-50">
+      <div className={`px-3 py-1 rounded-full text-xs shadow-lg ${
+        isConnected ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+      }`}>
+        SSE: {isConnected ? '✅ Connected' : '❌ Disconnected'}
       </div>
-    );
-  }
-
-  // This component doesn't render anything visible in production
-  // It just handles SSE connections in the background
-  return null;
+    </div>
+  );
 }
