@@ -13,6 +13,7 @@ router.get('/notifications', async (req, res, next) => {
   const token = req.query.token || req.headers.authorization?.replace('Bearer ', '');
   
   if (!token) {
+    console.log('❌ SSE: No token provided');
     return res.status(401).json({ error: 'Authentication token required' });
   }
 
@@ -36,15 +37,27 @@ router.get('/notifications', async (req, res, next) => {
       return res.status(403).json({ error: 'Access denied. Admin role required.' });
     }
 
+    // Prevent timeout for long-running connections
+    req.setTimeout(0); // Disable timeout
+    res.setTimeout(0); // Disable timeout
+
     // Add client to SSE service
-    sseService.addClient(userId, res);
-    console.log(`✅ SSE client added for user: ${userId} (Total clients: ${sseService.getTotalClients()})`);
+    try {
+      sseService.addClient(userId, res);
+      console.log(`✅ SSE client added for user: ${userId} (Total clients: ${sseService.getTotalClients()})`);
+    } catch (addError) {
+      console.error('❌ Error adding SSE client:', addError);
+      return res.status(500).json({ error: 'Failed to establish SSE connection' });
+    }
 
     // Keep connection alive with periodic ping
     const pingInterval = setInterval(() => {
       try {
-        res.write(': ping\n\n');
+        if (!res.headersSent) {
+          res.write(': ping\n\n');
+        }
       } catch (error) {
+        console.error('❌ Error sending ping:', error);
         clearInterval(pingInterval);
         sseService.removeClient(userId, res);
       }
@@ -52,12 +65,22 @@ router.get('/notifications', async (req, res, next) => {
 
     // Clean up on close
     res.on('close', () => {
+      console.log(`🔌 SSE connection closed for user: ${userId}`);
+      clearInterval(pingInterval);
+      sseService.removeClient(userId, res);
+    });
+
+    // Handle errors
+    res.on('error', (error) => {
+      console.error(`❌ SSE connection error for user ${userId}:`, error);
       clearInterval(pingInterval);
       sseService.removeClient(userId, res);
     });
   } catch (error) {
     console.error('❌ SSE authentication error:', error.message);
-    return res.status(401).json({ error: 'Invalid or expired token' });
+    if (!res.headersSent) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
+    }
   }
 });
 
