@@ -153,7 +153,35 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com" />
 
         {/* Preload only critical resources that are used on all pages */}
-        {/* Note: manifest.json will be dynamically updated by PWAManifestUpdater based on route */}
+        {/* Set manifest immediately based on route - runs before React */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              (function() {
+                try {
+                  const path = window.location.pathname;
+                  const isAdminRoute = path.startsWith('/admin') || 
+                                       path.startsWith('/confirmatrice') || 
+                                       path.startsWith('/agent-livraison');
+                  
+                  let manifestLink = document.querySelector('#pwa-manifest') || 
+                                     document.querySelector('link[rel="manifest"]');
+                  
+                  if (!manifestLink) {
+                    manifestLink = document.createElement('link');
+                    manifestLink.rel = 'manifest';
+                    manifestLink.id = 'pwa-manifest';
+                    document.head.appendChild(manifestLink);
+                  }
+                  
+                  manifestLink.href = isAdminRoute ? '/admin-manifest.json' : '/manifest.json';
+                } catch (e) {
+                  console.error('Error setting PWA manifest:', e);
+                }
+              })();
+            `,
+          }}
+        />
         <link rel="manifest" href="/manifest.json" id="pwa-manifest" />
 
         {/* Prefetch likely next pages (removed API prefetch - not supported) */}
