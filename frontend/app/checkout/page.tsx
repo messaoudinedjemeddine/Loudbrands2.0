@@ -464,22 +464,26 @@ export default function CheckoutPage() {
                     <div>
                       <Label htmlFor="wilaya">الولاية *</Label>
                       <Select value={formData.wilayaId} onValueChange={(value) => handleInputChange('wilayaId', value)}>
-                        <SelectTrigger className="text-right">
-                          <SelectValue placeholder="اختر الولاية" />
+                        <SelectTrigger className="h-12 text-base md:h-10 md:text-sm">
+                          <SelectValue placeholder="اختر الولاية" className="[&>span]:text-left [&>span]:dir-ltr" />
                         </SelectTrigger>
-                        <SelectContent dir="rtl">
+                        <SelectContent dir="ltr" className="max-h-[300px]">
                           {yalidineStatus === null ? (
-                            <div className="flex items-center justify-center p-4">
+                            <div className="flex items-center justify-center p-4" dir="rtl">
                               <Loader2 className="w-4 h-4 animate-spin ml-2" />
                               جاري التحميل...
                             </div>
                           ) : !yalidineStatus.configured ? (
-                            <div className="p-4 text-center text-muted-foreground">
+                            <div className="p-4 text-center text-muted-foreground" dir="rtl">
                               خدمة الشحن غير متوفرة
                             </div>
                           ) : (
                             wilayas.map((wilaya) => (
-                              <SelectItem key={wilaya.id} value={wilaya.id.toString()}>
+                              <SelectItem 
+                                key={wilaya.id} 
+                                value={wilaya.id.toString()}
+                                className="text-left py-3 text-base md:py-2 md:text-sm"
+                              >
                                 {wilaya.id} - {wilaya.name}
                               </SelectItem>
                             ))
@@ -493,18 +497,22 @@ export default function CheckoutPage() {
                       <div>
                         <Label htmlFor="commune">البلدية *</Label>
                         <Select value={formData.communeId} onValueChange={(value) => handleInputChange('communeId', value)}>
-                          <SelectTrigger className="text-right">
-                            <SelectValue placeholder="اختر البلدية" />
+                          <SelectTrigger className="h-12 text-base md:h-10 md:text-sm">
+                            <SelectValue placeholder="اختر البلدية" className="[&>span]:text-left [&>span]:dir-ltr" />
                           </SelectTrigger>
-                          <SelectContent dir="rtl">
+                          <SelectContent dir="ltr" className="max-h-[300px]">
                             {isLoadingShipping ? (
-                              <div className="flex items-center justify-center p-4">
+                              <div className="flex items-center justify-center p-4" dir="rtl">
                                 <Loader2 className="w-4 h-4 animate-spin ml-2" />
                                 تحمبل...
                               </div>
                             ) : (
                               communes.map((commune) => (
-                                <SelectItem key={commune.id} value={commune.id.toString()}>
+                                <SelectItem 
+                                  key={commune.id} 
+                                  value={commune.id.toString()}
+                                  className="text-left py-3 text-base md:py-2 md:text-sm"
+                                >
                                   {commune.name}
                                 </SelectItem>
                               ))
@@ -520,12 +528,12 @@ export default function CheckoutPage() {
                     <div>
                       <Label htmlFor="center">مكتب الاستلام *</Label>
                       <Select value={formData.centerId} onValueChange={(value) => handleInputChange('centerId', value)}>
-                        <SelectTrigger className="text-right">
-                          <SelectValue placeholder="اختر مكتب ياليدين" />
+                        <SelectTrigger className="h-12 text-base md:h-10 md:text-sm">
+                          <SelectValue placeholder="اختر مكتب ياليدين" className="[&>span]:text-left [&>span]:dir-ltr" />
                         </SelectTrigger>
-                        <SelectContent dir="rtl">
+                        <SelectContent dir="ltr" className="max-h-[300px]">
                           {isLoadingShipping ? (
-                            <div className="flex items-center justify-center p-4">
+                            <div className="flex items-center justify-center p-4" dir="rtl">
                               <Loader2 className="w-4 h-4 animate-spin ml-2" />
                               تحميل المكاتب...
                             </div>
@@ -533,7 +541,11 @@ export default function CheckoutPage() {
                             centers
                               .filter(center => center.wilaya_id.toString() === formData.wilayaId)
                               .map((center) => (
-                                <SelectItem key={center.center_id} value={center.center_id.toString()}>
+                                <SelectItem 
+                                  key={center.center_id} 
+                                  value={center.center_id.toString()}
+                                  className="text-left py-3 text-base md:py-2 md:text-sm"
+                                >
                                   {center.name} - {center.address}
                                 </SelectItem>
                               ))
