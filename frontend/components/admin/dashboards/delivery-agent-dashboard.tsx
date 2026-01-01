@@ -1015,6 +1015,15 @@ Loudstyles`
                       getYalidineStatusForOrder(order) === 'En alerte'
                     ).length})
                   </TabsTrigger>
+                  <TabsTrigger 
+                    value="Echèc livraison" 
+                    className="flex-shrink-0 bg-red-700 text-white animate-pulse-slow data-[state=active]:bg-red-800"
+                  >
+                    Echec livraison ({orders.filter(order => 
+                      order.callCenterStatus === 'CONFIRMED' && 
+                      (getYalidineStatusForOrder(order) === 'Echèc livraison' || getYalidineStatusForOrder(order) === 'Echec de livraison')
+                    ).length})
+                  </TabsTrigger>
                 </TabsList>
               </Tabs>
 
@@ -1049,9 +1058,17 @@ Loudstyles`
                 
                 // Apply tab filter if not 'all'
                 if (confirmedTabFilter !== 'all') {
-                  filteredOrders = filteredOrders.filter(order => 
-                    getYalidineStatusForOrder(order) === confirmedTabFilter
-                  )
+                  if (confirmedTabFilter === 'Echèc livraison') {
+                    // Handle both "Echèc livraison" and "Echec de livraison" statuses
+                    filteredOrders = filteredOrders.filter(order => {
+                      const status = getYalidineStatusForOrder(order)
+                      return status === 'Echèc livraison' || status === 'Echec de livraison'
+                    })
+                  } else {
+                    filteredOrders = filteredOrders.filter(order => 
+                      getYalidineStatusForOrder(order) === confirmedTabFilter
+                    )
+                  }
                 }
                 
                 // Apply dropdown filter if not 'all' and tab is 'all'
