@@ -974,6 +974,10 @@ Loudstyles`
                     {filteredOrders.map((order) => {
                     const status = getYalidineStatusForOrder(order)
                     const whatsappLink = getDeliveryAgentWhatsAppLink(order, status)
+                    // Find Yalidine shipment for this order to get wilaya and commune names
+                    const shipment = yalidineShipments.find(s => s.tracking === order.trackingNumber)
+                    const wilayaName = shipment?.to_wilaya_name || order.city?.name || ''
+                    const communeName = shipment?.to_commune_name || ''
 
                     return (
                       <div key={order.id} className="border rounded-lg p-4 space-y-4">
@@ -1030,8 +1034,13 @@ Loudstyles`
                                             <span className="text-lg">🏠</span>
                                             <span>Livraison à domicile:</span>
                                           </div>
-                                          <div className="text-muted-foreground mt-0.5 ml-7">
-                                            {order.deliveryAddress || 'Adresse non spécifiée'}
+                                          <div className="text-muted-foreground mt-0.5 ml-7 space-y-0.5">
+                                            {wilayaName && <div>Wilaya: {wilayaName}</div>}
+                                            {communeName && <div>Commune: {communeName}</div>}
+                                            {order.deliveryAddress && <div>Adresse: {order.deliveryAddress}</div>}
+                                            {!wilayaName && !communeName && !order.deliveryAddress && (
+                                              <div>Adresse non spécifiée</div>
+                                            )}
                                           </div>
                                         </>
                                       ) : (
