@@ -92,6 +92,16 @@ export function SSENotifications() {
             // Handle different notification types
             if (data.type === 'connected') {
               console.log('✅ SSE connected:', data.message);
+              console.log('👤 Connected as user:', data.userId, 'Role:', data.userRole);
+              console.log('🔍 Current user from store:', user?.id, 'Role:', user?.role);
+              
+              // Verify user ID matches
+              if (data.userId && user?.id && data.userId !== user.id) {
+                console.warn('⚠️ WARNING: SSE userId mismatch!', {
+                  sseUserId: data.userId,
+                  storeUserId: user.id
+                });
+              }
               return;
             }
 
@@ -142,18 +152,26 @@ export function SSENotifications() {
     };
 
     const handleNewOrderNotification = (notification: SSENotification) => {
+      console.log('🔔 Handling new order notification:', notification);
+      
       // Show toast notification
-      toast.success(notification.title, {
-        description: notification.message,
-        duration: 8000,
-        icon: <ShoppingCart className="w-5 h-5" />,
-        action: notification.url ? {
-          label: 'Voir la commande',
-          onClick: () => {
-            router.push(notification.url!);
-          }
-        } : undefined,
-      });
+      try {
+        toast.success(notification.title || 'Nouvelle Commande', {
+          description: notification.message || `Commande #${notification.orderNumber} reçue`,
+          duration: 10000,
+          icon: <ShoppingCart className="w-5 h-5" />,
+          action: notification.url ? {
+            label: 'Voir la commande',
+            onClick: () => {
+              console.log('🔗 Navigating to:', notification.url);
+              router.push(notification.url!);
+            }
+          } : undefined,
+        });
+        console.log('✅ Toast notification displayed');
+      } catch (toastError) {
+        console.error('❌ Error displaying toast:', toastError);
+      }
 
       // Optional: Play notification sound
       if (typeof window !== 'undefined' && 'Audio' in window) {

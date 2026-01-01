@@ -66,11 +66,15 @@ router.get('/notifications', async (req, res, next) => {
     });
 
     // Send initial connection message immediately
-    res.write(`data: ${JSON.stringify({
+    const connectionMessage = {
       type: 'connected',
       message: 'SSE connection established',
+      userId: userId,
+      userRole: userRole,
       timestamp: new Date().toISOString()
-    })}\n\n`);
+    };
+    res.write(`data: ${JSON.stringify(connectionMessage)}\n\n`);
+    console.log(`📤 Sent connection message to user ${userId}:`, connectionMessage);
 
     // Add client to SSE service
     try {

@@ -65,9 +65,11 @@ class SSEService {
   sendToClient(userId, res, data) {
     try {
       const message = `data: ${JSON.stringify(data)}\n\n`;
+      console.log(`📤 Sending SSE message to client ${userId}:`, data.type || 'unknown');
       res.write(message);
+      console.log(`✅ SSE message written to client ${userId}`);
     } catch (error) {
-      console.error(`Error sending SSE message to client ${userId}:`, error);
+      console.error(`❌ Error sending SSE message to client ${userId}:`, error);
       this.removeClient(userId, res);
     }
   }
