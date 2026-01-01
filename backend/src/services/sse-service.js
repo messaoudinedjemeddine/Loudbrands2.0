@@ -20,30 +20,8 @@ class SSEService {
       }
       this.clients.get(userId).add(res);
 
-      // Set up SSE headers - don't use writeHead if headers already sent
-      if (!res.headersSent) {
-        res.writeHead(200, {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-          'Connection': 'keep-alive',
-          'X-Accel-Buffering': 'no', // Disable nginx buffering
-          'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Headers': 'Cache-Control'
-        });
-      } else {
-        // Headers already sent, just set them
-        res.setHeader('Content-Type', 'text/event-stream');
-        res.setHeader('Cache-Control', 'no-cache');
-        res.setHeader('Connection', 'keep-alive');
-        res.setHeader('X-Accel-Buffering', 'no');
-      }
-
-      // Send initial connection message
-      this.sendToClient(userId, res, {
-        type: 'connected',
-        message: 'SSE connection established',
-        timestamp: new Date().toISOString()
-      });
+      // Note: Headers should be set in the route handler before calling addClient
+      // This method just manages the client connection
 
       // Handle client disconnect
       res.on('close', () => {

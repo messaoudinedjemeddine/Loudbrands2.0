@@ -41,21 +41,39 @@ router.get('/notifications', async (req, res, next) => {
     req.setTimeout(0); // Disable timeout
     res.setTimeout(0); // Disable timeout
 
+    // Set SSE headers BEFORE adding client
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no', // Disable nginx buffering
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Cache-Control'
+    });
+
+    // Send initial connection message immediately
+    res.write(`data: ${JSON.stringify({
+      type: 'connected',
+      message: 'SSE connection established',
+      timestamp: new Date().toISOString()
+    })}\n\n`);
+
     // Add client to SSE service
     try {
       sseService.addClient(userId, res);
       console.log(`✅ SSE client added for user: ${userId} (Total clients: ${sseService.getTotalClients()})`);
     } catch (addError) {
       console.error('❌ Error adding SSE client:', addError);
-      return res.status(500).json({ error: 'Failed to establish SSE connection' });
+      if (!res.headersSent) {
+        return res.status(500).json({ error: 'Failed to establish SSE connection' });
+      }
+      return;
     }
 
     // Keep connection alive with periodic ping
     const pingInterval = setInterval(() => {
       try {
-        if (!res.headersSent) {
-          res.write(': ping\n\n');
-        }
+        res.write(': ping\n\n');
       } catch (error) {
         console.error('❌ Error sending ping:', error);
         clearInterval(pingInterval);
