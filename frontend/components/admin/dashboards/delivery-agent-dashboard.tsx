@@ -226,6 +226,8 @@ export function DeliveryAgentDashboard() {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   // Status filter for Confirmed Orders tab
   const [confirmedStatusFilter, setConfirmedStatusFilter] = useState<string>('all')
+  // Tab filter for Confirmed Orders (quick status tabs)
+  const [confirmedTabFilter, setConfirmedTabFilter] = useState<string>('all')
 
   // Yalidine status options for filtering
   const yalidineStatuses = [
@@ -511,10 +513,12 @@ https://loudbrandss.com/track-order?tracking=${trackingNumber}
     const shipment = yalidineShipments.find(s => s.tracking === order.trackingNumber)
     const tracking = order.trackingNumber || 'N/A'
     const customerName = order.customerName
+    
+    // Format articles with emojis and better organization
     const articles = order.items.map(i => {
       const sizeStr = i.size ? ` (${i.size})` : ''
-      return `${i.quantity}x ${i.product.name}${sizeStr}`
-    }).join(' + ')
+      return `📦 ${i.quantity}x ${i.product.name}${sizeStr}`
+    }).join('\n')
 
     // Format phone
     let phone = order.customerPhone || ''
@@ -524,30 +528,35 @@ https://loudbrandss.com/track-order?tracking=${trackingNumber}
     let message = ''
 
     if (status === 'En attente du client') {
-      const desk = shipment?.to_commune_name || 'le bureau Yalidine'
-      const wilaya = shipment?.to_wilaya_name || ''
+      const desk = shipment?.to_commune_name || order.deliveryDesk?.name || 'le bureau Yalidine'
+      const wilaya = shipment?.to_wilaya_name || order.city?.name || ''
       message = `مرحبًا ${customerName} 🌸
-نعلمك أن طلبيتك (${articles})
+نعلمك أن طلبيتك:
+${articles}
 رقم التتبع: (${tracking}) 📦
 وصلت إلى مكتب ياليدين (${desk} / ${wilaya}) 🏢
 
 يرجى التوجه إلى المكتب لاستلام الطلبية في أقرب وقت.
-شكرًا لثقتك بنا 🤍`
+شكرًا لثقتك بنا 🤍
+Loudstyles`
     } else if (status === 'Sorti en livraison') {
       message = `مرحبا ${customerName} 🌸
-نعلمك أن طلبيتك (${articles})
+نعلمك أن طلبيتك:
+${articles}
 برقم التتبع (${tracking}) 📦
 راهي عند عامل التوصيل 🚚
 
 عامل التوصيل راح يتصل بك قريبًا،
 يرجى الرد على الهاتف لتأكيد الاستلام 📞
-شكرا لثقتك بنا 🤍`
-    } else if (status === 'Tentative échouée') {
+شكرا لثقتك بنا 🤍
+Loudstyles`
+    } else if (status === 'Echèc livraison' || status === 'Echec de livraison') {
       message = `⛔ إشعار نهائي
 
 إشعار نهائي وتحذير أخير
 
-بخصوص طلبيتك (${articles})
+بخصوص طلبيتك:
+${articles}
 رقم التتبع (${tracking}) 📦
 
 نعلمك أن اليوم هو آخر أجل للاستلام دون أي تمديد.
@@ -558,6 +567,47 @@ https://loudbrandss.com/track-order?tracking=${trackingNumber}
 ❌ حظرك نهائيًا من الطلب من صفحة Loudstyles
 ❌ رفض أي تعامل مستقبلي معك دون استثناء 
 Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبائن غير جادين`
+    } else if (status === 'Tentative échouée') {
+      // Different messages based on delivery type
+      if (order.deliveryType === 'PICKUP') {
+        // Desk delivery
+        const desk = shipment?.to_commune_name || order.deliveryDesk?.name || 'المكتب المطلوب'
+        const deskAddress = order.deliveryAddress || desk
+        message = `مرحبا ${customerName} 🌸
+بخصوص طلبيتك:
+${articles}
+رقم التتبع: (${tracking}) 📦
+
+شركة التوصيل yalidine حاولت الاتصال بك
+لإستلامها من عنوان (${deskAddress})
+
+لكن لم يتم الرد على الهاتف لتأكيد الاستلام
+وتم تسجيلها كـ Tentative échouée 🚫
+
+📞 يرجى الرد والتقدّم للمكتب (${deskAddress}) في أقرب وقت لإستلامها
+وتفادي إلغاء الطلبية
+
+شكرا لتفهمك 🤍
+Loudstyles`
+      } else {
+        // Home delivery
+        const homeAddress = order.deliveryAddress || 'المنزل المطلوب'
+        message = `مرحبا ${customerName} 🌸
+بخصوص طلبيتك:
+${articles}
+رقم التتبع: (${tracking}) 📦
+
+عامل التوصيل yalidine حاول الإتصال بك لتسليمها إلى عنوان (${homeAddress})
+
+لكن لم يتم الرد على الهاتف لتأكيد الاستلام
+وتم تسجيلها كـ Tentative échouée 🚫
+
+📞 يرجى الرد على عامل التوصيل في أقرب وقت لإستلامها 
+و تفادي إلغاء الطلبية
+
+شكرا لتفهمك 🤍
+Loudstyles`
+      }
     } else {
       return null // No message for other statuses
     }
@@ -571,15 +621,19 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
     const tracking = shipment.tracking
     const customerName = shipment.customer_name
 
-    // Try to find order details to get sizes
+    // Try to find order details to get sizes and delivery type
     const order = orders.find(o => o.trackingNumber === tracking)
     let articles = shipment.product_list || 'Articles'
 
     if (order) {
+      // Format articles with emojis and better organization
       articles = order.items.map(i => {
         const sizeStr = i.size ? ` (${i.size})` : ''
-        return `${i.quantity}x ${i.product.name}${sizeStr}`
-      }).join(' + ')
+        return `📦 ${i.quantity}x ${i.product.name}${sizeStr}`
+      }).join('\n')
+    } else {
+      // Fallback: format product_list with emoji
+      articles = `📦 ${articles}`
     }
 
     // Format phone
@@ -590,30 +644,35 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
     let message = ''
 
     if (status === 'En attente du client') {
-      const desk = shipment.to_commune_name || 'le bureau Yalidine'
-      const wilaya = shipment.to_wilaya_name || ''
+      const desk = shipment.to_commune_name || order?.deliveryDesk?.name || 'le bureau Yalidine'
+      const wilaya = shipment.to_wilaya_name || order?.city?.name || ''
       message = `مرحبًا ${customerName} 🌸
-نعلمك أن طلبيتك (${articles})
+نعلمك أن طلبيتك:
+${articles}
 رقم التتبع: (${tracking}) 📦
 وصلت إلى مكتب ياليدين (${desk} / ${wilaya}) 🏢
 
 يرجى التوجه إلى المكتب لاستلام الطلبية في أقرب وقت.
-شكرًا لثقتك بنا 🤍`
+شكرًا لثقتك بنا 🤍
+Loudstyles`
     } else if (status === 'Sorti en livraison') {
       message = `مرحبا ${customerName} 🌸
-نعلمك أن طلبيتك (${articles})
+نعلمك أن طلبيتك:
+${articles}
 برقم التتبع (${tracking}) 📦
 راهي عند عامل التوصيل 🚚
 
 عامل التوصيل راح يتصل بك قريبًا،
 يرجى الرد على الهاتف لتأكيد الاستلام 📞
-شكرا لثقتك بنا 🤍`
-    } else if (status === 'Tentative échouée') {
+شكرا لثقتك بنا 🤍
+Loudstyles`
+    } else if (status === 'Echèc livraison' || status === 'Echec de livraison') {
       message = `⛔ إشعار نهائي
 
 إشعار نهائي وتحذير أخير
 
-بخصوص طلبيتك (${articles})
+بخصوص طلبيتك:
+${articles}
 رقم التتبع (${tracking}) 📦
 
 نعلمك أن اليوم هو آخر أجل للاستلام دون أي تمديد.
@@ -624,6 +683,47 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
 ❌ حظرك نهائيًا من الطلب من صفحة Loudstyles
 ❌ رفض أي تعامل مستقبلي معك دون استثناء 
 Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبائن غير جادين`
+    } else if (status === 'Tentative échouée') {
+      // Different messages based on delivery type
+      if (order && order.deliveryType === 'PICKUP') {
+        // Desk delivery
+        const desk = shipment.to_commune_name || order.deliveryDesk?.name || 'المكتب المطلوب'
+        const deskAddress = order.deliveryAddress || shipment.customer_address || desk
+        message = `مرحبا ${customerName} 🌸
+بخصوص طلبيتك:
+${articles}
+رقم التتبع: (${tracking}) 📦
+
+شركة التوصيل yalidine حاولت الاتصال بك
+لإستلامها من عنوان (${deskAddress})
+
+لكن لم يتم الرد على الهاتف لتأكيد الاستلام
+وتم تسجيلها كـ Tentative échouée 🚫
+
+📞 يرجى الرد والتقدّم للمكتب (${deskAddress}) في أقرب وقت لإستلامها
+وتفادي إلغاء الطلبية
+
+شكرا لتفهمك 🤍
+Loudstyles`
+      } else {
+        // Home delivery
+        const homeAddress = order?.deliveryAddress || shipment.customer_address || 'المنزل المطلوب'
+        message = `مرحبا ${customerName} 🌸
+بخصوص طلبيتك:
+${articles}
+رقم التتبع: (${tracking}) 📦
+
+عامل التوصيل yalidine حاول الإتصال بك لتسليمها إلى عنوان (${homeAddress})
+
+لكن لم يتم الرد على الهاتف لتأكيد الاستلام
+وتم تسجيلها كـ Tentative échouée 🚫
+
+📞 يرجى الرد على عامل التوصيل في أقرب وقت لإستلامها 
+و تفادي إلغاء الطلبية
+
+شكرا لتفهمك 🤍
+Loudstyles`
+      }
     } else {
       return null
     }
@@ -765,7 +865,10 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
                 </div>
                 {/* ... filter ... */}
                 <div className="flex items-center space-x-2">
-                  <Select value={confirmedStatusFilter} onValueChange={setConfirmedStatusFilter}>
+                  <Select value={confirmedStatusFilter} onValueChange={(value) => {
+                    setConfirmedStatusFilter(value)
+                    setConfirmedTabFilter('all') // Reset tab when using dropdown
+                  }}>
                     <SelectTrigger className="w-48">
                       <SelectValue placeholder="Filter by status" />
                     </SelectTrigger>
@@ -781,17 +884,94 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {orders.filter(order =>
-                order.callCenterStatus === 'CONFIRMED' &&
-                (confirmedStatusFilter === 'all' || getYalidineStatusForOrder(order) === confirmedStatusFilter)
-              ).length === 0 ? (
-                <p className="text-muted-foreground text-center py-8">No confirmed orders found</p>
-              ) : (
-                <div className="space-y-4">
-                  {orders.filter(order =>
-                    order.callCenterStatus === 'CONFIRMED' &&
-                    (confirmedStatusFilter === 'all' || getYalidineStatusForOrder(order) === confirmedStatusFilter)
-                  ).map((order) => {
+              {/* Status Tabs */}
+              <Tabs value={confirmedTabFilter} onValueChange={(value) => {
+                setConfirmedTabFilter(value)
+                if (value !== 'all') {
+                  setConfirmedStatusFilter(value) // Sync dropdown with tab
+                }
+              }} className="mb-6">
+                <TabsList className="flex w-full overflow-x-auto pb-2 justify-start h-auto gap-2">
+                  <TabsTrigger 
+                    value="all" 
+                    className="flex-shrink-0"
+                  >
+                    All ({orders.filter(order => order.callCenterStatus === 'CONFIRMED').length})
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="En préparation" 
+                    className="flex-shrink-0 bg-blue-600 text-white data-[state=active]:bg-blue-700"
+                  >
+                    En préparation ({orders.filter(order => 
+                      order.callCenterStatus === 'CONFIRMED' && 
+                      getYalidineStatusForOrder(order) === 'En préparation'
+                    ).length})
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="Sorti en livraison" 
+                    className="flex-shrink-0 bg-indigo-600 text-white data-[state=active]:bg-indigo-700"
+                  >
+                    Sorti en livraison ({orders.filter(order => 
+                      order.callCenterStatus === 'CONFIRMED' && 
+                      getYalidineStatusForOrder(order) === 'Sorti en livraison'
+                    ).length})
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="En attente du client" 
+                    className="flex-shrink-0 bg-amber-500 text-white data-[state=active]:bg-amber-600"
+                  >
+                    En attente du client ({orders.filter(order => 
+                      order.callCenterStatus === 'CONFIRMED' && 
+                      getYalidineStatusForOrder(order) === 'En attente du client'
+                    ).length})
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="Tentative échouée" 
+                    className="flex-shrink-0 bg-red-600 text-white animate-pulse-slow data-[state=active]:bg-red-700"
+                  >
+                    Tentative échouée ({orders.filter(order => 
+                      order.callCenterStatus === 'CONFIRMED' && 
+                      getYalidineStatusForOrder(order) === 'Tentative échouée'
+                    ).length})
+                  </TabsTrigger>
+                  <TabsTrigger 
+                    value="En alerte" 
+                    className="flex-shrink-0 bg-orange-600 text-white animate-pulse-slow data-[state=active]:bg-orange-700"
+                  >
+                    En alerte ({orders.filter(order => 
+                      order.callCenterStatus === 'CONFIRMED' && 
+                      getYalidineStatusForOrder(order) === 'En alerte'
+                    ).length})
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {/* Orders List */}
+              {(() => {
+                // Filter orders based on both tab and dropdown filter
+                let filteredOrders = orders.filter(order => order.callCenterStatus === 'CONFIRMED')
+                
+                // Apply tab filter if not 'all'
+                if (confirmedTabFilter !== 'all') {
+                  filteredOrders = filteredOrders.filter(order => 
+                    getYalidineStatusForOrder(order) === confirmedTabFilter
+                  )
+                }
+                
+                // Apply dropdown filter if not 'all' and tab is 'all'
+                if (confirmedStatusFilter !== 'all' && confirmedTabFilter === 'all') {
+                  filteredOrders = filteredOrders.filter(order => 
+                    getYalidineStatusForOrder(order) === confirmedStatusFilter
+                  )
+                }
+
+                if (filteredOrders.length === 0) {
+                  return <p className="text-muted-foreground text-center py-8">No confirmed orders found</p>
+                }
+
+                return (
+                  <div className="space-y-4">
+                    {filteredOrders.map((order) => {
                     const status = getYalidineStatusForOrder(order)
                     const whatsappLink = getDeliveryAgentWhatsAppLink(order, status)
 
@@ -821,13 +1001,34 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
                                   <p className="font-semibold">{order.customerPhone}</p>
                                 </div>
                               </div>
+                            </div>
+
+                            {/* Order Summary */}
+                            <div className="bg-muted/30 p-3 rounded-lg space-y-2">
+                              <p className="text-sm font-medium text-muted-foreground mb-2">Résumé de la commande:</p>
+                              <div className="space-y-1">
+                                {order.items.map((item) => {
+                                  const itemTotal = item.price * item.quantity
+                                  const sizeStr = item.size ? ` [${item.size}]` : ''
+                                  return (
+                                    <div key={item.id} className="flex justify-between text-sm">
+                                      <span>
+                                        {item.quantity}x {item.product.name}{sizeStr}
+                                      </span>
+                                      <span className="font-medium">{itemTotal.toLocaleString()} DA</span>
+                                    </div>
+                                  )
+                                })}
+                              </div>
                               <div className="border-t pt-2 mt-2 space-y-1">
                                 <div className="flex justify-between text-sm">
-                                  <span className="text-muted-foreground">Prix des articles:</span>
-                                  <span className="font-medium">{order.subtotal.toLocaleString()} DA</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-muted-foreground">Frais de livraison:</span>
+                                  <span className="text-muted-foreground">
+                                    {order.deliveryType === 'HOME_DELIVERY' ? (
+                                      <span>Livraison à domicile</span>
+                                    ) : (
+                                      <span>Livraison au bureau Yalidine</span>
+                                    )}
+                                  </span>
                                   <span className="font-medium">{order.deliveryFee.toLocaleString()} DA</span>
                                 </div>
                                 <div className="flex justify-between text-sm pt-1 border-t">
@@ -837,35 +1038,7 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
                               </div>
                             </div>
 
-                            {/* Articles Commandés */}
-                            <div>
-                              <p className="text-sm font-medium text-muted-foreground mb-2">Articles Commandés:</p>
-                              <div className="space-y-2">
-                                {order.items.map((item) => (
-                                  <div key={item.id} className="flex items-center space-x-3 p-2 bg-muted/30 rounded">
-                                    {item.image && (
-                                      <img 
-                                        src={item.image} 
-                                        alt={item.product.name}
-                                        className="w-12 h-12 object-cover rounded"
-                                        onError={(e) => {
-                                          (e.target as HTMLImageElement).src = '/placeholder.svg'
-                                        }}
-                                      />
-                                    )}
-                                    <div className="flex-1">
-                                      <p className="font-medium text-sm">{item.product.name}</p>
-                                      <div className="flex items-center space-x-2 text-xs text-muted-foreground">
-                                        <span>Qté: {item.quantity}</span>
-                                        {item.size && <span>• Taille: {item.size}</span>}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Tracking and Address */}
+                            {/* Yalidine Tracking */}
                             {order.trackingNumber && (
                               <div className="text-sm">
                                 <span className="font-medium">Yalidine Tracking:</span>
@@ -874,32 +1047,50 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
                                 </span>
                               </div>
                             )}
+
+                            {/* Delivery Address */}
                             {order.deliveryAddress && (
                               <div className="text-sm">
-                                <span className="font-medium">Adresse:</span>
-                                <span className="ml-2">{order.deliveryAddress}</span>
-                                <span className="ml-2">
+                                <span className="font-medium">Adresse de livraison:</span>
+                                <div className="mt-1 flex items-center gap-2">
                                   {order.deliveryType === 'HOME_DELIVERY' ? (
-                                    <Badge variant="outline" className="text-blue-600">
-                                      <Home className="w-3 h-3 mr-1" />
-                                      À domicile
-                                    </Badge>
+                                    <>
+                                      <span className="text-lg">🏠</span>
+                                      <span className="font-medium">À domicile</span>
+                                    </>
                                   ) : (
-                                    <Badge variant="outline" className="text-purple-600">
-                                      <Store className="w-3 h-3 mr-1" />
-                                      Bureau Yalidine
-                                    </Badge>
+                                    <>
+                                      <span className="text-lg">🏢</span>
+                                      <span className="font-medium">Bureau Yalidine</span>
+                                    </>
                                   )}
-                                </span>
+                                </div>
+                                <span className="ml-7 text-muted-foreground">{order.deliveryAddress}</span>
                               </div>
                             )}
 
-                            {/* Notes Display */}
+                            {/* Notes Display - Orange and Animated */}
                             {order.notes && (
-                              <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
-                                <p className="text-sm font-medium text-yellow-800 mb-1">Notes:</p>
-                                <p className="text-sm text-yellow-900 whitespace-pre-wrap">{order.notes}</p>
-                              </div>
+                              <motion.div 
+                                className="bg-orange-50 border-2 border-orange-300 p-3 rounded-lg shadow-md"
+                                initial={{ scale: 1 }}
+                                animate={{ 
+                                  scale: [1, 1.02, 1],
+                                  boxShadow: [
+                                    '0 0 0px rgba(251, 146, 60, 0.4)',
+                                    '0 0 10px rgba(251, 146, 60, 0.6)',
+                                    '0 0 0px rgba(251, 146, 60, 0.4)'
+                                  ]
+                                }}
+                                transition={{ 
+                                  duration: 2,
+                                  repeat: Infinity,
+                                  ease: "easeInOut"
+                                }}
+                              >
+                                <p className="text-sm font-medium text-orange-800 mb-1">Notes:</p>
+                                <p className="text-sm text-orange-900 whitespace-pre-wrap">{order.notes}</p>
+                              </motion.div>
                             )}
                           </div>
 
@@ -948,8 +1139,9 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
                       </div>
                     )
                   })}
-                </div>
-              )}
+                  </div>
+                )
+              })()}
             </CardContent>
           </Card>
         </TabsContent>
