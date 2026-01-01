@@ -542,27 +542,43 @@ https://loudbrandss.com/track-order?tracking=${trackingNumber}
     let message = ''
 
     if (status === 'En attente du client') {
-      const desk = shipment?.to_commune_name || order.deliveryDesk?.name || 'le bureau Yalidine'
-      const wilaya = shipment?.to_wilaya_name || order.city?.name || ''
-      const deskAddress = order.deliveryAddress || shipment?.customer_address || desk
+      // Show only the Yalidine desk name chosen by the client (for PICKUP orders)
+      const deskName = order.deliveryDesk?.name || shipment?.to_commune_name || 'le bureau Yalidine'
       message = `مرحبًا ${customerName} 🌸
 نعلمك أن طلبيتك:
 ${articles}
 رقم التتبع: (${tracking}) 📦
 وصلت إلى مكتب ياليدين:
-🏢 المكتب: ${desk}
-📍 العنوان: ${deskAddress}
-${wilaya ? `🌍 الولاية: ${wilaya}` : ''}
+🏢 المكتب: ${deskName}
 
 يرجى التوجه إلى المكتب لاستلام الطلبية في أقرب وقت.
 شكرًا لثقتك بنا 🤍
 Loudstyles`
     } else if (status === 'Sorti en livraison') {
+      // Get delivery address or desk based on delivery type
+      let deliveryInfo = ''
+      if (order.deliveryType === 'PICKUP') {
+        // For PICKUP, show only the desk name
+        const deskName = order.deliveryDesk?.name || 'المكتب المطلوب'
+        deliveryInfo = `🏢 المكتب: ${deskName}`
+      } else {
+        // For HOME_DELIVERY, show address, commune, and wilaya in one line
+        const wilaya = shipment?.to_wilaya_name || order.city?.name || ''
+        const commune = shipment?.to_commune_name || ''
+        const homeAddress = order.deliveryAddress || shipment?.customer_address || 'العنوان المطلوب'
+        const addressParts = [homeAddress]
+        if (commune) addressParts.push(commune)
+        if (wilaya) addressParts.push(wilaya)
+        deliveryInfo = `📍 Adresse: ${addressParts.join(', ')}`
+      }
+      
       message = `مرحبا ${customerName} 🌸
 نعلمك أن طلبيتك:
 ${articles}
 برقم التتبع (${tracking}) 📦
 راهي عند عامل التوصيل 🚚
+
+${deliveryInfo}
 
 عامل التوصيل راح يتصل بك قريبًا،
 يرجى الرد على الهاتف لتأكيد الاستلام 📞
@@ -588,10 +604,8 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
     } else if (status === 'Tentative échouée') {
       // Different messages based on delivery type
       if (order.deliveryType === 'PICKUP') {
-        // Desk delivery
-        const desk = shipment?.to_commune_name || order.deliveryDesk?.name || 'المكتب المطلوب'
-        const deskAddress = order.deliveryAddress || shipment?.customer_address || desk
-        const wilaya = shipment?.to_wilaya_name || order.city?.name || ''
+        // Desk delivery - show only the Yalidine desk name chosen by the client
+        const deskName = order.deliveryDesk?.name || 'المكتب المطلوب'
         message = `مرحبا ${customerName} 🌸
 بخصوص طلبيتك:
 ${articles}
@@ -599,9 +613,7 @@ ${articles}
 
 شركة التوصيل yalidine حاولت الاتصال بك
 لإستلامها من:
-🏢 المكتب: ${desk}
-📍 العنوان: ${deskAddress}
-${wilaya ? `🌍 الولاية: ${wilaya}` : ''}
+🏢 المكتب: ${deskName}
 
 لكن لم يتم الرد على الهاتف لتأكيد الاستلام
 وتم تسجيلها كـ Tentative échouée 🚫
@@ -612,13 +624,14 @@ ${wilaya ? `🌍 الولاية: ${wilaya}` : ''}
 شكرا لتفهمك 🤍
 Loudstyles`
       } else {
-        // Home delivery
+        // Home delivery - show address, commune, and wilaya in one line
         const homeAddress = order.deliveryAddress || shipment?.customer_address || 'المنزل المطلوب'
         const commune = shipment?.to_commune_name || ''
         const wilaya = shipment?.to_wilaya_name || order.city?.name || ''
-        let addressInfo = `📍 العنوان: ${homeAddress}`
-        if (commune) addressInfo += `\n🏘️ البلدية: ${commune}`
-        if (wilaya) addressInfo += `\n🌍 الولاية: ${wilaya}`
+        const addressParts = [homeAddress]
+        if (commune) addressParts.push(commune)
+        if (wilaya) addressParts.push(wilaya)
+        const addressInfo = `📍 Adresse: ${addressParts.join(', ')}`
         
         message = `مرحبا ${customerName} 🌸
 بخصوص طلبيتك:
@@ -673,17 +686,14 @@ Loudstyles`
     let message = ''
 
     if (status === 'En attente du client') {
-      const desk = shipment.to_commune_name || order?.deliveryDesk?.name || 'le bureau Yalidine'
-      const wilaya = shipment.to_wilaya_name || order?.city?.name || ''
-      const deskAddress = order?.deliveryAddress || shipment.customer_address || desk
+      // Show only the Yalidine desk name chosen by the client (for PICKUP orders)
+      const deskName = order?.deliveryDesk?.name || shipment.to_commune_name || 'le bureau Yalidine'
       message = `مرحبًا ${customerName} 🌸
 نعلمك أن طلبيتك:
 ${articles}
 رقم التتبع: (${tracking}) 📦
 وصلت إلى مكتب ياليدين:
-🏢 المكتب: ${desk}
-📍 العنوان: ${deskAddress}
-${wilaya ? `🌍 الولاية: ${wilaya}` : ''}
+🏢 المكتب: ${deskName}
 
 يرجى التوجه إلى المكتب لاستلام الطلبية في أقرب وقت.
 شكرًا لثقتك بنا 🤍
@@ -692,16 +702,18 @@ Loudstyles`
       // Get delivery address or desk based on delivery type
       let deliveryInfo = ''
       if (order && order.deliveryType === 'PICKUP') {
-        const desk = shipment.to_commune_name || order.deliveryDesk?.name || 'المكتب المطلوب'
-        const deskAddress = order.deliveryAddress || shipment.customer_address || desk
-        deliveryInfo = `🏢 المكتب: ${desk}\n📍 العنوان: ${deskAddress}`
+        // For PICKUP, show only the desk name
+        const deskName = order.deliveryDesk?.name || 'المكتب المطلوب'
+        deliveryInfo = `🏢 المكتب: ${deskName}`
       } else {
+        // For HOME_DELIVERY, show address, commune, and wilaya in one line
         const wilaya = shipment.to_wilaya_name || order?.city?.name || ''
         const commune = shipment.to_commune_name || ''
         const homeAddress = order?.deliveryAddress || shipment.customer_address || 'العنوان المطلوب'
-        deliveryInfo = `📍 العنوان: ${homeAddress}`
-        if (commune) deliveryInfo += `\n🏘️ البلدية: ${commune}`
-        if (wilaya) deliveryInfo += `\n🌍 الولاية: ${wilaya}`
+        const addressParts = [homeAddress]
+        if (commune) addressParts.push(commune)
+        if (wilaya) addressParts.push(wilaya)
+        deliveryInfo = `📍 Adresse: ${addressParts.join(', ')}`
       }
       
       message = `مرحبا ${customerName} 🌸
@@ -736,10 +748,8 @@ Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبا
     } else if (status === 'Tentative échouée') {
       // Different messages based on delivery type
       if (order && order.deliveryType === 'PICKUP') {
-        // Desk delivery
-        const desk = shipment.to_commune_name || order.deliveryDesk?.name || 'المكتب المطلوب'
-        const deskAddress = order.deliveryAddress || shipment.customer_address || desk
-        const wilaya = shipment.to_wilaya_name || order.city?.name || ''
+        // Desk delivery - show only the Yalidine desk name chosen by the client
+        const deskName = order.deliveryDesk?.name || 'المكتب المطلوب'
         message = `مرحبا ${customerName} 🌸
 بخصوص طلبيتك:
 ${articles}
@@ -747,9 +757,7 @@ ${articles}
 
 شركة التوصيل yalidine حاولت الاتصال بك
 لإستلامها من:
-🏢 المكتب: ${desk}
-📍 العنوان: ${deskAddress}
-${wilaya ? `🌍 الولاية: ${wilaya}` : ''}
+🏢 المكتب: ${deskName}
 
 لكن لم يتم الرد على الهاتف لتأكيد الاستلام
 وتم تسجيلها كـ Tentative échouée 🚫
@@ -760,13 +768,14 @@ ${wilaya ? `🌍 الولاية: ${wilaya}` : ''}
 شكرا لتفهمك 🤍
 Loudstyles`
       } else {
-        // Home delivery
+        // Home delivery - show address, commune, and wilaya in one line
         const homeAddress = order?.deliveryAddress || shipment.customer_address || 'المنزل المطلوب'
         const commune = shipment.to_commune_name || ''
         const wilaya = shipment.to_wilaya_name || order?.city?.name || ''
-        let addressInfo = `📍 العنوان: ${homeAddress}`
-        if (commune) addressInfo += `\n🏘️ البلدية: ${commune}`
-        if (wilaya) addressInfo += `\n🌍 الولاية: ${wilaya}`
+        const addressParts = [homeAddress]
+        if (commune) addressParts.push(commune)
+        if (wilaya) addressParts.push(wilaya)
+        const addressInfo = `📍 Adresse: ${addressParts.join(', ')}`
         
         message = `مرحبا ${customerName} 🌸
 بخصوص طلبيتك:
