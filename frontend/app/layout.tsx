@@ -153,8 +153,8 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com" />
 
         {/* Preload only critical resources that are used on all pages */}
-        {/* Note: manifest.json should use rel="manifest" not preload */}
-        <link rel="manifest" href="/manifest.json" />
+        {/* Note: manifest.json will be dynamically updated by PWAManifestUpdater based on route */}
+        <link rel="manifest" href="/manifest.json" id="pwa-manifest" />
 
         {/* Prefetch likely next pages (removed API prefetch - not supported) */}
         <link rel="prefetch" href="/loud-styles" />

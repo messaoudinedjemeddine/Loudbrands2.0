@@ -12,25 +12,30 @@ export function PWAManifestUpdater() {
                          pathname?.startsWith('/confirmatrice') || 
                          pathname?.startsWith('/agent-livraison');
 
-    // Find existing manifest link
-    let manifestLink = document.querySelector('link[rel="manifest"]') as HTMLLinkElement;
+    // Find existing manifest link by ID or by rel
+    let manifestLink = document.querySelector('#pwa-manifest') as HTMLLinkElement || 
+                       document.querySelector('link[rel="manifest"]') as HTMLLinkElement;
 
     if (isAdminRoute) {
-      // Use admin manifest for admin routes
+      // Use admin manifest for admin routes - completely separate PWA
       if (!manifestLink) {
         manifestLink = document.createElement('link');
         manifestLink.rel = 'manifest';
+        manifestLink.id = 'pwa-manifest';
         document.head.appendChild(manifestLink);
       }
       manifestLink.href = '/admin-manifest.json';
+      console.log('Admin PWA manifest loaded: /admin-manifest.json (start_url: /admin)');
     } else {
       // Use client manifest for client routes
       if (!manifestLink) {
         manifestLink = document.createElement('link');
         manifestLink.rel = 'manifest';
+        manifestLink.id = 'pwa-manifest';
         document.head.appendChild(manifestLink);
       }
       manifestLink.href = '/manifest.json';
+      console.log('Client PWA manifest loaded: /manifest.json (start_url: /)');
     }
   }, [pathname]);
 

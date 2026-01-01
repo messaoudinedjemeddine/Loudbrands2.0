@@ -1,6 +1,7 @@
 {
     "name": "Loud Brands Admin",
     "short_name": "Loud Admin",
+    "description": "Admin dashboard for Loud Brands management",
     "icons": [
         {
             "src": "/logo-mini.png",
@@ -21,6 +22,7 @@
     "theme_color": "#C4A47C",
     "background_color": "#ffffff",
     "start_url": "/admin",
+    "scope": "/admin",
     "display": "standalone",
     "orientation": "portrait"
 }
