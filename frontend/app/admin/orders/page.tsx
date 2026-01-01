@@ -294,6 +294,12 @@ function OrdersContent() {
     setFilteredOrders(filtered)
   }, [orders, searchQuery, statusFilter, cityFilter])
 
+  // Calculate pagination for filtered orders
+  const startIndex = (page - 1) * itemsPerPage
+  const endIndex = startIndex + itemsPerPage
+  const paginatedFilteredOrders = filteredOrders.slice(startIndex, endIndex)
+  const filteredTotalPages = Math.ceil(filteredOrders.length / itemsPerPage)
+
   if (!mounted) return null
 
   const handleUpdateStatus = async (orderId: string, status: string) => {
@@ -729,14 +735,7 @@ function OrdersContent() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {(() => {
-                    // Client-side pagination for filtered orders
-                    const startIndex = (page - 1) * itemsPerPage
-                    const endIndex = startIndex + itemsPerPage
-                    const paginatedFilteredOrders = filteredOrders.slice(startIndex, endIndex)
-                    const filteredTotalPages = Math.ceil(filteredOrders.length / itemsPerPage)
-
-                    return paginatedFilteredOrders.map((order) => {
+                  {paginatedFilteredOrders.map((order) => {
                     const StatusIcon = statusIcons[order.callCenterStatus as keyof typeof statusIcons]
 
                     return (
@@ -953,7 +952,7 @@ function OrdersContent() {
                         </TableCell>
                       </TableRow>
                     )
-                  })()}
+                  })}
                 </TableBody>
               </Table>
 
@@ -968,38 +967,30 @@ function OrdersContent() {
               )}
 
               {/* Pagination Controls */}
-              {(() => {
-                const filteredTotalPages = Math.ceil(filteredOrders.length / itemsPerPage)
-                const startIndex = (page - 1) * itemsPerPage
-                const endIndex = Math.min(startIndex + itemsPerPage, filteredOrders.length)
-                
-                return (
-                  <div className="flex items-center justify-between border-t p-4 mt-4">
-                    <div className="text-sm text-muted-foreground">
-                      Affichage {startIndex + 1}-{endIndex} sur {filteredOrders.length} commandes
-                      {filteredTotalPages > 1 && ` • Page ${page} sur ${filteredTotalPages}`}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage(p => Math.max(1, p - 1))}
-                        disabled={page === 1}
-                      >
-                        Précédent
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPage(p => Math.min(filteredTotalPages, p + 1))}
-                        disabled={page >= filteredTotalPages}
-                      >
-                        Suivant
-                      </Button>
-                    </div>
-                  </div>
-                )
-              })()}
+              <div className="flex items-center justify-between border-t p-4 mt-4">
+                <div className="text-sm text-muted-foreground">
+                  Affichage {startIndex + 1}-{Math.min(endIndex, filteredOrders.length)} sur {filteredOrders.length} commandes
+                  {filteredTotalPages > 1 && ` • Page ${page} sur ${filteredTotalPages}`}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page === 1}
+                  >
+                    Précédent
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPage(p => Math.min(filteredTotalPages, p + 1))}
+                    disabled={page >= filteredTotalPages}
+                  >
+                    Suivant
+                  </Button>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
