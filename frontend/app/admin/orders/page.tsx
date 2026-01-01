@@ -229,7 +229,7 @@ function OrdersContent() {
     if (mounted) {
       fetchOrders()
     }
-  }, [page, itemsPerPage, searchQuery, mounted]) // Refetch when page, itemsPerPage, or search changes
+  }, [page, itemsPerPage, searchQuery, statusFilter, cityFilter, mounted]) // Refetch when page, itemsPerPage, or filters change
 
   // Refresh orders when the page becomes visible (user returns from order detail)
   useEffect(() => {
@@ -255,9 +255,10 @@ function OrdersContent() {
   const fetchOrders = async () => {
     try {
       setLoading(true)
-      // If searching, fetch more orders to search through (200 orders), otherwise use pagination
-      const limit = searchQuery.trim() ? 200 : itemsPerPage
-      const fetchPage = searchQuery.trim() ? 1 : page
+      // If searching or filtering, fetch more orders to search through (200 orders), otherwise use backend pagination
+      const hasActiveFilters = searchQuery.trim() || statusFilter !== 'all' || cityFilter !== 'all'
+      const limit = hasActiveFilters ? 200 : itemsPerPage
+      const fetchPage = hasActiveFilters ? 1 : page
       const response = await api.admin.getOrders({ page: fetchPage, limit }) as any
       setOrders(response.orders || [])
       setTotalPages(response.pagination?.pages || 1)
@@ -294,11 +295,14 @@ function OrdersContent() {
     setFilteredOrders(filtered)
   }, [orders, searchQuery, statusFilter, cityFilter])
 
-  // Calculate pagination for filtered orders
-  const startIndex = (page - 1) * itemsPerPage
-  const endIndex = startIndex + itemsPerPage
-  const paginatedFilteredOrders = filteredOrders.slice(startIndex, endIndex)
-  const filteredTotalPages = Math.ceil(filteredOrders.length / itemsPerPage)
+  // Determine if we should use client-side pagination (when searching/filtering)
+  const hasActiveFilters = searchQuery.trim() || statusFilter !== 'all' || cityFilter !== 'all'
+  
+  // Calculate pagination for filtered orders (only when filtering)
+  const startIndex = hasActiveFilters ? (page - 1) * itemsPerPage : 0
+  const endIndex = hasActiveFilters ? startIndex + itemsPerPage : filteredOrders.length
+  const paginatedFilteredOrders = hasActiveFilters ? filteredOrders.slice(startIndex, endIndex) : filteredOrders
+  const filteredTotalPages = hasActiveFilters ? Math.ceil(filteredOrders.length / itemsPerPage) : 1
 
   if (!mounted) return null
 
@@ -967,30 +971,58 @@ function OrdersContent() {
               )}
 
               {/* Pagination Controls */}
-              <div className="flex items-center justify-between border-t p-4 mt-4">
-                <div className="text-sm text-muted-foreground">
-                  Affichage {startIndex + 1}-{Math.min(endIndex, filteredOrders.length)} sur {filteredOrders.length} commandes
-                  {filteredTotalPages > 1 && ` • Page ${page} sur ${filteredTotalPages}`}
+              {hasActiveFilters ? (
+                // Client-side pagination when filtering
+                <div className="flex items-center justify-between border-t p-4 mt-4">
+                  <div className="text-sm text-muted-foreground">
+                    Affichage {startIndex + 1}-{Math.min(endIndex, filteredOrders.length)} sur {filteredOrders.length} commandes
+                    {filteredTotalPages > 1 && ` • Page ${page} sur ${filteredTotalPages}`}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      Précédent
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.min(filteredTotalPages, p + 1))}
+                      disabled={page >= filteredTotalPages}
+                    >
+                      Suivant
+                    </Button>
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(p => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                  >
-                    Précédent
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setPage(p => Math.min(filteredTotalPages, p + 1))}
-                    disabled={page >= filteredTotalPages}
-                  >
-                    Suivant
-                  </Button>
+              ) : (
+                // Backend pagination when not filtering
+                <div className="flex items-center justify-between border-t p-4 mt-4">
+                  <div className="text-sm text-muted-foreground">
+                    Page {page} sur {totalPages} • {filteredOrders.length} commandes
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.max(1, p - 1))}
+                      disabled={page === 1}
+                    >
+                      Précédent
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                      disabled={page >= totalPages}
+                    >
+                      Suivant
+                    </Button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           </CardContent>
         </Card>
