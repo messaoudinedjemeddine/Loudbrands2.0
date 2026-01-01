@@ -515,6 +515,7 @@ function OrdersContent() {
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          {/* Total Commandes */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -528,12 +529,13 @@ function OrdersContent() {
               <CardContent>
                 <div className="text-2xl font-bold">{orders.length}</div>
                 <p className="text-xs text-muted-foreground">
-                  All time orders
+                  Toutes les commandes
                 </p>
               </CardContent>
             </Card>
           </motion.div>
 
+          {/* Nouvelles Commandes - Only NEW status, excluding PENDING */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -542,19 +544,20 @@ function OrdersContent() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
                 <CardTitle className="text-sm font-medium">Nouvelles Commandes</CardTitle>
-                <Clock className="h-4 w-4 text-blue-500" />
+                <Sparkles className="h-4 w-4 text-blue-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                  {orders.filter(o => o.callCenterStatus === 'PENDING').length}
+                <div className="text-2xl font-bold text-blue-600">
+                  {orders.filter(o => o.callCenterStatus === 'NEW').length}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Awaiting confirmation
+                  Commandes nouvelles
                 </p>
               </CardContent>
             </Card>
           </motion.div>
 
+          {/* Confirmées */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -566,7 +569,7 @@ function OrdersContent() {
                 <CheckCircle className="h-4 w-4 text-green-500" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
+                <div className="text-2xl font-bold text-green-600">
                   {orders.filter(o => o.callCenterStatus === 'CONFIRMED').length}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -576,28 +579,27 @@ function OrdersContent() {
             </Card>
           </motion.div>
 
-          {user?.role !== 'CONFIRMATRICE' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Revenus Totaux</CardTitle>
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {orders.reduce((sum, o) => sum + o.total, 0).toLocaleString()} DA
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Revenus de tous temps
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
+          {/* Commande en Attente */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Commande en Attente</CardTitle>
+                <Clock className="h-4 w-4 text-yellow-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-yellow-600">
+                  {orders.filter(o => o.callCenterStatus === 'PENDING').length}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  En attente de traitement
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
 
         {/* Filters */}
