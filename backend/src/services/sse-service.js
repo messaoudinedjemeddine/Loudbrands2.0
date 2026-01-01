@@ -82,18 +82,22 @@ class SSEService {
    */
   sendToUser(userId, notification) {
     if (!this.clients.has(userId)) {
+      console.log(`No SSE clients found for user: ${userId}`);
       return false;
     }
 
     const userClients = this.clients.get(userId);
     const disconnectedClients = [];
+    let successCount = 0;
 
     userClients.forEach(res => {
       try {
         const message = `data: ${JSON.stringify(notification)}\n\n`;
         res.write(message);
+        successCount++;
+        console.log(`✅ SSE message sent to client ${userId} (${successCount}/${userClients.size})`);
       } catch (error) {
-        console.error(`Error broadcasting to client ${userId}:`, error);
+        console.error(`❌ Error broadcasting to client ${userId}:`, error.message);
         disconnectedClients.push(res);
       }
     });
@@ -103,7 +107,7 @@ class SSEService {
       this.removeClient(userId, res);
     });
 
-    return true;
+    return successCount > 0;
   }
 
   /**

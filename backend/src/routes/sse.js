@@ -27,14 +27,18 @@ router.get('/notifications', async (req, res, next) => {
     const userId = req.user.id;
     const userRole = req.user.role;
 
+    console.log(`🔌 SSE connection attempt from user: ${userId} (${userRole})`);
+
     // Only allow admin roles to connect
     const allowedRoles = ['ADMIN', 'CONFIRMATRICE', 'AGENT_LIVRAISON', 'STOCK_MANAGER'];
     if (!allowedRoles.includes(userRole)) {
+      console.log(`❌ SSE access denied for user: ${userId} (${userRole})`);
       return res.status(403).json({ error: 'Access denied. Admin role required.' });
     }
 
     // Add client to SSE service
     sseService.addClient(userId, res);
+    console.log(`✅ SSE client added for user: ${userId} (Total clients: ${sseService.getTotalClients()})`);
 
     // Keep connection alive with periodic ping
     const pingInterval = setInterval(() => {

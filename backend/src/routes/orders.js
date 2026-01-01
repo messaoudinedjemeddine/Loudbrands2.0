@@ -346,6 +346,9 @@ router.post('/', async (req, res) => {
         }
       });
 
+      console.log(`📢 Preparing SSE notification for new order: ${orderNumber}`);
+      console.log(`👥 Found ${adminUsers.length} admin users to notify`);
+
       const sseNotification = {
         type: 'new_order',
         title: 'Nouvelle Commande',
@@ -359,13 +362,22 @@ router.post('/', async (req, res) => {
       };
 
       // Broadcast to all admin users via SSE
+      let notifiedCount = 0;
       adminUsers.forEach(user => {
-        sseService.sendToUser(user.id, sseNotification);
+        const sent = sseService.sendToUser(user.id, sseNotification);
+        if (sent) {
+          notifiedCount++;
+          console.log(`✅ SSE notification sent to user: ${user.id} (${user.role})`);
+        } else {
+          console.log(`⚠️ No active SSE connection for user: ${user.id} (${user.role})`);
+        }
       });
 
-      console.log(`SSE notification sent for new order: ${orderNumber}`);
+      console.log(`📨 SSE notification sent to ${notifiedCount}/${adminUsers.length} connected admin users for order: ${orderNumber}`);
+      console.log(`🔌 Total SSE clients connected: ${sseService.getTotalClients()}`);
     } catch (sseError) {
-      console.error('Failed to send SSE notification:', sseError);
+      console.error('❌ Failed to send SSE notification:', sseError);
+      console.error('Error details:', sseError.stack);
     }
 
     // Send push notification to Admin users (keep existing push notifications)
