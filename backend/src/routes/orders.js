@@ -366,6 +366,16 @@ router.post('/', async (req, res) => {
       const totalClients = sseService.getTotalClients();
       console.log(`📊 Broadcasting to ${adminUsers.length} admin users, ${totalClients} total SSE clients connected`);
       
+      // Log all connected user IDs for debugging
+      if (totalClients > 0) {
+        console.log(`🔍 Debug: Checking SSE client connections...`);
+        const connectedUserIds = sseService.getConnectedUserIds();
+        connectedUserIds.forEach(connectedUserId => {
+          const count = sseService.getUserClientCount(connectedUserId);
+          console.log(`  - Connected user ID: ${connectedUserId} (${count} connection(s))`);
+        });
+      }
+      
       adminUsers.forEach(user => {
         const userClientCount = sseService.getUserClientCount(user.id);
         console.log(`👤 User ${user.id} (${user.role}): ${userClientCount} active SSE connection(s)`);

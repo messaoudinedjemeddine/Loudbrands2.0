@@ -29,16 +29,17 @@ router.get('/notifications', async (req, res, next) => {
     return res.status(401).json({ error: 'Authentication token required' });
   }
 
-  // Manually authenticate using the token
-  try {
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // Attach user to request for middleware compatibility
-    req.user = decoded;
-    
-    const userId = req.user.id;
-    const userRole = req.user.role;
+    // Manually authenticate using the token
+    try {
+      const jwt = require('jsonwebtoken');
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      
+      // Attach user to request for middleware compatibility
+      req.user = decoded;
+      
+      // JWT token contains 'userId', not 'id'
+      const userId = req.user.userId || req.user.id;
+      const userRole = req.user.role;
 
     console.log(`🔌 SSE connection attempt from user: ${userId} (${userRole})`);
 

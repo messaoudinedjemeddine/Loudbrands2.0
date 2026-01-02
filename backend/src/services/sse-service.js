@@ -144,6 +144,14 @@ class SSEService {
   getUserClientCount(userId) {
     return this.clients.has(userId) ? this.clients.get(userId).size : 0;
   }
+
+  /**
+   * Get all connected user IDs (for debugging)
+   * @returns {Array<string>}
+   */
+  getConnectedUserIds() {
+    return Array.from(this.clients.keys());
+  }
 }
 
 // Export singleton instance

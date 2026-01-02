@@ -23,6 +23,12 @@ interface Product {
   rating?: number
   stock: number
   sizes: any[]
+  category?: {
+    id: string
+    name: string
+    nameAr?: string
+    slug: string
+  } | string
 }
 
 interface FeaturedProductsSectionProps {
@@ -95,7 +101,14 @@ export default function FeaturedProductsSection({ products, loading, error }: Fe
       <div className="max-w-5xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           {products.slice(0, 4).map((product, index) => {
-            const sizeStrings = getSizeStrings(product.sizes)
+            // Check if product is in accessoires category
+            const categorySlug = typeof product.category === 'string' 
+              ? product.category.toLowerCase() 
+              : product.category?.slug?.toLowerCase() || '';
+            const isAccessoires = categorySlug.includes('accessoire') || categorySlug.includes('accessories');
+            
+            // Convert sizes to string array for rendering (only if not accessoires)
+            const sizeStrings = isAccessoires ? [] : getSizeStrings(product.sizes)
 
             return (
               <motion.div
@@ -180,26 +193,28 @@ export default function FeaturedProductsSection({ products, loading, error }: Fe
                           </span>
                         </motion.div>
 
-                        <motion.div
-                          className="flex items-center justify-center gap-2 mb-4"
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.6 + index * 0.1, duration: 0.4 }}
-                        >
-                          {sizeStrings.slice(0, 3).map((size, i) => (
-                            <span
-                              key={i}
-                              className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded"
-                            >
-                              {size}
-                            </span>
-                          ))}
-                          {sizeStrings.length > 3 && (
-                            <span className="text-xs text-gray-500">
-                              +{sizeStrings.length - 3}
-                            </span>
-                          )}
-                        </motion.div>
+                        {sizeStrings.length > 0 && (
+                          <motion.div
+                            className="flex items-center justify-center gap-2 mb-4"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.6 + index * 0.1, duration: 0.4 }}
+                          >
+                            {sizeStrings.slice(0, 3).map((size, i) => (
+                              <span
+                                key={i}
+                                className="text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded"
+                              >
+                                {size}
+                              </span>
+                            ))}
+                            {sizeStrings.length > 3 && (
+                              <span className="text-xs text-gray-500">
+                                +{sizeStrings.length - 3}
+                              </span>
+                            )}
+                          </motion.div>
+                        )}
 
                         <motion.div
                           className="flex items-center justify-center gap-2 mt-auto"
