@@ -55,7 +55,8 @@ export function TrackingScripts() {
                 </>
             )}
 
-            {/* Meta Pixel - Standard implementation for better detection */}
+            {/* Meta Pixel - Initialize only, no automatic tracking */}
+            {/* Purchase events are tracked manually on order-success page only */}
             <Script
                 id="fb-pixel"
                 strategy="afterInteractive"
@@ -65,7 +66,7 @@ export function TrackingScripts() {
                         // Mark pixel as loaded
                         (window as any).fbq.loaded = true;
                         if (process.env.NODE_ENV === 'development') {
-                            console.log('✅ Meta Pixel loaded successfully', { pixelId: FB_PIXEL_ID });
+                            console.log('✅ Meta Pixel initialized (no automatic tracking)', { pixelId: FB_PIXEL_ID });
                         }
                     }
                 }}
@@ -86,21 +87,10 @@ export function TrackingScripts() {
                 autoConfig: true,
                 debug: false
             });
-            fbq('track', 'PageView');
+            // No automatic PageView tracking - only track Purchase on order-success page
           `,
                 }}
             />
-            
-            {/* Meta Pixel noscript fallback for better detection */}
-            <noscript>
-                <img 
-                    height="1" 
-                    width="1" 
-                    style={{ display: 'none' }}
-                    src={`https://www.facebook.com/tr?id=${FB_PIXEL_ID}&ev=PageView&noscript=1`}
-                    alt=""
-                />
-            </noscript>
         </>
     )
 }
