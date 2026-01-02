@@ -77,23 +77,26 @@ export default function CheckoutPage() {
 
   // Track InitiateCheckout Event (Meta Pixel) - when user lands on checkout page with items
   useEffect(() => {
-    if (mounted && typeof window !== 'undefined' && window.fbq && items.length > 0) {
-      const totalValue = getTotalPrice()
-      const contentIds = items.map(item => item.id)
-      const contents = items.map(item => ({
-        id: item.id,
-        quantity: item.quantity,
-        item_price: item.price
-      }))
-      
-      window.fbq('track', 'InitiateCheckout', {
-        content_ids: contentIds,
-        content_type: 'product',
-        value: totalValue,
-        currency: 'DZD',
-        num_items: items.reduce((sum, item) => sum + item.quantity, 0),
-        contents: contents
-      })
+    if (mounted && typeof window !== 'undefined' && items.length > 0) {
+      const win = window as Window & { fbq?: any }
+      if (win.fbq) {
+        const totalValue = getTotalPrice()
+        const contentIds = items.map(item => item.id)
+        const contents = items.map(item => ({
+          id: item.id,
+          quantity: item.quantity,
+          item_price: item.price
+        }))
+        
+        win.fbq('track', 'InitiateCheckout', {
+          content_ids: contentIds,
+          content_type: 'product',
+          value: totalValue,
+          currency: 'DZD',
+          num_items: items.reduce((sum, item) => sum + item.quantity, 0),
+          contents: contents
+        })
+      }
     }
   }, [mounted, items, getTotalPrice])
 
@@ -364,26 +367,29 @@ export default function CheckoutPage() {
 
       // Track Purchase Event (Meta Pixel) - when order is successfully created
       // This ensures tracking happens even if user doesn't reach success page
-      if (typeof window !== 'undefined' && window.fbq) {
-        const contentIds = items.map(item => item.id)
-        const contents = items.map(item => ({
-          id: item.id,
-          quantity: item.quantity,
-          item_price: item.price
-        }))
-        
-        window.fbq('track', 'Purchase', {
-          content_ids: contentIds,
-          content_type: 'product',
-          value: orderDetails.total,
-          currency: 'DZD',
-          num_items: items.reduce((sum, item) => sum + item.quantity, 0),
-          order_id: response.order.orderNumber,
-          contents: contents
-        })
+      if (typeof window !== 'undefined') {
+        const win = window as Window & { fbq?: any }
+        if (win.fbq) {
+          const contentIds = items.map(item => item.id)
+          const contents = items.map(item => ({
+            id: item.id,
+            quantity: item.quantity,
+            item_price: item.price
+          }))
+          
+          win.fbq('track', 'Purchase', {
+            content_ids: contentIds,
+            content_type: 'product',
+            value: orderDetails.total,
+            currency: 'DZD',
+            num_items: items.reduce((sum, item) => sum + item.quantity, 0),
+            order_id: response.order.orderNumber,
+            contents: contents
+          })
 
-        // Mark as tracked to prevent duplicate on success page
-        localStorage.setItem(`purchase_tracked_${response.order.orderNumber}`, 'true')
+          // Mark as tracked to prevent duplicate on success page
+          localStorage.setItem(`purchase_tracked_${response.order.orderNumber}`, 'true')
+        }
       }
 
       // Store order details in localStorage for the success page

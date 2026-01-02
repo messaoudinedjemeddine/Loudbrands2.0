@@ -91,26 +91,29 @@ function OrderSuccessContent() {
         // Track Purchase Event (Meta Pixel) - Enhanced with complete product details
         // Only track if not already tracked (check localStorage flag)
         const purchaseTracked = localStorage.getItem(`purchase_tracked_${parsedDetails.orderNumber}`)
-        if (!purchaseTracked && typeof window !== 'undefined' && window.fbq) {
-          const contentIds = parsedDetails.items.map((item: any) => item.id)
-          const contents = parsedDetails.items.map((item: any) => ({
-            id: item.id,
-            quantity: item.quantity,
-            item_price: item.price
-          }))
-          
-          window.fbq('track', 'Purchase', {
-            content_ids: contentIds,
-            content_type: 'product',
-            value: parsedDetails.total,
-            currency: 'DZD',
-            num_items: parsedDetails.items.reduce((sum: number, item: any) => sum + item.quantity, 0),
-            order_id: parsedDetails.orderNumber,
-            contents: contents
-          })
+        if (!purchaseTracked && typeof window !== 'undefined') {
+          const win = window as Window & { fbq?: any }
+          if (win.fbq) {
+            const contentIds = parsedDetails.items.map((item: any) => item.id)
+            const contents = parsedDetails.items.map((item: any) => ({
+              id: item.id,
+              quantity: item.quantity,
+              item_price: item.price
+            }))
+            
+            win.fbq('track', 'Purchase', {
+              content_ids: contentIds,
+              content_type: 'product',
+              value: parsedDetails.total,
+              currency: 'DZD',
+              num_items: parsedDetails.items.reduce((sum: number, item: any) => sum + item.quantity, 0),
+              order_id: parsedDetails.orderNumber,
+              contents: contents
+            })
 
-          // Mark as tracked to prevent duplicate tracking
-          localStorage.setItem(`purchase_tracked_${parsedDetails.orderNumber}`, 'true')
+            // Mark as tracked to prevent duplicate tracking
+            localStorage.setItem(`purchase_tracked_${parsedDetails.orderNumber}`, 'true')
+          }
         }
         if (window.gtag) {
           window.gtag('event', 'purchase', {
