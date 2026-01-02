@@ -88,35 +88,59 @@ function OrderSuccessContent() {
         const parsedDetails = JSON.parse(storedOrderDetails)
         setOrderDetails(parsedDetails)
 
-        // Track Purchase Event (Meta Pixel) - Only track when order is actually completed
-        const trackPurchase = () => {
-          if (typeof window === 'undefined') return false
-          
-          const win = window as Window & { fbq?: any }
-          if (win.fbq) {
+        // Check if this order has already been tracked to prevent duplicate events
+        const trackedOrdersKey = 'metaPixelTrackedOrders'
+        const trackedOrders = JSON.parse(localStorage.getItem(trackedOrdersKey) || '[]')
+        
+        // Only track if this order hasn't been tracked before
+        if (!trackedOrders.includes(parsedDetails.orderNumber)) {
+          // Track Purchase Event (Meta Pixel) - Only track when order is actually completed
+          const trackPurchase = () => {
+            if (typeof window === 'undefined') return false
+            
+            const win = window as Window & { fbq?: any }
+            
+            // Ensure fbq is loaded and initialized
+            if (!win.fbq) {
+              return false
+            }
+            
             try {
-              const contentIds = parsedDetails.items.map((item: any) => item.id)
+              const contentIds = parsedDetails.items.map((item: any) => String(item.id || ''))
               const contents = parsedDetails.items.map((item: any) => ({
-                id: item.id,
-                quantity: item.quantity,
-                item_price: item.price
+                id: String(item.id || ''),
+                quantity: parseInt(String(item.quantity || 1)),
+                item_price: parseFloat(String(item.price || 0))
               }))
               
+              const totalValue = parseFloat(String(parsedDetails.total || 0))
+              const numItems = parsedDetails.items.reduce((sum: number, item: any) => sum + parseInt(String(item.quantity || 1)), 0)
+              
+              // Track Purchase event with proper Meta Pixel format
               win.fbq('track', 'Purchase', {
                 content_ids: contentIds,
                 content_type: 'product',
-                value: parsedDetails.total,
+                value: totalValue,
                 currency: 'DZD',
-                num_items: parsedDetails.items.reduce((sum: number, item: any) => sum + item.quantity, 0),
-                order_id: parsedDetails.orderNumber,
+                num_items: numItems,
+                order_id: String(parsedDetails.orderNumber),
                 contents: contents
               })
               
+              // Mark this order as tracked
+              trackedOrders.push(parsedDetails.orderNumber)
+              // Keep only last 100 tracked orders to prevent localStorage bloat
+              if (trackedOrders.length > 100) {
+                trackedOrders.shift()
+              }
+              localStorage.setItem(trackedOrdersKey, JSON.stringify(trackedOrders))
+              
               console.log('✅ Meta Pixel Purchase event tracked:', {
                 order_id: parsedDetails.orderNumber,
-                value: parsedDetails.total,
+                value: totalValue,
                 currency: 'DZD',
-                num_items: parsedDetails.items.reduce((sum: number, item: any) => sum + item.quantity, 0)
+                num_items: numItems,
+                content_ids: contentIds
               })
               return true
             } catch (error) {
@@ -124,24 +148,42 @@ function OrderSuccessContent() {
               return false
             }
           }
-          return false
-        }
 
-        // Try to track immediately
-        if (!trackPurchase()) {
-          // If fbq not loaded yet, wait and retry (up to 5 seconds)
-          let retries = 0
-          const maxRetries = 10
-          const retryInterval = setInterval(() => {
-            retries++
-            if (trackPurchase() || retries >= maxRetries) {
-              clearInterval(retryInterval)
-              if (retries >= maxRetries) {
-                console.warn('⚠️ Meta Pixel Purchase event could not be tracked after retries')
+          // Wait for Meta Pixel to be fully loaded before tracking
+          const waitForPixelAndTrack = () => {
+            const win = window as Window & { fbq?: any }
+            
+            // Check if fbq is loaded
+            if (win.fbq && typeof win.fbq === 'function') {
+              // Additional check: ensure pixel is initialized
+              if (win.fbq.loaded) {
+                trackPurchase()
+                return true
               }
             }
-          }, 500)
+            return false
+          }
+
+          // Try to track immediately
+          if (!waitForPixelAndTrack()) {
+            // If fbq not loaded yet, wait and retry (up to 5 seconds)
+            let retries = 0
+            const maxRetries = 10
+            const retryInterval = setInterval(() => {
+              retries++
+              if (waitForPixelAndTrack() || retries >= maxRetries) {
+                clearInterval(retryInterval)
+                if (retries >= maxRetries) {
+                  console.warn('⚠️ Meta Pixel Purchase event could not be tracked after retries - Pixel may not be loaded')
+                }
+              }
+            }, 500)
+          }
+        } else {
+          console.log('ℹ️ Purchase event already tracked for order:', parsedDetails.orderNumber)
         }
+        
+        // Track Google Analytics purchase (separate from Meta Pixel)
         if (window.gtag) {
           window.gtag('event', 'purchase', {
             transaction_id: parsedDetails.orderNumber,

@@ -56,8 +56,13 @@ export function TrackingScripts() {
                 id="fb-pixel"
                 strategy="afterInteractive"
                 onLoad={() => {
-                    if (process.env.NODE_ENV === 'development') {
-                        console.log('✅ Meta Pixel loaded successfully');
+                    // Ensure fbq is available globally
+                    if (typeof window !== 'undefined' && window.fbq) {
+                        // Mark pixel as loaded
+                        (window as any).fbq.loaded = true;
+                        if (process.env.NODE_ENV === 'development') {
+                            console.log('✅ Meta Pixel loaded successfully', { pixelId: FB_PIXEL_ID });
+                        }
                     }
                 }}
                 onError={(e) => {
@@ -73,7 +78,10 @@ export function TrackingScripts() {
             t.src=v;s=b.getElementsByTagName(e)[0];
             s.parentNode.insertBefore(t,s)}(window, document,'script',
             'https://connect.facebook.net/en_US/fbevents.js');
-            fbq('init', '${FB_PIXEL_ID}');
+            fbq('init', '${FB_PIXEL_ID}', {
+                autoConfig: true,
+                debug: false
+            });
             fbq('track', 'PageView');
           `,
                 }}

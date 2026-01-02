@@ -198,7 +198,8 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="LOUD BRANDS" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#C4A47C" />
-        {/* Meta Pixel ID for verification */}
+        {/* Meta Pixel Domain Verification - Add your verification code from Meta Business Suite if needed */}
+        {/* To get your verification code: Meta Business Suite > Events Manager > Data Sources > Your Pixel > Settings > Domain Verification */}
         <meta name="facebook-domain-verification" content="" />
       </head>
       <body
