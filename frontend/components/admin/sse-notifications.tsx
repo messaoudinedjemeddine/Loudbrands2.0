@@ -31,6 +31,7 @@ export function SSENotifications() {
   const maxReconnectAttempts = 10; // Increased from 5 to 10 for better resilience
   const connectionCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageTimeRef = useRef<number>(Date.now());
+  const isConnectingRef = useRef<boolean>(false); // Prevent duplicate connections
   const [browserNotificationPermission, setBrowserNotificationPermission] = useState<NotificationPermission>('default');
 
   // Request browser notification permission on mount - improved for mobile
@@ -107,9 +108,22 @@ export function SSENotifications() {
     }
 
     const connectSSE = () => {
+      // Prevent duplicate connections
+      if (isConnectingRef.current || (eventSourceRef.current && eventSourceRef.current.readyState === EventSource.OPEN)) {
+        console.log('⚠️ SSE connection already in progress or open, skipping...');
+        return;
+      }
+
+      isConnectingRef.current = true;
+
       // Close existing connection if any
       if (eventSourceRef.current) {
-        eventSourceRef.current.close();
+        try {
+          eventSourceRef.current.close();
+        } catch (e) {
+          console.warn('Error closing existing connection:', e);
+        }
+        eventSourceRef.current = null;
       }
 
       // Get API URL and handle /api suffix properly
@@ -138,6 +152,7 @@ export function SSENotifications() {
           setIsConnected(true);
           reconnectAttempts.current = 0;
           lastMessageTimeRef.current = Date.now();
+          isConnectingRef.current = false; // Connection established
           
           // Clear any pending reconnect
           if (reconnectTimeoutRef.current) {
@@ -238,6 +253,7 @@ export function SSENotifications() {
           console.error('❌ SSE connection error:', error);
           console.error('EventSource readyState:', eventSource.readyState);
           setIsConnected(false);
+          isConnectingRef.current = false; // Allow reconnection
           
           // Close the connection if it's in a bad state
           if (eventSource.readyState === EventSource.CLOSED || eventSource.readyState === EventSource.CONNECTING) {
@@ -246,10 +262,14 @@ export function SSENotifications() {
             } catch (closeError) {
               console.warn('Error closing EventSource:', closeError);
             }
+            eventSourceRef.current = null;
 
             // Attempt to reconnect with exponential backoff
+            // Faster reconnection for Heroku restarts (detected by immediate close)
             if (reconnectAttempts.current < maxReconnectAttempts) {
-              const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
+              // Use shorter delay for first few attempts (likely Heroku restart)
+              const baseDelay = reconnectAttempts.current < 3 ? 1000 : 2000;
+              const delay = Math.min(baseDelay * Math.pow(2, reconnectAttempts.current), 30000);
               reconnectAttempts.current++;
               
               reconnectTimeoutRef.current = setTimeout(() => {
@@ -268,6 +288,7 @@ export function SSENotifications() {
       } catch (error) {
         console.error('Failed to create SSE connection:', error);
         setIsConnected(false);
+        isConnectingRef.current = false; // Allow retry
       }
     };
 
@@ -602,6 +623,7 @@ export function SSENotifications() {
 
     // Cleanup on unmount
     return () => {
+      isConnectingRef.current = false;
       if (eventSourceRef.current) {
         try {
           eventSourceRef.current.close();
@@ -620,7 +642,7 @@ export function SSENotifications() {
       }
       setIsConnected(false);
     };
-  }, [user, token, router, addNotification, browserNotificationPermission]);
+  }, [user?.id, token]); // Only depend on user.id and token to prevent unnecessary reconnections
 
   // Render connection status indicator (always visible for debugging)
   return (
