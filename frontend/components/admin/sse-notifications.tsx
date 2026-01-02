@@ -256,44 +256,81 @@ export function SSENotifications() {
         try {
           // Try to play notification sound (supports multiple formats)
           const soundPaths = [
-            '/sounds/notification.mp3',
             '/sounds/notification.wav',
+            '/sounds/notification.mp3',
             '/sounds/notification.ogg',
           ];
           
-          let audio: HTMLAudioElement | null = null;
+          let soundPlayed = false;
           
           // Try each sound path until one works
-          for (const soundPath of soundPaths) {
-            try {
-              audio = new Audio(soundPath);
-              audio.volume = 0.5; // Set volume to 50% to avoid being too loud
-              
-              // Try to play the sound
-              const playPromise = audio.play();
-              
-              if (playPromise !== undefined) {
-                playPromise
-                  .then(() => {
-                    console.log('🔔 Notification sound played:', soundPath);
-                  })
-                  .catch((playError) => {
-                    // If this format fails, try next one
-                    console.log(`Could not play ${soundPath}, trying next format...`);
-                    if (soundPath === soundPaths[soundPaths.length - 1]) {
-                      console.log('ℹ️ No notification sound file found. Add a sound file to /public/sounds/notification.mp3');
-                    }
-                  });
-                // If we got here, we found a valid audio file, break the loop
-                break;
+          const tryPlaySound = (index: number) => {
+            if (index >= soundPaths.length || soundPlayed) {
+              if (!soundPlayed && index >= soundPaths.length) {
+                console.log('ℹ️ No notification sound file found. Add a sound file to /public/sounds/notification.wav or notification.mp3');
               }
-            } catch (error) {
-              // Continue to next sound path
-              continue;
+              return;
             }
-          }
-        } catch (error) {
-          console.warn('Error playing notification sound:', error);
+            
+            const soundPath = soundPaths[index];
+            console.log(`🔊 Attempting to play sound: ${soundPath}`);
+            
+            const audio = new Audio(soundPath);
+            audio.volume = 0.7; // Set volume to 70%
+            
+            // Handle successful play
+            const handlePlay = () => {
+              if (!soundPlayed) {
+                const playPromise = audio.play();
+                if (playPromise !== undefined) {
+                  playPromise
+                    .then(() => {
+                      console.log('✅ Notification sound played successfully:', soundPath);
+                      soundPlayed = true;
+                    })
+                    .catch((playError: any) => {
+                      console.log(`❌ Could not play ${soundPath}:`, playError.message);
+                      // Try next format
+                      tryPlaySound(index + 1);
+                    });
+                }
+              }
+            };
+            
+            // Try to play when audio can play
+            audio.addEventListener('canplay', handlePlay, { once: true });
+            audio.addEventListener('canplaythrough', handlePlay, { once: true });
+            
+            // Handle errors
+            audio.addEventListener('error', (e) => {
+              console.log(`❌ Sound file error for ${soundPath}:`, audio.error?.message || 'Unknown error');
+              // Try next format
+              tryPlaySound(index + 1);
+            }, { once: true });
+            
+            // Load the audio
+            audio.load();
+            
+            // Fallback: try to play immediately if already loaded
+            if (audio.readyState >= 2) {
+              handlePlay();
+            }
+            
+            // Additional fallback: try after a short delay
+            setTimeout(() => {
+              if (!soundPlayed && audio.readyState >= 2) {
+                handlePlay();
+              } else if (!soundPlayed && index < soundPaths.length - 1) {
+                // If still not played and not the last format, try next
+                tryPlaySound(index + 1);
+              }
+            }, 300);
+          };
+          
+          // Start trying to play sounds
+          tryPlaySound(0);
+        } catch (error: any) {
+          console.warn('❌ Error playing notification sound:', error.message);
         }
       }
     };
