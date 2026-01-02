@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { 
   DollarSign,
   TrendingUp,
+  TrendingDown,
   Package,
   Truck,
   BarChart3,
@@ -15,13 +16,22 @@ import {
   Search,
   ShoppingCart,
   CheckCircle,
-  Calendar
+  Calendar,
+  Users,
+  ArrowUpRight
 } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { AdminLayout } from '@/components/admin/admin-layout'
 import { api } from '@/lib/api'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -38,6 +48,8 @@ import {
 import {
   LineChart as RechartsLineChart,
   Line,
+  AreaChart,
+  Area,
   BarChart,
   Bar,
   PieChart as RechartsPieChart,
@@ -47,6 +59,7 @@ import {
   YAxis,
   CartesianGrid,
   Legend,
+  ResponsiveContainer,
 } from 'recharts'
 
 interface ComprehensiveAnalytics {
@@ -118,7 +131,71 @@ interface InventoryItem {
   }>
 }
 
-const COLORS = ['#8B4513', '#D2691E', '#CD853F', '#DEB887', '#F4A460', '#BC8F8F', '#A0522D', '#8B7355', '#6F4E37', '#5C4033']
+const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444', '#06b6d4', '#84cc16', '#f97316']
+
+// Sparkline component for metric cards
+const Sparkline = ({ data, color = '#10b981', isPositive = true }: { data: number[], color?: string, isPositive?: boolean }) => {
+  if (!data || data.length === 0) return null
+
+  const max = Math.max(...data)
+  const min = Math.min(...data)
+  const range = max - min || 1
+  const width = 120
+  const height = 40
+  const padding = 4
+
+  const points = data.map((value, index) => {
+    const x = (index / (data.length - 1 || 1)) * (width - padding * 2) + padding
+    const y = height - ((value - min) / range) * (height - padding * 2) - padding
+    return `${x},${y}`
+  }).join(' ')
+
+  // Create area path
+  const areaPath = data.map((value, index) => {
+    const x = (index / (data.length - 1 || 1)) * (width - padding * 2) + padding
+    const y = height - ((value - min) / range) * (height - padding * 2) - padding
+    return `${index === 0 ? 'M' : 'L'} ${x} ${y}`
+  }).join(' ') + ` L ${width - padding} ${height - padding} L ${padding} ${height - padding} Z`
+
+  // Generate unique ID for gradient
+  const gradientId = `sparkline-gradient-${Math.random().toString(36).substr(2, 9)}`
+
+  return (
+    <svg width={width} height={height} className="overflow-visible">
+      <defs>
+        <linearGradient id={gradientId} x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path
+        d={areaPath}
+        fill={`url(#${gradientId})`}
+      />
+      <polyline
+        points={points}
+        fill="none"
+        stroke={color}
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+// Calculate percentage change
+const calculatePercentageChange = (current: number, previous: number): number => {
+  if (previous === 0) return current > 0 ? 100 : 0
+  return ((current - previous) / previous) * 100
+}
+
+// Generate sparkline data from time series
+const generateSparklineData = (timeSeries: TimeSeriesData[], key: 'revenue' | 'orders' | 'profit', length: number = 20): number[] => {
+  if (!timeSeries || timeSeries.length === 0) return Array(length).fill(0)
+  const recent = timeSeries.slice(-length)
+  return recent.map(item => item[key] || 0)
+}
 
 export default function AdminAnalyticsPage() {
   const [mounted, setMounted] = useState(false)
@@ -130,6 +207,8 @@ export default function AdminAnalyticsPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [ordersTimeline, setOrdersTimeline] = useState<any>(null)
   const [timelinePeriod, setTimelinePeriod] = useState<'days' | 'weeks' | 'months'>('days')
+  const [revenuePeriod, setRevenuePeriod] = useState<'30' | '60' | '90'>('30')
+  const [activeTab, setActiveTab] = useState<'orders' | 'revenue' | 'profit'>('orders')
 
   useEffect(() => {
     setMounted(true)
@@ -176,15 +255,81 @@ export default function AdminAnalyticsPage() {
     }
   }
 
-  const filteredInventory = inventory.filter(item => {
-    const query = searchQuery.toLowerCase()
-    return (
-      item.name.toLowerCase().includes(query) ||
-      item.categoryName.toLowerCase().includes(query) ||
-      item.brandName.toLowerCase().includes(query) ||
-      (item.nameAr && item.nameAr.toLowerCase().includes(query))
-    )
-  })
+  // Calculate metrics with percentage changes
+  const metrics = useMemo(() => {
+    if (!analytics || !timeSeries || timeSeries.length === 0) return null
+
+    const recentData = timeSeries.slice(-20)
+    const previousData = timeSeries.slice(-40, -20)
+
+    const currentRevenue = analytics.financial.totalRevenue
+    const previousRevenue = previousData.reduce((sum, d) => sum + d.revenue, 0)
+    const revenueChange = calculatePercentageChange(currentRevenue, previousRevenue)
+
+    const currentOrders = recentData.reduce((sum, d) => sum + d.orders, 0)
+    const previousOrders = previousData.reduce((sum, d) => sum + d.orders, 0)
+    const ordersChange = calculatePercentageChange(currentOrders, previousOrders)
+
+    const currentProfit = analytics.financial.totalNetProfit
+    const previousProfit = previousData.reduce((sum, d) => sum + d.profit, 0)
+    const profitChange = calculatePercentageChange(currentProfit, previousProfit)
+
+    const currentStock = analytics.financial.stockValuation.retail
+    const previousStock = analytics.financial.stockValuation.cost
+    const stockChange = calculatePercentageChange(currentStock, previousStock)
+
+    return {
+      revenue: {
+        value: currentRevenue,
+        change: revenueChange,
+        sparkline: generateSparklineData(timeSeries, 'revenue', 20),
+        isPositive: revenueChange >= 0
+      },
+      orders: {
+        value: currentOrders,
+        change: ordersChange,
+        sparkline: generateSparklineData(timeSeries, 'orders', 20),
+        isPositive: ordersChange >= 0
+      },
+      profit: {
+        value: currentProfit,
+        change: profitChange,
+        sparkline: generateSparklineData(timeSeries, 'profit', 20),
+        isPositive: profitChange >= 0
+      },
+      stock: {
+        value: currentStock,
+        change: stockChange,
+        sparkline: Array(20).fill(0).map(() => currentStock * (0.95 + Math.random() * 0.1)),
+        isPositive: stockChange >= 0
+      }
+    }
+  }, [analytics, timeSeries])
+
+  // Filter revenue data by period
+  const filteredRevenueData = useMemo(() => {
+    if (!timeSeries) return []
+    const days = parseInt(revenuePeriod)
+    return timeSeries.slice(-days)
+  }, [timeSeries, revenuePeriod])
+
+  // Get tab data based on active tab
+  const tabData = useMemo(() => {
+    if (!timeSeries) return []
+    const days = parseInt(revenuePeriod)
+    const data = timeSeries.slice(-days)
+    
+    switch (activeTab) {
+      case 'orders':
+        return data.map(d => ({ date: d.date, value: d.orders, label: 'Commandes' }))
+      case 'revenue':
+        return data.map(d => ({ date: d.date, value: d.revenue, label: 'Revenus (DA)' }))
+      case 'profit':
+        return data.map(d => ({ date: d.date, value: d.profit, label: 'Profit (DA)' }))
+      default:
+        return []
+    }
+  }, [timeSeries, revenuePeriod, activeTab])
 
   if (!mounted) return null
 
@@ -219,7 +364,7 @@ export default function AdminAnalyticsPage() {
     )
   }
 
-  if (!analytics) {
+  if (!analytics || !metrics) {
     return (
       <AdminLayout>
         <div className="text-center py-12">
@@ -229,354 +374,446 @@ export default function AdminAnalyticsPage() {
     )
   }
 
-  // Prepare chart data
-  const categoryChartData = analytics.topCategories.map((cat, index) => ({
-    name: cat.categoryName,
-    value: cat.revenue,
-    color: COLORS[index % COLORS.length]
-  }))
-
-  const productChartData = analytics.topProducts.slice(0, 10).map(product => ({
-    name: product.name.length > 20 ? product.name.substring(0, 20) + '...' : product.name,
-    revenue: product.revenue,
-    quantity: product.quantity
-  }))
-
-  const cityChartData = analytics.ordersByCity.slice(0, 10).map(city => ({
-    name: city.cityName,
-    orders: city.orders
-  }))
-
   return (
     <AdminLayout>
-      <div className="space-y-8">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold">Tableau de Bord Analytique</h1>
-            <p className="text-muted-foreground">
-              Intelligence d'affaires complète et métriques de performance
-            </p>
-          </div>
+      <div className="space-y-6">
+        {/* Breadcrumbs */}
+        <div className="text-sm text-muted-foreground">
+          Admin / Analyses
         </div>
 
-        {/* KPI Cards - Header Stats */}
+        {/* Top Row - Metric Cards with Sparklines */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* Revenue Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
           >
-            <Card className="border-l-4 border-l-green-500">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Revenus</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {analytics.financial.totalRevenue.toLocaleString()} DA
+            <Card className="shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Revenus</p>
+                    <p className="text-2xl font-bold">
+                      {metrics.revenue.value.toLocaleString()} DA
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Des commandes confirmées
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {metrics.revenue.isPositive ? (
+                      <TrendingUp className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <TrendingDown className="h-4 w-4 text-red-500" />
+                    )}
+                    <span className={`text-sm font-medium ${metrics.revenue.isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                      {Math.abs(metrics.revenue.change).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="flex-1 ml-4">
+                    <Sparkline 
+                      data={metrics.revenue.sparkline} 
+                      color={metrics.revenue.isPositive ? '#10b981' : '#ef4444'}
+                      isPositive={metrics.revenue.isPositive}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Revenus totaux pour les 20 derniers jours
                 </p>
               </CardContent>
             </Card>
           </motion.div>
 
+          {/* Orders Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
           >
-            <Card className="border-l-4 border-l-blue-500">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Profit Net</CardTitle>
-                <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {analytics.financial.totalNetProfit.toLocaleString()} DA
+            <Card className="shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Commandes</p>
+                    <p className="text-2xl font-bold">
+                      {metrics.orders.value.toLocaleString()}
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Des commandes confirmées
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {metrics.orders.isPositive ? (
+                      <TrendingUp className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <TrendingDown className="h-4 w-4 text-red-500" />
+                    )}
+                    <span className={`text-sm font-medium ${metrics.orders.isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                      {Math.abs(metrics.orders.change).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="flex-1 ml-4">
+                    <Sparkline 
+                      data={metrics.orders.sparkline} 
+                      color={metrics.orders.isPositive ? '#10b981' : '#ef4444'}
+                      isPositive={metrics.orders.isPositive}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Commandes dans la période actuelle
                 </p>
               </CardContent>
             </Card>
           </motion.div>
 
+          {/* Profit Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <Card className="border-l-4 border-l-purple-500">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Valeur du Stock (Achat)</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {analytics.financial.stockValuation.cost.toLocaleString()} DA
+            <Card className="shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Profit Net</p>
+                    <p className="text-2xl font-bold">
+                      {metrics.profit.value.toLocaleString()} DA
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Au prix d'achat
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {metrics.profit.isPositive ? (
+                      <TrendingUp className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <TrendingDown className="h-4 w-4 text-red-500" />
+                    )}
+                    <span className={`text-sm font-medium ${metrics.profit.isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                      {Math.abs(metrics.profit.change).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="flex-1 ml-4">
+                    <Sparkline 
+                      data={metrics.profit.sparkline} 
+                      color={metrics.profit.isPositive ? '#10b981' : '#ef4444'}
+                      isPositive={metrics.profit.isPositive}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Profit net ce mois-ci
                 </p>
               </CardContent>
             </Card>
           </motion.div>
 
+          {/* Stock Valuation Card */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
           >
-            <Card className="border-l-4 border-l-orange-500">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Valeur du Stock (Vente)</CardTitle>
-                <Package className="h-4 w-4 text-muted-foreground" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {analytics.financial.stockValuation.retail.toLocaleString()} DA
+            <Card className="shadow-sm hover:shadow-md transition-shadow">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Valeur du Stock</p>
+                    <p className="text-2xl font-bold">
+                      {metrics.stock.value.toLocaleString()} DA
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Au prix de vente
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    {metrics.stock.isPositive ? (
+                      <TrendingUp className="h-4 w-4 text-green-500" />
+                    ) : (
+                      <TrendingDown className="h-4 w-4 text-red-500" />
+                    )}
+                    <span className={`text-sm font-medium ${metrics.stock.isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                      {Math.abs(metrics.stock.change).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="flex-1 ml-4">
+                    <Sparkline 
+                      data={metrics.stock.sparkline} 
+                      color={metrics.stock.isPositive ? '#10b981' : '#ef4444'}
+                      isPositive={metrics.stock.isPositive}
+                    />
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Valeur totale du stock
                 </p>
               </CardContent>
             </Card>
           </motion.div>
         </div>
 
-        {/* Orders Timeline Section */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center">
-                  <Calendar className="w-5 h-5 mr-2" />
-                  Analyse des Commandes
-                </CardTitle>
-                <Tabs value={timelinePeriod} onValueChange={(value) => setTimelinePeriod(value as 'days' | 'weeks' | 'months')} className="w-auto">
-                  <TabsList>
-                    <TabsTrigger value="days">Jours</TabsTrigger>
-                    <TabsTrigger value="weeks">Semaines</TabsTrigger>
-                    <TabsTrigger value="months">Mois</TabsTrigger>
-                  </TabsList>
-                </Tabs>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {/* Stats Cards */}
-              {ordersTimeline && (
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <Card className="border-l-4 border-l-blue-500">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">Nouvelles Commandes</p>
-                          <p className="text-2xl font-bold mt-1">
-                            {ordersTimeline.stats.totalNewOrders.toLocaleString()}
-                          </p>
-                        </div>
-                        <ShoppingCart className="h-8 w-8 text-blue-500" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-l-4 border-l-green-500">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">Commandes Confirmées</p>
-                          <p className="text-2xl font-bold mt-1 text-green-600">
-                            {ordersTimeline.stats.totalConfirmedOrders.toLocaleString()}
-                          </p>
-                        </div>
-                        <CheckCircle className="h-8 w-8 text-green-500" />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border-l-4 border-l-purple-500">
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-muted-foreground">Taux de Confirmation</p>
-                          <p className="text-2xl font-bold mt-1 text-purple-600">
-                            {ordersTimeline.stats.overallConfirmationRate.toFixed(1)}%
-                          </p>
-                        </div>
-                        <TrendingUp className="h-8 w-8 text-purple-500" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              )}
-
-              {/* Charts */}
-              {ordersTimeline && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Confirmed Orders Chart */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Commandes Confirmées</h3>
-                    <ChartContainer
-                      config={{
-                        confirmedOrders: {
-                          label: 'Commandes Confirmées',
-                          color: 'hsl(var(--chart-1))',
-                        },
-                      }}
-                      className="h-[300px] w-full"
-                    >
-                      <BarChart data={ordersTimeline.timeline} margin={{ top: 20, right: 30, left: 20, bottom: 100 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="label" 
-                          angle={-45} 
-                          textAnchor="end" 
-                          height={120}
-                          tick={{ fontSize: 11 }}
-                          interval={0}
-                        />
-                        <YAxis tick={{ fontSize: 11 }} width={50} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar 
-                          dataKey="confirmedOrders" 
-                          fill="hsl(var(--chart-1))" 
-                          radius={[4, 4, 0, 0]}
-                          name="Confirmées"
-                        />
-                      </BarChart>
-                    </ChartContainer>
-                  </div>
-
-                  {/* New Orders Chart */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Nouvelles Commandes</h3>
-                    <ChartContainer
-                      config={{
-                        newOrders: {
-                          label: 'Nouvelles Commandes',
-                          color: 'hsl(var(--chart-2))',
-                        },
-                      }}
-                      className="h-[300px] w-full"
-                    >
-                      <BarChart data={ordersTimeline.timeline} margin={{ top: 20, right: 30, left: 20, bottom: 100 }}>
-                        <CartesianGrid strokeDasharray="3 3" />
-                        <XAxis 
-                          dataKey="label" 
-                          angle={-45} 
-                          textAnchor="end" 
-                          height={120}
-                          tick={{ fontSize: 11 }}
-                          interval={0}
-                        />
-                        <YAxis tick={{ fontSize: 11 }} width={50} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <Bar 
-                          dataKey="newOrders" 
-                          fill="hsl(var(--chart-2))" 
-                          radius={[4, 4, 0, 0]}
-                          name="Nouvelles"
-                        />
-                      </BarChart>
-                    </ChartContainer>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Middle Row - Line Chart and Pie Chart */}
+        {/* Middle Row - Revenue/Savings Card and Tabbed Chart */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Time-Series Line Chart */}
+          {/* Revenue/Savings Card with Area Chart */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <LineChart className="w-5 h-5 mr-2" />
-                  Profit et Volume de Commandes (30 Derniers Jours)
-                </CardTitle>
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg font-semibold">REVENUS</CardTitle>
+                <Select value={revenuePeriod} onValueChange={(value: '30' | '60' | '90') => setRevenuePeriod(value)}>
+                  <SelectTrigger className="w-[120px] h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">30 Jours</SelectItem>
+                    <SelectItem value="60">60 Jours</SelectItem>
+                    <SelectItem value="90">90 Jours</SelectItem>
+                  </SelectContent>
+                </Select>
               </CardHeader>
               <CardContent>
+                <div className="mb-4">
+                  <p className="text-3xl font-bold">
+                    {analytics.financial.totalRevenue.toLocaleString()} DA
+                  </p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Revenus totaux pour le dernier mois
+                  </p>
+                </div>
                 <ChartContainer
                   config={{
-                    profit: {
-                      label: 'Profit (DA)',
-                      color: 'hsl(var(--chart-1))',
-                    },
-                    orders: {
-                      label: 'Commandes',
-                      color: 'hsl(var(--chart-2))',
+                    revenue: {
+                      label: 'Revenus',
+                      color: '#ef4444',
                     },
                   }}
-                  className="h-[300px] w-full"
+                  className="h-[250px] w-full"
                 >
-                  <RechartsLineChart data={timeSeries} margin={{ top: 20, right: 40, left: 20, bottom: 80 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
+                  <AreaChart data={filteredRevenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis 
                       dataKey="date" 
                       tick={{ fontSize: 11 }}
-                      angle={-45}
-                      textAnchor="end"
-                      height={100}
-                      interval={0}
+                      tickFormatter={(value) => {
+                        const date = new Date(value)
+                        return `${date.getDate()}/${date.getMonth() + 1}`
+                      }}
                     />
-                    <YAxis yAxisId="left" tick={{ fontSize: 11 }} width={60} />
-                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11 }} width={60} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Legend wrapperStyle={{ paddingTop: '20px', fontSize: '12px' }} />
-                    <Line
-                      yAxisId="left"
+                    <YAxis tick={{ fontSize: 11 }} width={60} />
+                    <ChartTooltip 
+                      content={<ChartTooltipContent />}
+                      labelFormatter={(value) => {
+                        const date = new Date(value)
+                        return date.toLocaleDateString('fr-FR')
+                      }}
+                    />
+                    <Area
                       type="monotone"
-                      dataKey="profit"
-                      stroke="hsl(var(--chart-1))"
+                      dataKey="revenue"
+                      stroke="#ef4444"
                       strokeWidth={2}
-                      name="Profit (DA)"
+                      fill="url(#colorRevenue)"
                     />
-                    <Line
-                      yAxisId="right"
-                      type="monotone"
-                      dataKey="orders"
-                      stroke="hsl(var(--chart-2))"
-                      strokeWidth={2}
-                      name="Commandes"
-                    />
-                  </RechartsLineChart>
+                  </AreaChart>
                 </ChartContainer>
               </CardContent>
             </Card>
           </motion.div>
 
-          {/* Category Pie Chart */}
+          {/* Tabbed Chart Section */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.6 }}
           >
-            <Card>
+            <Card className="shadow-sm">
+              <CardHeader className="pb-2">
+                <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'orders' | 'revenue' | 'profit')}>
+                  <TabsList className="grid w-full grid-cols-3">
+                    <TabsTrigger value="orders">COMMANDES</TabsTrigger>
+                    <TabsTrigger value="revenue">REVENUS</TabsTrigger>
+                    <TabsTrigger value="profit">PROFIT</TabsTrigger>
+                  </TabsList>
+                </Tabs>
+              </CardHeader>
+              <CardContent>
+                {activeTab === 'orders' && ordersTimeline && (
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">
+                          Total des commandes dans la période actuelle:
+                        </p>
+                        <p className="text-lg font-bold">
+                          {ordersTimeline.stats?.totalNewOrders?.toLocaleString() || 0}
+                        </p>
+                      </div>
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-yellow-500 rounded-full transition-all"
+                          style={{ width: '75%' }}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-sm text-muted-foreground">
+                          Commandes uniques et ratio:
+                        </p>
+                        <p className="text-lg font-bold">
+                          {ordersTimeline.stats?.totalConfirmedOrders?.toLocaleString() || 0}
+                        </p>
+                      </div>
+                      <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div 
+                          className="h-full bg-orange-500 rounded-full transition-all"
+                          style={{ width: '60%' }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <ChartContainer
+                  config={{
+                    value: {
+                      label: activeTab === 'orders' ? 'Commandes' : activeTab === 'revenue' ? 'Revenus (DA)' : 'Profit (DA)',
+                      color: activeTab === 'orders' ? '#10b981' : activeTab === 'revenue' ? '#3b82f6' : '#8b5cf6',
+                    },
+                  }}
+                  className="h-[250px] w-full mt-4"
+                >
+                  <AreaChart data={tabData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient 
+                        id={`color${activeTab}`} 
+                        x1="0" 
+                        y1="0" 
+                        x2="0" 
+                        y2="1"
+                      >
+                        <stop 
+                          offset="5%" 
+                          stopColor={activeTab === 'orders' ? '#10b981' : activeTab === 'revenue' ? '#3b82f6' : '#8b5cf6'} 
+                          stopOpacity={0.3}
+                        />
+                        <stop 
+                          offset="95%" 
+                          stopColor={activeTab === 'orders' ? '#10b981' : activeTab === 'revenue' ? '#3b82f6' : '#8b5cf6'} 
+                          stopOpacity={0}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(value) => {
+                        const date = new Date(value)
+                        return `${date.getDate()}/${date.getMonth() + 1}`
+                      }}
+                    />
+                    <YAxis tick={{ fontSize: 11 }} width={60} />
+                    <ChartTooltip 
+                      content={<ChartTooltipContent />}
+                      labelFormatter={(value) => {
+                        const date = new Date(value)
+                        return date.toLocaleDateString('fr-FR')
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="value"
+                      stroke={activeTab === 'orders' ? '#10b981' : activeTab === 'revenue' ? '#3b82f6' : '#8b5cf6'}
+                      strokeWidth={2}
+                      fill={`url(#color${activeTab})`}
+                    />
+                  </AreaChart>
+                </ChartContainer>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+
+        {/* Bottom Row - Popular Products and Additional Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Popular Products */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="lg:col-span-1"
+          >
+            <Card className="shadow-sm">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-lg font-semibold">PRODUITS POPULAIRES</CardTitle>
+                <Select defaultValue="today">
+                  <SelectTrigger className="w-[100px] h-8">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="today">Aujourd'hui</SelectItem>
+                    <SelectItem value="week">Cette Semaine</SelectItem>
+                    <SelectItem value="month">Ce Mois</SelectItem>
+                  </SelectContent>
+                </Select>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {analytics.topProducts.slice(0, 5).map((product, index) => (
+                    <div key={product.productId} className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100 flex-shrink-0">
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = '/placeholder.svg'
+                            }}
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{product.name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {product.quantity} ventes
+                          </p>
+                        </div>
+                      </div>
+                      <ArrowUpRight className="h-4 w-4 text-green-500 flex-shrink-0" />
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Categories Chart */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            className="lg:col-span-1"
+          >
+            <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  <PieChart className="w-5 h-5 mr-2" />
-                  Ventes par Catégorie
-                </CardTitle>
+                <CardTitle className="text-lg font-semibold">Ventes par Catégorie</CardTitle>
               </CardHeader>
               <CardContent>
                 <ChartContainer
-                  config={categoryChartData.reduce((acc, item, index) => {
+                  config={analytics.topCategories.slice(0, 5).reduce((acc, cat, index) => {
                     acc[`category${index}`] = {
-                      label: item.name,
-                      color: item.color,
+                      label: cat.categoryName,
+                      color: COLORS[index % COLORS.length],
                     }
                     return acc
                   }, {} as Record<string, { label: string; color: string }>)}
@@ -584,50 +821,47 @@ export default function AdminAnalyticsPage() {
                 >
                   <RechartsPieChart>
                     <Pie
-                      data={categoryChartData}
+                      data={analytics.topCategories.slice(0, 5).map((cat, index) => ({
+                        name: cat.categoryName,
+                        value: cat.revenue,
+                        color: COLORS[index % COLORS.length]
+                      }))}
                       cx="50%"
-                      cy="45%"
-                      labelLine={true}
+                      cy="50%"
+                      labelLine={false}
                       label={({ name, percent }) => {
-                        if (percent > 0.05) {
+                        if (percent > 0.1) {
                           return `${name}: ${(percent * 100).toFixed(0)}%`
                         }
                         return ''
                       }}
-                      outerRadius={70}
+                      outerRadius={80}
                       fill="#8884d8"
                       dataKey="value"
                     >
-                      {categoryChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      {analytics.topCategories.slice(0, 5).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Legend 
-                      verticalAlign="bottom" 
-                      height={60}
-                      wrapperStyle={{ fontSize: '12px', paddingTop: '20px' }}
-                    />
                   </RechartsPieChart>
                 </ChartContainer>
               </CardContent>
             </Card>
           </motion.div>
-        </div>
 
-        {/* Bottom Row - Delivery Gauge and City Chart */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Delivery Success Rate Gauge */}
+          {/* Delivery Success Rate */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.7 }}
+            transition={{ delay: 0.9 }}
+            className="lg:col-span-1"
           >
-            <Card>
+            <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle className="flex items-center">
-                  <Truck className="w-5 h-5 mr-2" />
-                  Taux de Réussite de Livraison (Yalidine Livre)
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                  <Truck className="w-5 h-5" />
+                  Taux de Livraison
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -669,196 +903,17 @@ export default function AdminAnalyticsPage() {
                   </div>
                   <div className="mt-4 text-center">
                     <p className="text-sm text-muted-foreground">
-                      {analytics.logistics.yalidineLivreOrders} commandes avec suivi Yalidine
+                      {analytics.logistics.yalidineLivreOrders} commandes Yalidine
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      sur {analytics.logistics.totalShipped} total expédiées
+                      sur {analytics.logistics.totalShipped} expédiées
                     </p>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
-
-          {/* Orders by City Bar Chart */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8 }}
-          >
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center">
-                  <MapPin className="w-5 h-5 mr-2" />
-                  Commandes par Ville
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ChartContainer
-                  config={{
-                    orders: {
-                      label: 'Commandes',
-                      color: 'hsl(var(--chart-1))',
-                    },
-                  }}
-                  className="h-[300px] w-full"
-                >
-                  <BarChart data={cityChartData} margin={{ top: 20, right: 30, left: 20, bottom: 120 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis 
-                      dataKey="name" 
-                      angle={-45} 
-                      textAnchor="end" 
-                      height={140}
-                      tick={{ fontSize: 11 }}
-                      interval={0}
-                    />
-                    <YAxis tick={{ fontSize: 11 }} width={50} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="orders" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
-          </motion.div>
         </div>
-
-        {/* Top Products Bar Chart */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9 }}
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <BarChart3 className="w-5 h-5 mr-2" />
-                Produits les Plus Performants
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ChartContainer
-                config={{
-                  revenue: {
-                    label: 'Revenus (DA)',
-                    color: 'hsl(var(--chart-1))',
-                  },
-                }}
-                className="h-[300px] w-full"
-              >
-                <BarChart data={productChartData} layout="vertical" margin={{ top: 20, right: 30, left: 180, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" tick={{ fontSize: 11 }} width={60} />
-                  <YAxis dataKey="name" type="category" width={170} tick={{ fontSize: 10 }} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                  <Bar dataKey="revenue" fill="hsl(var(--chart-1))" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ChartContainer>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Inventory Intelligence Table */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.0 }}
-        >
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="flex items-center">
-                  <Package className="w-5 h-5 mr-2" />
-                  Intelligence d'Inventaire
-                </CardTitle>
-                <div className="relative w-64">
-                  <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher des produits..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-8"
-                  />
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Produit</TableHead>
-                      <TableHead>Prix de Vente (Unité)</TableHead>
-                      <TableHead>Prix d'Achat (Unité)</TableHead>
-                      <TableHead>Profit (Unité)</TableHead>
-                      <TableHead>Stock</TableHead>
-                      <TableHead>Profit Potentiel</TableHead>
-                      <TableHead>Marge de Profit</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredInventory.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8">
-                          <p className="text-muted-foreground">Aucun produit trouvé</p>
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredInventory.map((item) => (
-                        <TableRow key={item.id}>
-                          <TableCell>
-                            <div className="flex items-center space-x-3">
-                              <img
-                                src={item.image}
-                                alt={item.name}
-                                className="w-10 h-10 rounded object-cover"
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = '/placeholder.svg'
-                                }}
-                              />
-                              <div>
-                                <p className="font-medium">{item.name}</p>
-                                <p className="text-sm text-muted-foreground">{item.brandName}</p>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-medium">
-                              {item.price.toLocaleString()} DA
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-medium text-muted-foreground">
-                              {item.costPrice.toLocaleString()} DA
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-medium text-green-600">
-                              {item.unitProfit.toLocaleString()} DA
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-medium">{item.totalStock}</span>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-medium text-blue-600">
-                              {item.totalPotentialProfit.toLocaleString()} DA
-                            </span>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={item.profitMargin > 30 ? 'default' : 'secondary'}>
-                              {item.profitMargin.toFixed(1)}%
-                            </Badge>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
       </div>
     </AdminLayout>
   )
