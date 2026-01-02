@@ -62,10 +62,13 @@ self.addEventListener('fetch', (event) => {
           // Clone the response
           const responseToCache = response.clone();
           
-          // Cache successful responses
-          if (response.status === 200) {
+          // Cache successful responses (but not partial responses - 206)
+          if (response.status === 200 && response.status !== 206) {
             caches.open(RUNTIME_CACHE).then((cache) => {
-              cache.put(request, responseToCache);
+              cache.put(request, responseToCache).catch((err) => {
+                // Silently fail if caching fails (e.g., 206 partial response)
+                console.warn('Cache put failed:', err);
+              });
             });
           }
           
@@ -105,14 +108,17 @@ self.addEventListener('fetch', (event) => {
         }
         
         return fetch(request).then((response) => {
-          // Don't cache if not successful
-          if (!response || response.status !== 200) {
+          // Don't cache if not successful or if partial response (206)
+          if (!response || response.status !== 200 || response.status === 206) {
             return response;
           }
           
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseToCache);
+            cache.put(request, responseToCache).catch((err) => {
+              // Silently fail if caching fails (e.g., 206 partial response)
+              console.warn('Cache put failed:', err);
+            });
           });
           
           return response;
@@ -124,10 +130,16 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          const responseToCache = response.clone();
-          caches.open(RUNTIME_CACHE).then((cache) => {
-            cache.put(request, responseToCache);
-          });
+          // Only cache successful, non-partial responses
+          if (response && response.status === 200 && response.status !== 206) {
+            const responseToCache = response.clone();
+            caches.open(RUNTIME_CACHE).then((cache) => {
+              cache.put(request, responseToCache).catch((err) => {
+                // Silently fail if caching fails (e.g., 206 partial response)
+                console.warn('Cache put failed:', err);
+              });
+            });
+          }
           return response;
         })
         .catch(() => {

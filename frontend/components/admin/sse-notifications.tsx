@@ -32,6 +32,7 @@ export function SSENotifications() {
   const connectionCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastMessageTimeRef = useRef<number>(Date.now());
   const isConnectingRef = useRef<boolean>(false); // Prevent duplicate connections
+  const processedNotificationsRef = useRef<Set<string>>(new Set()); // Track processed notifications to prevent duplicates
   const [browserNotificationPermission, setBrowserNotificationPermission] = useState<NotificationPermission>('default');
 
   // Request browser notification permission on mount - improved for mobile
@@ -228,6 +229,30 @@ export function SSENotifications() {
               }
               return;
             }
+
+            // Create a unique key for this notification to prevent duplicates
+            // Use orderId + orderNumber + timestamp for better uniqueness
+            const notificationKey = `${data.type}-${data.orderId || ''}-${data.orderNumber || ''}-${data.timestamp || ''}`;
+            
+            // Check if we've already processed this notification (within last 5 minutes)
+            if (processedNotificationsRef.current.has(notificationKey)) {
+              console.log('⚠️ Duplicate notification ignored:', notificationKey);
+              return;
+            }
+            
+            // Mark as processed
+            processedNotificationsRef.current.add(notificationKey);
+            
+            // Clean up old notification keys periodically (keep last 200)
+            if (processedNotificationsRef.current.size > 200) {
+              const keysArray = Array.from(processedNotificationsRef.current);
+              processedNotificationsRef.current = new Set(keysArray.slice(-100)); // Keep last 100
+            }
+            
+            // Also set a timeout to remove this key after 10 minutes (in case of very old duplicates)
+            setTimeout(() => {
+              processedNotificationsRef.current.delete(notificationKey);
+            }, 10 * 60 * 1000); // 10 minutes
 
             if (data.type === 'new_order') {
               console.log('🛒 New order notification received:', data);
