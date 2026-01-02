@@ -7,11 +7,18 @@ Place your notification sound file here.
 - `.wav` (good quality, larger file size)
 - `.ogg` (good compression, web-friendly)
 
-## File Name
-Name your file one of the following:
+## File Names
+Name your files one of the following:
+
+**For new order notifications:**
 - `notification.mp3` (recommended)
 - `notification.wav`
 - `notification.ogg`
+
+**For order confirmation notifications (delivery agents):**
+- `confirm.mp3` (recommended)
+- `confirm.wav`
+- `confirm.ogg`
 
 ## Recommended Sound
 - Short duration (1-3 seconds)
@@ -25,10 +32,13 @@ You can find free notification sounds at:
 - https://mixkit.co/free-sound-effects/notification/
 - https://notificationsounds.com/
 
-## Example
-If you have a file named `notification.mp3`, place it in this directory:
+## Examples
+If you have sound files, place them in this directory:
 ```
-frontend/public/sounds/notification.mp3
+frontend/public/sounds/notification.mp3  (for new orders)
+frontend/public/sounds/confirm.mp3      (for order confirmations)
 ```
 
-The system will automatically detect and play it when new order notifications arrive.
+The system will automatically detect and play:
+- `notification.mp3` when new orders arrive (admin notifications)
+- `confirm.mp3` when orders are confirmed by confirmatrice (delivery agent notifications)

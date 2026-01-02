@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuthStore, useNotificationStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
-import { Bell, ShoppingCart } from 'lucide-react';
+import { Bell, ShoppingCart, CheckCircle } from 'lucide-react';
 
 interface SSENotification {
   type: string;
@@ -31,21 +31,64 @@ export function SSENotifications() {
   const maxReconnectAttempts = 5;
   const [browserNotificationPermission, setBrowserNotificationPermission] = useState<NotificationPermission>('default');
 
-  // Request browser notification permission on mount
+  // Request browser notification permission on mount - improved for mobile
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
-      setBrowserNotificationPermission(Notification.permission);
+      const currentPermission = Notification.permission;
+      setBrowserNotificationPermission(currentPermission);
+      
+      // Check if we're in PWA/standalone mode
+      const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      
+      console.log('📱 Device info:', { isStandalone, isMobile, permission: currentPermission });
       
       // Request permission if not already granted or denied
-      if (Notification.permission === 'default') {
-        Notification.requestPermission().then((permission) => {
-          setBrowserNotificationPermission(permission);
-          if (permission === 'granted') {
-            console.log('✅ Browser notification permission granted');
-          } else {
-            console.log('❌ Browser notification permission denied');
-          }
-        });
+      // On mobile, we need to request permission more proactively
+      if (currentPermission === 'default') {
+        // For mobile devices or PWA, show a more user-friendly prompt
+        if (isMobile || isStandalone) {
+          // Small delay to ensure page is fully loaded
+          setTimeout(() => {
+            Notification.requestPermission().then((permission) => {
+              setBrowserNotificationPermission(permission);
+              if (permission === 'granted') {
+                console.log('✅ Browser notification permission granted');
+                // Show a test notification to confirm it works
+                try {
+                  new Notification('Notifications activées! 🔔', {
+                    body: 'Vous recevrez des notifications pour les nouvelles commandes',
+                    icon: '/logo-mini.png',
+                    badge: '/logo-mini.png',
+                    tag: 'permission-granted',
+                    silent: false,
+                  });
+                } catch (e) {
+                  console.log('Could not show test notification:', e);
+                }
+              } else if (permission === 'denied') {
+                console.log('❌ Browser notification permission denied');
+                console.log('💡 User needs to enable notifications in browser settings');
+              }
+            }).catch((error) => {
+              console.error('Error requesting notification permission:', error);
+            });
+          }, 1000); // 1 second delay for better UX
+        } else {
+          // For desktop, request immediately
+          Notification.requestPermission().then((permission) => {
+            setBrowserNotificationPermission(permission);
+            if (permission === 'granted') {
+              console.log('✅ Browser notification permission granted');
+            } else {
+              console.log('❌ Browser notification permission denied');
+            }
+          });
+        }
+      } else if (currentPermission === 'granted') {
+        console.log('✅ Notification permission already granted');
+      } else {
+        console.log('❌ Notification permission denied. User needs to enable in browser settings.');
       }
     }
   }, []);
@@ -131,6 +174,9 @@ export function SSENotifications() {
             if (data.type === 'new_order') {
               console.log('🛒 New order notification received:', data);
               handleNewOrderNotification(data);
+            } else if (data.type === 'order_confirmed') {
+              console.log('✅ Order confirmed notification received:', data);
+              handleOrderConfirmedNotification(data);
             } else {
               // Generic notification
               console.log('ℹ️ Generic notification received:', data);
@@ -174,14 +220,14 @@ export function SSENotifications() {
       }
     };
 
-    const handleNewOrderNotification = (notification: SSENotification) => {
-      console.log('🔔 Handling new order notification:', notification);
+    const handleOrderConfirmedNotification = (notification: SSENotification) => {
+      console.log('🔔 Handling order confirmed notification:', notification);
       
       // Store notification in the store
       addNotification({
         type: notification.type,
-        title: notification.title || 'Nouvelle Commande',
-        message: notification.message || `Commande #${notification.orderNumber} reçue`,
+        title: notification.title || 'Commande Confirmée',
+        message: notification.message || `Commande #${notification.orderNumber} confirmée et prête pour la livraison`,
         orderId: notification.orderId,
         orderNumber: notification.orderNumber,
         customerName: notification.customerName,
@@ -191,10 +237,10 @@ export function SSENotifications() {
       
       // Show toast notification
       try {
-        toast.success(notification.title || 'Nouvelle Commande', {
-          description: notification.message || `Commande #${notification.orderNumber} reçue`,
+        toast.success(notification.title || 'Commande Confirmée', {
+          description: notification.message || `Commande #${notification.orderNumber} confirmée et prête pour la livraison`,
           duration: 10000,
-          icon: <ShoppingCart className="w-5 h-5" />,
+          icon: <CheckCircle className="w-5 h-5" />,
           action: notification.url ? {
             label: 'Voir la commande',
             onClick: () => {
@@ -208,57 +254,88 @@ export function SSENotifications() {
         console.error('❌ Error displaying toast:', toastError);
       }
 
-      // Show browser push notification (works on mobile browsers too)
+      // Show browser push notification
       if (typeof window !== 'undefined' && 'Notification' in window) {
         if (browserNotificationPermission === 'granted') {
           try {
-            const browserNotification = new Notification(notification.title || 'Nouvelle Commande', {
-              body: notification.message || `Commande #${notification.orderNumber} de ${notification.customerName || 'un client'}. Total: ${notification.total?.toLocaleString() || '0'} DA`,
-              icon: '/logos/logo-dark.png',
-              badge: '/logos/logo-dark.png',
-              tag: notification.orderId || notification.orderNumber, // Prevent duplicate notifications
-              requireInteraction: false,
-              silent: false,
-            });
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            
+            if ('serviceWorker' in navigator && isStandalone) {
+              navigator.serviceWorker.ready.then((registration) => {
+                registration.showNotification(notification.title || 'Commande Confirmée', {
+                  body: notification.message || `Commande #${notification.orderNumber} confirmée et prête pour la livraison`,
+                  icon: '/logo-mini.png',
+                  badge: '/logo-mini.png',
+                  tag: notification.orderId || notification.orderNumber,
+                  requireInteraction: false,
+                  silent: false,
+                  vibrate: isMobile ? [200, 100, 200] : undefined,
+                  data: {
+                    url: notification.url || '/agent-livraison/dashboard',
+                    orderId: notification.orderId,
+                    orderNumber: notification.orderNumber,
+                  },
+                });
+                console.log('✅ Service worker notification displayed (PWA mode)');
+              }).catch((error) => {
+                console.error('Error showing service worker notification:', error);
+                showRegularNotification();
+              });
+            } else {
+              showRegularNotification();
+            }
+            
+            function showRegularNotification() {
+              const browserNotification = new Notification(notification.title || 'Commande Confirmée', {
+                body: notification.message || `Commande #${notification.orderNumber} confirmée et prête pour la livraison`,
+                icon: '/logo-mini.png',
+                badge: '/logo-mini.png',
+                tag: notification.orderId || notification.orderNumber,
+                requireInteraction: false,
+                silent: false,
+                vibrate: isMobile ? [200, 100, 200] : undefined,
+              });
 
-            // Handle click on notification
-            browserNotification.onclick = () => {
-              window.focus();
-              if (notification.url) {
-                router.push(notification.url);
-              }
-              browserNotification.close();
-            };
+              browserNotification.onclick = () => {
+                window.focus();
+                if (notification.url) {
+                  router.push(notification.url);
+                }
+                browserNotification.close();
+              };
 
-            // Auto-close after 5 seconds
-            setTimeout(() => {
-              browserNotification.close();
-            }, 5000);
+              setTimeout(() => {
+                browserNotification.close();
+              }, 5000);
 
-            console.log('✅ Browser push notification displayed');
+              console.log('✅ Browser push notification displayed');
+            }
           } catch (error) {
             console.error('❌ Error showing browser notification:', error);
           }
-        } else if (browserNotificationPermission === 'default') {
-          // Request permission again
-          Notification.requestPermission().then((permission) => {
-            setBrowserNotificationPermission(permission);
-            if (permission === 'granted') {
-              // Retry showing notification
-              handleNewOrderNotification(notification);
-            }
-          });
         }
       }
 
-      // Play notification sound
+      // Play confirm.mp3 sound
+      playNotificationSound('confirm');
+    };
+
+    // Reusable function to play notification sounds
+    const playNotificationSound = (soundName: string = 'notification') => {
       if (typeof window !== 'undefined' && 'Audio' in window) {
         try {
           // Try to play notification sound (supports multiple formats)
           const soundPaths = [
-            '/sounds/notification.wav',
-            '/sounds/notification.mp3',
-            '/sounds/notification.ogg',
+            `/sounds/${soundName}.mp3`,
+            `/sounds/${soundName}.wav`,
+            `/sounds/${soundName}.ogg`,
+            // Fallback to default notification sound
+            ...(soundName !== 'notification' ? [
+              '/sounds/notification.mp3',
+              '/sounds/notification.wav',
+              '/sounds/notification.ogg',
+            ] : []),
           ];
           
           let soundPlayed = false;
@@ -267,7 +344,7 @@ export function SSENotifications() {
           const tryPlaySound = (index: number) => {
             if (index >= soundPaths.length || soundPlayed) {
               if (!soundPlayed && index >= soundPaths.length) {
-                console.log('ℹ️ No notification sound file found. Add a sound file to /public/sounds/notification.wav or notification.mp3');
+                console.log(`ℹ️ No ${soundName} sound file found. Add a sound file to /public/sounds/${soundName}.mp3`);
               }
               return;
             }
@@ -333,6 +410,140 @@ export function SSENotifications() {
           console.warn('❌ Error playing notification sound:', error.message);
         }
       }
+    };
+
+    const handleNewOrderNotification = (notification: SSENotification) => {
+      console.log('🔔 Handling new order notification:', notification);
+      
+      // Store notification in the store
+      addNotification({
+        type: notification.type,
+        title: notification.title || 'Nouvelle Commande',
+        message: notification.message || `Commande #${notification.orderNumber} reçue`,
+        orderId: notification.orderId,
+        orderNumber: notification.orderNumber,
+        customerName: notification.customerName,
+        total: notification.total,
+        url: notification.url,
+      });
+      
+      // Show toast notification
+      try {
+        toast.success(notification.title || 'Nouvelle Commande', {
+          description: notification.message || `Commande #${notification.orderNumber} reçue`,
+          duration: 10000,
+          icon: <ShoppingCart className="w-5 h-5" />,
+          action: notification.url ? {
+            label: 'Voir la commande',
+            onClick: () => {
+              console.log('🔗 Navigating to:', notification.url);
+              router.push(notification.url!);
+            }
+          } : undefined,
+        });
+        console.log('✅ Toast notification displayed');
+      } catch (toastError) {
+        console.error('❌ Error displaying toast:', toastError);
+      }
+
+      // Show browser push notification (works on mobile browsers too)
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (browserNotificationPermission === 'granted') {
+          try {
+            // Check if we're in PWA/standalone mode
+            const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            
+            // Use service worker notification if available (better for PWA)
+            if ('serviceWorker' in navigator && isStandalone) {
+              navigator.serviceWorker.ready.then((registration) => {
+                registration.showNotification(notification.title || 'Nouvelle Commande', {
+                  body: notification.message || `Commande #${notification.orderNumber} de ${notification.customerName || 'un client'}. Total: ${notification.total?.toLocaleString() || '0'} DA`,
+                  icon: '/logo-mini.png',
+                  badge: '/logo-mini.png',
+                  tag: notification.orderId || notification.orderNumber,
+                  requireInteraction: false,
+                  silent: false,
+                  vibrate: isMobile ? [200, 100, 200] : undefined,
+                  data: {
+                    url: notification.url || '/admin/orders',
+                    orderId: notification.orderId,
+                    orderNumber: notification.orderNumber,
+                  },
+                });
+                console.log('✅ Service worker notification displayed (PWA mode)');
+              }).catch((error) => {
+                console.error('Error showing service worker notification:', error);
+                // Fallback to regular notification
+                showRegularNotification();
+              });
+            } else {
+              // Use regular Notification API for browser mode
+              showRegularNotification();
+            }
+            
+            function showRegularNotification() {
+              const browserNotification = new Notification(notification.title || 'Nouvelle Commande', {
+                body: notification.message || `Commande #${notification.orderNumber} de ${notification.customerName || 'un client'}. Total: ${notification.total?.toLocaleString() || '0'} DA`,
+                icon: '/logo-mini.png', // Use favicon
+                badge: '/logo-mini.png', // Use favicon for badge
+                tag: notification.orderId || notification.orderNumber, // Prevent duplicate notifications
+                requireInteraction: false,
+                silent: false,
+                vibrate: isMobile ? [200, 100, 200] : undefined, // Vibration pattern for mobile
+              });
+
+              // Handle click on notification
+              browserNotification.onclick = () => {
+                window.focus();
+                if (notification.url) {
+                  router.push(notification.url);
+                }
+                browserNotification.close();
+              };
+
+              // Auto-close after 5 seconds
+              setTimeout(() => {
+                browserNotification.close();
+              }, 5000);
+
+              console.log('✅ Browser push notification displayed');
+            }
+          } catch (error) {
+            console.error('❌ Error showing browser notification:', error);
+          }
+        } else if (browserNotificationPermission === 'default') {
+          // Request permission again (especially important for mobile)
+          console.log('📱 Requesting notification permission...');
+          Notification.requestPermission().then((permission) => {
+            setBrowserNotificationPermission(permission);
+            if (permission === 'granted') {
+              console.log('✅ Permission granted, showing notification');
+              // Retry showing notification
+              handleNewOrderNotification(notification);
+            } else {
+              console.log('❌ Permission denied:', permission);
+              // Show a toast to inform user they need to enable notifications
+              toast.info('Notifications désactivées', {
+                description: 'Activez les notifications dans les paramètres du navigateur pour recevoir des alertes',
+                duration: 5000,
+              });
+            }
+          }).catch((error) => {
+            console.error('Error requesting permission:', error);
+          });
+        } else if (browserNotificationPermission === 'denied') {
+          console.log('❌ Notification permission denied. User needs to enable in browser settings.');
+          // Optionally show a helpful message
+          toast.info('Notifications bloquées', {
+            description: 'Les notifications sont bloquées. Activez-les dans les paramètres du navigateur.',
+            duration: 5000,
+          });
+        }
+      }
+
+      // Play notification sound (default notification sound)
+      playNotificationSound('notification');
     };
 
     // Connect when component mounts

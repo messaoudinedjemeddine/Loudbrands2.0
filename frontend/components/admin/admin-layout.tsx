@@ -33,6 +33,7 @@ import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { PWAInstallPrompt } from '@/components/pwa-install-prompt'
 import { SSENotifications } from '@/components/admin/sse-notifications'
 import { NotificationBell } from '@/components/admin/notification-bell'
+import { NotificationPermissionPrompt } from '@/components/admin/notification-permission-prompt'
 
 // Role-based navigation configuration
 const getNavigationByRole = (role: string) => {
@@ -310,6 +311,8 @@ export function AdminLayout({ children }: AdminLayoutProps) {
       </div>
       {/* PWA Install Prompt - Only shows on mobile for admin dashboard */}
       <PWAInstallPrompt />
+      {/* Notification Permission Prompt - Shows on mobile to enable notifications */}
+      <NotificationPermissionPrompt />
       {/* SSE Notifications - Real-time order notifications */}
       <SSENotifications />
     </div>

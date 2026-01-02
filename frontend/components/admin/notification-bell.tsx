@@ -48,6 +48,8 @@ export function NotificationBell() {
     switch (type) {
       case 'new_order':
         return <ShoppingCart className="w-4 h-4 text-blue-500" />;
+      case 'order_confirmed':
+        return <CheckCircle className="w-4 h-4 text-green-500" />;
       default:
         return <Bell className="w-4 h-4 text-gray-500" />;
     }

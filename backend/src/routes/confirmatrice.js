@@ -270,6 +270,62 @@ router.patch('/orders/:orderId/confirm', async (req, res) => {
       // Don't fail the order confirmation, just log the error
     }
 
+    // Send SSE notification to delivery agents
+    try {
+      const sseService = require('../services/sse-service');
+      
+      // Get all delivery agents
+      const deliveryAgents = await prisma.user.findMany({
+        where: { 
+          role: 'AGENT_LIVRAISON'
+        }
+      });
+
+      console.log(`📢 Preparing SSE notification for confirmed order: ${updatedOrder.orderNumber}`);
+      console.log(`👥 Found ${deliveryAgents.length} delivery agents to notify`);
+
+      const sseNotification = {
+        type: 'order_confirmed',
+        title: 'Nouvelle Commande Confirmée',
+        message: `Commande #${updatedOrder.orderNumber} de ${updatedOrder.customerName}. Prête pour la livraison. Total: ${updatedOrder.total.toLocaleString()} DA`,
+        orderId: updatedOrder.id,
+        orderNumber: updatedOrder.orderNumber,
+        customerName: updatedOrder.customerName,
+        total: updatedOrder.total,
+        trackingNumber: updatedOrder.trackingNumber,
+        url: `/agent-livraison/dashboard?orderId=${updatedOrder.id}`,
+        timestamp: new Date().toISOString(),
+        sound: 'confirm.mp3' // Specify sound file
+      };
+
+      // Broadcast to all delivery agents via SSE
+      let notifiedCount = 0;
+      const totalClients = sseService.getTotalClients();
+      console.log(`📊 Broadcasting to ${deliveryAgents.length} delivery agents, ${totalClients} total SSE clients connected`);
+      
+      deliveryAgents.forEach(agent => {
+        const userClientCount = sseService.getUserClientCount(agent.id);
+        console.log(`👤 Agent ${agent.id} (${agent.role}): ${userClientCount} active SSE connection(s)`);
+        
+        const sent = sseService.sendToUser(agent.id, sseNotification);
+        if (sent) {
+          notifiedCount++;
+          console.log(`✅ SSE notification sent to delivery agent: ${agent.id}`);
+        } else {
+          console.log(`⚠️ No active SSE connection for delivery agent: ${agent.id} - agent may not be connected`);
+        }
+      });
+
+      console.log(`📨 SSE notification sent to ${notifiedCount}/${deliveryAgents.length} connected delivery agents for order: ${updatedOrder.orderNumber}`);
+      
+      if (notifiedCount === 0 && totalClients > 0) {
+        console.warn(`⚠️ WARNING: ${totalClients} SSE clients connected but none matched delivery agents!`);
+      }
+    } catch (sseError) {
+      console.error('❌ Failed to send SSE notification to delivery agents:', sseError);
+      // Don't fail the order confirmation if notification fails
+    }
+
     res.json(updatedOrder);
   } catch (error) {
     console.error('Error confirming order:', error);
