@@ -126,6 +126,21 @@ export function SSENotifications() {
             }
             eventSourceRef.current = null;
             setIsConnected(false);
+            isConnectingRef.current = false;
+          }
+        } else if (event.data.type === 'connection-established' && event.data.connectionId !== connectionIdRef.current) {
+          // Another tab has established connection, close this one if we're trying to connect
+          if (isConnectingRef.current || (eventSourceRef.current && eventSourceRef.current.readyState === EventSource.CONNECTING)) {
+            console.log('📢 Another tab already has SSE connection, canceling this connection...');
+            if (eventSourceRef.current) {
+              try {
+                eventSourceRef.current.close();
+              } catch (e) {
+                console.warn('Error closing connection:', e);
+              }
+              eventSourceRef.current = null;
+            }
+            isConnectingRef.current = false;
           }
         }
       };
@@ -184,10 +199,20 @@ export function SSENotifications() {
           console.log('✅ SSE connection opened successfully');
           console.log('🔗 SSE URL:', sseUrl.replace(/token=[^&]+/, 'token=***'));
           console.log('👤 User:', user?.email, 'Role:', user?.role);
+          console.log('🆔 Connection ID:', connectionIdRef.current);
           setIsConnected(true);
           reconnectAttempts.current = 0;
           lastMessageTimeRef.current = Date.now();
           isConnectingRef.current = false; // Connection established
+          
+          // Notify other tabs that this connection is established
+          if (broadcastChannelRef.current) {
+            broadcastChannelRef.current.postMessage({
+              type: 'connection-established',
+              connectionId: connectionIdRef.current,
+              timestamp: Date.now()
+            });
+          }
           
           // Clear any pending reconnect
           if (reconnectTimeoutRef.current) {
