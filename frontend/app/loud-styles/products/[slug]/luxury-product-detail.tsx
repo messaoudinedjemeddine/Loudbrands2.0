@@ -77,7 +77,7 @@ interface LuxuryProductDetailProps {
   product: Product
 }
 
-export default function LuxuryProductDetail({ product }: LuxuryProductDetailProps): React.ReactElement {
+export default function LuxuryProductDetail({ product }: LuxuryProductDetailProps) {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -111,7 +111,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
       window.addEventListener('resize', checkMobile)
       return () => window.removeEventListener('resize', checkMobile)
     }
-
+    
+    return () => {} // Return empty cleanup function if window is undefined
   }, [product])
 
   useEffect(() => {
@@ -262,7 +263,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
     return ['M', 'L', 'XL', 'XXL'];
   }
 
-  const displaySizes = getDisplaySizes()
+  const displaySizes = getDisplaySizes();
 
   // Optimize animations for mobile - reduce complexity (moved before conditional returns)
   // Disable animations for first image to improve LCP
@@ -275,7 +276,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
         delayChildren: 0
       }
     }
-  }
+  };
 
   const itemVariants = {
     hidden: { opacity: 1, y: 0 }, // Start visible

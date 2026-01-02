@@ -147,18 +147,17 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
       quantity: quantity
     })
 
-      if (window.gtag) {
-        window.gtag('event', 'add_to_cart', {
-          currency: 'DZD',
-          value: product.price,
-          items: [{
-            item_id: product.id,
-            item_name: product.name,
-            price: product.price,
-            item_variant: selectedSize
-          }]
-        })
-      }
+    if (window.gtag) {
+      window.gtag('event', 'add_to_cart', {
+        currency: 'DZD',
+        value: product.price,
+        items: [{
+          item_id: product.id,
+          item_name: product.name,
+          price: product.price,
+          item_variant: selectedSize
+        }]
+      })
     }
 
     toast.success(isRTL ? 'تمت الإضافة إلى السلة' : 'Added to cart')
@@ -243,7 +242,7 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
         staggerChildren: 0.1
       }
     }
-  }
+  };
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
@@ -255,7 +254,7 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
         ease: [0.25, 0.46, 0.45, 0.94]
       }
     }
-  }
+  };
 
   const imageVariants = {
     hidden: { opacity: 0, scale: 0.95 },
@@ -267,7 +266,7 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
         ease: [0.25, 0.46, 0.45, 0.94]
       }
     }
-  }
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-cream-50 via-warm-50 to-cream-100" dir={isRTL ? 'rtl' : 'ltr'}>

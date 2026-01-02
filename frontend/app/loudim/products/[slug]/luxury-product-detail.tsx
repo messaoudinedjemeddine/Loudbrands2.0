@@ -127,18 +127,17 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
       quantity: quantity
     })
 
-      if (window.gtag) {
-        window.gtag('event', 'add_to_cart', {
-          currency: 'DZD',
-          value: product.price,
-          items: [{
-            item_id: product.id,
-            item_name: product.name,
-            price: product.price,
-            item_variant: selectedSize
-          }]
-        })
-      }
+    if (window.gtag) {
+      window.gtag('event', 'add_to_cart', {
+        currency: 'DZD',
+        value: product.price,
+        items: [{
+          item_id: product.id,
+          item_name: product.name,
+          price: product.price,
+          item_variant: selectedSize
+        }]
+      })
     }
 
     setCartOpen(true)
@@ -239,7 +238,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
         ease: [0.25, 0.46, 0.45, 0.94]
       }
     }
-  }
+  };
 
   const imageVariants = {
     hidden: { opacity: 0, scale: 0.95 },
@@ -251,7 +250,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
         ease: [0.25, 0.46, 0.45, 0.94]
       }
     }
-  }
+  };
 
   return (
     <>

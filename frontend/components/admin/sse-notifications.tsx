@@ -33,6 +33,8 @@ export function SSENotifications() {
   const lastMessageTimeRef = useRef<number>(Date.now());
   const isConnectingRef = useRef<boolean>(false); // Prevent duplicate connections
   const processedNotificationsRef = useRef<Set<string>>(new Set()); // Track processed notifications to prevent duplicates
+  const processingNotificationsRef = useRef<Set<string>>(new Set()); // Track notifications currently being processed
+  const lastNotificationTimeRef = useRef<Map<string, number>>(new Map()); // Track when each notification type was last processed
   const broadcastChannelRef = useRef<BroadcastChannel | null>(null); // For cross-tab communication
   const connectionIdRef = useRef<string>(`${Date.now()}-${Math.random().toString(36).substr(2, 9)}`); // Unique connection ID
   const [browserNotificationPermission, setBrowserNotificationPermission] = useState<NotificationPermission>('default');
@@ -114,7 +116,7 @@ export function SSENotifications() {
     if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
       broadcastChannelRef.current = new BroadcastChannel('sse-connections');
       
-      // Listen for other tabs requesting to close connections
+      // Listen for other tabs requesting to close connections and notification coordination
       broadcastChannelRef.current.onmessage = (event) => {
         if (event.data.type === 'close-connection' && event.data.connectionId !== connectionIdRef.current) {
           console.log('📢 Another tab is taking over SSE connection, closing this one...');
@@ -141,6 +143,13 @@ export function SSENotifications() {
               eventSourceRef.current = null;
             }
             isConnectingRef.current = false;
+          }
+        } else if (event.data.type === 'notification-processed') {
+          // Another tab has processed this notification, mark it as processed here too
+          const notificationKey = event.data.notificationKey;
+          if (notificationKey && !processedNotificationsRef.current.has(notificationKey)) {
+            processedNotificationsRef.current.add(notificationKey);
+            console.log('📢 Notification already processed by another tab, marking as processed:', notificationKey);
           }
         }
       };
@@ -291,29 +300,79 @@ export function SSENotifications() {
             }
 
             // Create a unique key for this notification to prevent duplicates
-            // Use orderId + orderNumber + timestamp for better uniqueness
-            const notificationKey = `${data.type}-${data.orderId || ''}-${data.orderNumber || ''}-${data.timestamp || ''}`;
+            // Use orderId + orderNumber + timestamp + customerName + total for better uniqueness
+            const orderId = data.orderId || '';
+            const orderNumber = data.orderNumber || '';
+            const timestamp = data.timestamp || new Date().toISOString();
+            const customerName = data.customerName || '';
+            const total = data.total || 0;
+            // Create a more unique key that includes all identifying information
+            const notificationKey = `${data.type}-${orderId}-${orderNumber}-${timestamp}-${customerName}-${total}`;
             
-            // Check if we've already processed this notification (within last 5 minutes)
+            // Check if we've already processed this notification
             if (processedNotificationsRef.current.has(notificationKey)) {
               console.log('⚠️ Duplicate notification ignored:', notificationKey);
               return;
             }
             
-            // Mark as processed
-            processedNotificationsRef.current.add(notificationKey);
+            // Check if we've processed a similar notification very recently (within 3 seconds)
+            // This prevents rapid-fire duplicates from multiple tabs or reconnections
+            const orderKey = `${data.type}-${orderId}-${orderNumber}`;
+            const lastProcessedTime = lastNotificationTimeRef.current.get(orderKey);
+            const now = Date.now();
             
-            // Clean up old notification keys periodically (keep last 200)
-            if (processedNotificationsRef.current.size > 200) {
-              const keysArray = Array.from(processedNotificationsRef.current);
-              processedNotificationsRef.current = new Set(keysArray.slice(-100)); // Keep last 100
+            if (lastProcessedTime && (now - lastProcessedTime) < 3000) {
+              console.log('⚠️ Recent duplicate notification ignored (within 3 seconds):', orderKey);
+              return;
             }
             
-            // Also set a timeout to remove this key after 10 minutes (in case of very old duplicates)
+            // Update last processed time
+            lastNotificationTimeRef.current.set(orderKey, now);
+            
+            // Clean up old entries from lastNotificationTimeRef (keep last 50)
+            if (lastNotificationTimeRef.current.size > 50) {
+              const entries = Array.from(lastNotificationTimeRef.current.entries());
+              const recentEntries = entries.filter(([_, time]) => (now - time) < 60000); // Keep entries from last minute
+              lastNotificationTimeRef.current = new Map(recentEntries);
+            }
+            
+            // Mark as processed immediately
+            processedNotificationsRef.current.add(notificationKey);
+            
+            // Notify other tabs via BroadcastChannel to prevent them from processing the same notification
+            if (broadcastChannelRef.current) {
+              broadcastChannelRef.current.postMessage({
+                type: 'notification-processed',
+                notificationKey: notificationKey,
+                timestamp: Date.now()
+              });
+            }
+            
+            // Clean up old notification keys periodically (keep last 100)
+            if (processedNotificationsRef.current.size > 100) {
+              const keysArray = Array.from(processedNotificationsRef.current);
+              processedNotificationsRef.current = new Set(keysArray.slice(-50)); // Keep last 50
+            }
+            
+            // Set a timeout to remove this key after 5 minutes (shorter window)
             setTimeout(() => {
               processedNotificationsRef.current.delete(notificationKey);
-            }, 10 * 60 * 1000); // 10 minutes
+            }, 5 * 60 * 1000); // 5 minutes
 
+            // Check if this notification is already being processed
+            if (processingNotificationsRef.current.has(notificationKey)) {
+              console.log('⚠️ Notification already being processed, skipping:', notificationKey);
+              return;
+            }
+            
+            // Mark as processing
+            processingNotificationsRef.current.add(notificationKey);
+            
+            // Remove from processing set after a delay (in case of errors)
+            setTimeout(() => {
+              processingNotificationsRef.current.delete(notificationKey);
+            }, 5000); // 5 seconds should be enough for any notification to complete
+            
             if (data.type === 'new_order') {
               console.log('🛒 New order notification received:', data);
               handleNewOrderNotification(data);
@@ -379,6 +438,20 @@ export function SSENotifications() {
 
     const handleOrderConfirmedNotification = (notification: SSENotification) => {
       console.log('🔔 Handling order confirmed notification:', notification);
+      
+      // Double-check: prevent processing if already in store (additional safety)
+      const existingNotification = useNotificationStore.getState().notifications.find(
+        n => n.orderId === notification.orderId && n.orderNumber === notification.orderNumber && n.type === notification.type
+      );
+      
+      if (existingNotification) {
+        const notificationAge = Date.now() - new Date(existingNotification.timestamp).getTime();
+        // If notification was added in the last 3 seconds, skip it
+        if (notificationAge < 3000) {
+          console.log('⚠️ Notification already exists in store (added recently), skipping duplicate:', notification.orderNumber);
+          return;
+        }
+      }
       
       // Store notification in the store
       addNotification({
@@ -572,6 +645,20 @@ export function SSENotifications() {
     const handleNewOrderNotification = (notification: SSENotification) => {
       console.log('🔔 Handling new order notification:', notification);
       
+      // Double-check: prevent processing if already in store (additional safety)
+      const existingNotification = useNotificationStore.getState().notifications.find(
+        n => n.orderId === notification.orderId && n.orderNumber === notification.orderNumber
+      );
+      
+      if (existingNotification) {
+        const notificationAge = Date.now() - new Date(existingNotification.timestamp).getTime();
+        // If notification was added in the last 3 seconds, skip it
+        if (notificationAge < 3000) {
+          console.log('⚠️ Notification already exists in store (added recently), skipping duplicate:', notification.orderNumber);
+          return;
+        }
+      }
+      
       // Store notification in the store
       addNotification({
         type: notification.type,
@@ -735,9 +822,12 @@ export function SSENotifications() {
         broadcastChannelRef.current.close();
         broadcastChannelRef.current = null;
       }
+      // Clear processing notifications refs
+      processingNotificationsRef.current.clear();
+      lastNotificationTimeRef.current.clear();
       setIsConnected(false);
     };
-  }, [user?.id, token]); // Only depend on user.id and token to prevent unnecessary reconnections
+  }, [user?.id, token, addNotification, router]); // Include dependencies to prevent stale closures
 
   // Render connection status indicator (always visible for debugging)
   return (
