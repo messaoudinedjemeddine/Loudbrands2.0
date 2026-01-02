@@ -32,6 +32,7 @@ import { useTheme } from 'next-themes'
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
 import { PWAInstallPrompt } from '@/components/pwa-install-prompt'
 import { SSENotifications } from '@/components/admin/sse-notifications'
+import { NotificationBell } from '@/components/admin/notification-bell'
 
 // Role-based navigation configuration
 const getNavigationByRole = (role: string) => {
@@ -255,29 +256,32 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {/* Mobile sidebar */}
         <div className="lg:hidden flex flex-col fixed inset-y-0 inset-x-0 z-50 pointer-events-none">
           {/* Mobile Header */}
-          <div className="h-16 bg-card border-b flex items-center px-4 pointer-events-auto" dir="ltr">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button variant="ghost" size="icon" className="mr-4">
-                  <Menu className="h-6 w-6" />
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="left" className="p-0 w-72 bg-card border-r">
-                <Sidebar />
-              </SheetContent>
-            </Sheet>
+          <div className="h-16 bg-card border-b flex items-center justify-between px-4 pointer-events-auto" dir="ltr">
+            <div className="flex items-center">
+              <Sheet>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="icon" className="mr-4">
+                    <Menu className="h-6 w-6" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="left" className="p-0 w-72 bg-card border-r">
+                  <Sidebar />
+                </SheetContent>
+              </Sheet>
 
-            <div className="flex items-center space-x-2">
-              <div className="relative w-8 h-8 flex-shrink-0">
-                <Image
-                  src="/logos/logo-dark.png"
-                  alt="Loudim Logo"
-                  fill
-                  className="object-contain"
-                />
+              <div className="flex items-center space-x-2">
+                <div className="relative w-8 h-8 flex-shrink-0">
+                  <Image
+                    src="/logos/logo-dark.png"
+                    alt="Loudim Logo"
+                    fill
+                    className="object-contain"
+                  />
+                </div>
+                <span className="text-sm font-bold block truncate">Loudim Admin</span>
               </div>
-              <span className="text-sm font-bold block truncate">Loudim Admin</span>
             </div>
+            <NotificationBell />
           </div>
         </div>
 
@@ -287,7 +291,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
             }`}
         >
           <main className="p-4 lg:p-6">
-            <div className="mb-4 hidden lg:block" dir="ltr">
+            <div className="mb-4 hidden lg:flex items-center justify-between" dir="ltr">
               <Button
                 variant="ghost"
                 size="sm"
@@ -296,6 +300,7 @@ export function AdminLayout({ children }: AdminLayoutProps) {
               >
                 <Menu className="h-5 w-5" />
               </Button>
+              <NotificationBell />
             </div>
             <div className="w-full max-w-full overflow-x-auto">
               {children}

@@ -175,3 +175,74 @@ export const useUIStore = create<UIStore>((set) => ({
   setCartOpen: (isOpen) => set({ isCartOpen: isOpen }),
   toggleCart: () => set((state) => ({ isCartOpen: !state.isCartOpen })),
 }))
+
+export interface NotificationItem {
+  id: string
+  type: string
+  title: string
+  message: string
+  orderId?: string
+  orderNumber?: string
+  customerName?: string
+  total?: number
+  url?: string
+  timestamp: string
+  read: boolean
+}
+
+interface NotificationStore {
+  notifications: NotificationItem[]
+  addNotification: (notification: Omit<NotificationItem, 'id' | 'read' | 'timestamp'>) => void
+  markAsRead: (id: string) => void
+  markAllAsRead: () => void
+  removeNotification: (id: string) => void
+  clearAll: () => void
+  getUnreadCount: () => number
+  getNotifications: () => NotificationItem[]
+}
+
+export const useNotificationStore = create<NotificationStore>()(
+  persist(
+    (set, get) => ({
+      notifications: [],
+      addNotification: (notification) => {
+        const newNotification: NotificationItem = {
+          ...notification,
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          timestamp: new Date().toISOString(),
+          read: false,
+        }
+        set((state) => ({
+          notifications: [newNotification, ...state.notifications].slice(0, 100), // Keep last 100
+        }))
+      },
+      markAsRead: (id) => {
+        set((state) => ({
+          notifications: state.notifications.map((n) =>
+            n.id === id ? { ...n, read: true } : n
+          ),
+        }))
+      },
+      markAllAsRead: () => {
+        set((state) => ({
+          notifications: state.notifications.map((n) => ({ ...n, read: true })),
+        }))
+      },
+      removeNotification: (id) => {
+        set((state) => ({
+          notifications: state.notifications.filter((n) => n.id !== id),
+        }))
+      },
+      clearAll: () => set({ notifications: [] }),
+      getUnreadCount: () => {
+        return get().notifications.filter((n) => !n.read).length
+      },
+      getNotifications: () => {
+        return get().notifications
+      },
+    }),
+    {
+      name: 'notification-storage',
+    }
+  )
+)

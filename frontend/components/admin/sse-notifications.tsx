@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useAuthStore } from '@/lib/store';
+import { useAuthStore, useNotificationStore } from '@/lib/store';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { Bell, ShoppingCart } from 'lucide-react';
@@ -22,12 +22,33 @@ interface SSENotification {
 
 export function SSENotifications() {
   const { user, token } = useAuthStore();
+  const { addNotification } = useNotificationStore();
   const router = useRouter();
   const eventSourceRef = useRef<EventSource | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
   const maxReconnectAttempts = 5;
+  const [browserNotificationPermission, setBrowserNotificationPermission] = useState<NotificationPermission>('default');
+
+  // Request browser notification permission on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      setBrowserNotificationPermission(Notification.permission);
+      
+      // Request permission if not already granted or denied
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().then((permission) => {
+          setBrowserNotificationPermission(permission);
+          if (permission === 'granted') {
+            console.log('✅ Browser notification permission granted');
+          } else {
+            console.log('❌ Browser notification permission denied');
+          }
+        });
+      }
+    }
+  }, []);
 
   useEffect(() => {
     // Only connect if user is authenticated and has admin role
@@ -156,6 +177,18 @@ export function SSENotifications() {
     const handleNewOrderNotification = (notification: SSENotification) => {
       console.log('🔔 Handling new order notification:', notification);
       
+      // Store notification in the store
+      addNotification({
+        type: notification.type,
+        title: notification.title || 'Nouvelle Commande',
+        message: notification.message || `Commande #${notification.orderNumber} reçue`,
+        orderId: notification.orderId,
+        orderNumber: notification.orderNumber,
+        customerName: notification.customerName,
+        total: notification.total,
+        url: notification.url,
+      });
+      
       // Show toast notification
       try {
         toast.success(notification.title || 'Nouvelle Commande', {
@@ -175,14 +208,92 @@ export function SSENotifications() {
         console.error('❌ Error displaying toast:', toastError);
       }
 
-      // Optional: Play notification sound
+      // Show browser push notification (works on mobile browsers too)
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (browserNotificationPermission === 'granted') {
+          try {
+            const browserNotification = new Notification(notification.title || 'Nouvelle Commande', {
+              body: notification.message || `Commande #${notification.orderNumber} de ${notification.customerName || 'un client'}. Total: ${notification.total?.toLocaleString() || '0'} DA`,
+              icon: '/logos/logo-dark.png',
+              badge: '/logos/logo-dark.png',
+              tag: notification.orderId || notification.orderNumber, // Prevent duplicate notifications
+              requireInteraction: false,
+              silent: false,
+            });
+
+            // Handle click on notification
+            browserNotification.onclick = () => {
+              window.focus();
+              if (notification.url) {
+                router.push(notification.url);
+              }
+              browserNotification.close();
+            };
+
+            // Auto-close after 5 seconds
+            setTimeout(() => {
+              browserNotification.close();
+            }, 5000);
+
+            console.log('✅ Browser push notification displayed');
+          } catch (error) {
+            console.error('❌ Error showing browser notification:', error);
+          }
+        } else if (browserNotificationPermission === 'default') {
+          // Request permission again
+          Notification.requestPermission().then((permission) => {
+            setBrowserNotificationPermission(permission);
+            if (permission === 'granted') {
+              // Retry showing notification
+              handleNewOrderNotification(notification);
+            }
+          });
+        }
+      }
+
+      // Play notification sound
       if (typeof window !== 'undefined' && 'Audio' in window) {
         try {
-          // You can add a notification sound file if needed
-          // const audio = new Audio('/notification.mp3');
-          // audio.play().catch(() => {});
+          // Try to play notification sound (supports multiple formats)
+          const soundPaths = [
+            '/sounds/notification.mp3',
+            '/sounds/notification.wav',
+            '/sounds/notification.ogg',
+          ];
+          
+          let audio: HTMLAudioElement | null = null;
+          
+          // Try each sound path until one works
+          for (const soundPath of soundPaths) {
+            try {
+              audio = new Audio(soundPath);
+              audio.volume = 0.5; // Set volume to 50% to avoid being too loud
+              
+              // Try to play the sound
+              const playPromise = audio.play();
+              
+              if (playPromise !== undefined) {
+                playPromise
+                  .then(() => {
+                    console.log('🔔 Notification sound played:', soundPath);
+                  })
+                  .catch((playError) => {
+                    // If this format fails, try next one
+                    console.log(`Could not play ${soundPath}, trying next format...`);
+                    if (soundPath === soundPaths[soundPaths.length - 1]) {
+                      console.log('ℹ️ No notification sound file found. Add a sound file to /public/sounds/notification.mp3');
+                    }
+                  });
+                // If we got here, we found a valid audio file, break the loop
+                break;
+              }
+            } catch (error) {
+              // Continue to next sound path
+              continue;
+            }
+          }
         } catch (error) {
-          // Ignore audio errors
+          console.warn('Error playing notification sound:', error);
         }
       }
     };
@@ -201,7 +312,7 @@ export function SSENotifications() {
       }
       setIsConnected(false);
     };
-  }, [user, token, router]);
+  }, [user, token, router, addNotification, browserNotificationPermission]);
 
   // Render connection status indicator (always visible for debugging)
   return (
