@@ -4,6 +4,7 @@ import Script from 'next/script'
 import { usePathname, useSearchParams } from 'next/navigation'
 import { useEffect } from 'react'
 
+// Meta Pixel ID - Make sure this matches your Meta Business Suite Pixel ID
 const FB_PIXEL_ID = '1319752822409584'
 const GA_MEASUREMENT_ID = 'G-XXXXXXXXXX' // Placeholder
 
@@ -11,6 +12,7 @@ declare global {
     interface Window {
         fbq: any;
         gtag: any;
+        _fbq: any;
     }
 }
 
@@ -19,9 +21,8 @@ export function TrackingScripts() {
     const searchParams = useSearchParams()
 
     useEffect(() => {
-        // Track pageframe/route changes for GA and Pixel
-        if (pathname && window.fbq && window.gtag) {
-            window.fbq('track', 'PageView')
+        // Track pageview for GA only (Meta Pixel PageView is handled in script)
+        if (pathname && window.gtag) {
             window.gtag('config', GA_MEASUREMENT_ID, {
                 page_path: pathname,
             })
@@ -50,15 +51,17 @@ export function TrackingScripts() {
                 }}
             />
 
-            {/* Meta Pixel - Updated to use modern loading approach */}
+            {/* Meta Pixel - Standard implementation for better detection */}
             <Script
                 id="fb-pixel"
                 strategy="afterInteractive"
-                onError={(e) => {
-                    // Silently handle Facebook Pixel loading errors
+                onLoad={() => {
                     if (process.env.NODE_ENV === 'development') {
-                        console.warn('Facebook Pixel failed to load:', e);
+                        console.log('✅ Meta Pixel loaded successfully');
                     }
+                }}
+                onError={(e) => {
+                    console.error('❌ Meta Pixel failed to load:', e);
                 }}
                 dangerouslySetInnerHTML={{
                     __html: `
@@ -75,6 +78,17 @@ export function TrackingScripts() {
           `,
                 }}
             />
+            
+            {/* Meta Pixel noscript fallback for better detection */}
+            <noscript>
+                <img 
+                    height="1" 
+                    width="1" 
+                    style={{ display: 'none' }}
+                    src={`https://www.facebook.com/tr?id=${FB_PIXEL_ID}&ev=PageView&noscript=1`}
+                    alt=""
+                />
+            </noscript>
         </>
     )
 }

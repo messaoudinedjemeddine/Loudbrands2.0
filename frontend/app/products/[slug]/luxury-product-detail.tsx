@@ -113,21 +113,6 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
       setSelectedSize(product.sizes[0].size)
     }
 
-    // Track ViewContent Event (Meta Pixel) - when user views product page
-    if (typeof window !== 'undefined') {
-      const win = window as Window & { fbq?: any }
-      if (win.fbq) {
-        const categoryName = typeof product.category === 'object' ? product.category?.name : (typeof product.category === 'string' ? product.category : 'Product')
-        win.fbq('track', 'ViewContent', {
-          content_name: product.name,
-          content_ids: [product.id],
-          content_type: 'product',
-          content_category: categoryName || 'Product',
-          value: product.price,
-          currency: 'DZD'
-        })
-      }
-    }
   }, [product.sizes, selectedSize, product.isLaunch, product.launchAt, product.name, product.id, product.price, product.category])
 
   if (!mounted) return null
@@ -162,21 +147,6 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
       quantity: quantity
     })
 
-    // Track AddToCart Event (Meta Pixel)
-    if (typeof window !== 'undefined') {
-      const win = window as Window & { fbq?: any }
-      if (win.fbq) {
-        const categoryName = typeof product.category === 'object' ? product.category?.name : (typeof product.category === 'string' ? product.category : 'Product')
-        win.fbq('track', 'AddToCart', {
-          content_name: product.name,
-          content_ids: [product.id],
-          content_type: 'product',
-          content_category: categoryName || 'Product',
-          value: product.price * quantity,
-          currency: 'DZD',
-          num_items: quantity
-        })
-      }
       if (window.gtag) {
         window.gtag('event', 'add_to_cart', {
           currency: 'DZD',

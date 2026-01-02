@@ -198,6 +198,8 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="LOUD BRANDS" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#C4A47C" />
+        {/* Meta Pixel ID for verification */}
+        <meta name="facebook-domain-verification" content="" />
       </head>
       <body
         className={`${inter.variable} ${notoSansArabic.variable} ${cairo.variable} font-sans`}
