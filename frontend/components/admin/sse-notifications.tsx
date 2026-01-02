@@ -28,7 +28,9 @@ export function SSENotifications() {
   const [isConnected, setIsConnected] = useState(false);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const reconnectAttempts = useRef(0);
-  const maxReconnectAttempts = 5;
+  const maxReconnectAttempts = 10; // Increased from 5 to 10 for better resilience
+  const connectionCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const lastMessageTimeRef = useRef<number>(Date.now());
   const [browserNotificationPermission, setBrowserNotificationPermission] = useState<NotificationPermission>('default');
 
   // Request browser notification permission on mount - improved for mobile
@@ -135,22 +137,63 @@ export function SSENotifications() {
           console.log('👤 User:', user?.email, 'Role:', user?.role);
           setIsConnected(true);
           reconnectAttempts.current = 0;
+          lastMessageTimeRef.current = Date.now();
           
           // Clear any pending reconnect
           if (reconnectTimeoutRef.current) {
             clearTimeout(reconnectTimeoutRef.current);
             reconnectTimeoutRef.current = null;
           }
+
+          // Start connection health monitoring
+          // Check if we haven't received a message in 60 seconds (should get ping every 20s)
+          if (connectionCheckIntervalRef.current) {
+            clearInterval(connectionCheckIntervalRef.current);
+          }
+          connectionCheckIntervalRef.current = setInterval(() => {
+            const timeSinceLastMessage = Date.now() - lastMessageTimeRef.current;
+            // If no message in 60 seconds, connection might be dead
+            if (timeSinceLastMessage > 60000 && eventSourceRef.current) {
+              console.warn('⚠️ No SSE messages received in 60 seconds, connection may be dead');
+              setIsConnected(false);
+              if (eventSourceRef.current.readyState === EventSource.OPEN) {
+                // Force reconnect by closing and reconnecting
+                try {
+                  eventSourceRef.current.close();
+                } catch (e) {
+                  console.warn('Error closing stale connection:', e);
+                }
+                eventSourceRef.current = null;
+                connectSSE();
+              }
+            }
+          }, 30000); // Check every 30 seconds
           
-          // Show a test notification to confirm connection works
-          toast.success('Connexion SSE établie', {
-            description: 'Vous recevrez des notifications en temps réel pour les nouvelles commandes',
-            duration: 3000,
-          });
+          // Show a test notification to confirm connection works (only on initial connect)
+          if (reconnectAttempts.current === 0) {
+            toast.success('Connexion SSE établie', {
+              description: 'Vous recevrez des notifications en temps réel pour les nouvelles commandes',
+              duration: 3000,
+            });
+          } else {
+            toast.success('Reconnexion SSE réussie', {
+              description: 'Connexion rétablie avec succès',
+              duration: 2000,
+            });
+          }
         };
 
         eventSource.onmessage = (event) => {
           try {
+            // Update last message time for connection health monitoring
+            lastMessageTimeRef.current = Date.now();
+
+            // Handle ping messages (keep-alive)
+            if (event.data.trim() === ': ping' || event.data.trim().startsWith(': ping')) {
+              console.log('💓 SSE ping received');
+              return;
+            }
+
             console.log('📨 SSE message received:', event.data);
             const data: SSENotification = JSON.parse(event.data);
             console.log('📦 Parsed SSE data:', data);
@@ -196,9 +239,13 @@ export function SSENotifications() {
           console.error('EventSource readyState:', eventSource.readyState);
           setIsConnected(false);
           
-          // Only close if it's actually closed
-          if (eventSource.readyState === EventSource.CLOSED) {
-            eventSource.close();
+          // Close the connection if it's in a bad state
+          if (eventSource.readyState === EventSource.CLOSED || eventSource.readyState === EventSource.CONNECTING) {
+            try {
+              eventSource.close();
+            } catch (closeError) {
+              console.warn('Error closing EventSource:', closeError);
+            }
 
             // Attempt to reconnect with exponential backoff
             if (reconnectAttempts.current < maxReconnectAttempts) {
@@ -211,6 +258,10 @@ export function SSENotifications() {
               }, delay);
             } else {
               console.error('❌ Max SSE reconnection attempts reached');
+              toast.error('Connexion SSE perdue', {
+                description: 'Impossible de se reconnecter. Veuillez rafraîchir la page.',
+                duration: 10000,
+              });
             }
           }
         };
@@ -552,11 +603,20 @@ export function SSENotifications() {
     // Cleanup on unmount
     return () => {
       if (eventSourceRef.current) {
-        eventSourceRef.current.close();
+        try {
+          eventSourceRef.current.close();
+        } catch (e) {
+          console.warn('Error closing EventSource on cleanup:', e);
+        }
         eventSourceRef.current = null;
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+        reconnectTimeoutRef.current = null;
+      }
+      if (connectionCheckIntervalRef.current) {
+        clearInterval(connectionCheckIntervalRef.current);
+        connectionCheckIntervalRef.current = null;
       }
       setIsConnected(false);
     };

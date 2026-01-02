@@ -178,6 +178,29 @@ app.use((err, req, res, next) => {
   });
 });
 
+// Process-level error handlers to catch unhandled errors
+// These prevent the app from crashing and causing critical errors in Heroku
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process, just log the error
+  // In production, you might want to send this to an error tracking service
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('❌ Uncaught Exception:', error);
+  // Log the error but don't exit - let the process manager handle restarts
+  // Exiting here would cause downtime
+});
+
+// Handle SIGTERM gracefully (Heroku sends this when restarting)
+process.on('SIGTERM', () => {
+  console.log('⚠️ SIGTERM received, shutting down gracefully...');
+  // Give connections time to close
+  setTimeout(() => {
+    process.exit(0);
+  }, 10000);
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV}`);

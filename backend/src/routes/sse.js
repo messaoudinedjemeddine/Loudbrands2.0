@@ -21,13 +21,15 @@ router.options('/notifications', (req, res) => {
 });
 
 router.get('/notifications', async (req, res, next) => {
-  // Extract token from query parameter (EventSource limitation)
-  const token = req.query.token || req.headers.authorization?.replace('Bearer ', '');
-  
-  if (!token) {
-    console.log('❌ SSE: No token provided');
-    return res.status(401).json({ error: 'Authentication token required' });
-  }
+  // Wrap everything in try-catch to prevent unhandled errors
+  try {
+    // Extract token from query parameter (EventSource limitation)
+    const token = req.query.token || req.headers.authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      console.log('❌ SSE: No token provided');
+      return res.status(401).json({ error: 'Authentication token required' });
+    }
 
     // Manually authenticate using the token
     try {
@@ -67,15 +69,23 @@ router.get('/notifications', async (req, res, next) => {
     });
 
     // Send initial connection message immediately
-    const connectionMessage = {
-      type: 'connected',
-      message: 'SSE connection established',
-      userId: userId,
-      userRole: userRole,
-      timestamp: new Date().toISOString()
-    };
-    res.write(`data: ${JSON.stringify(connectionMessage)}\n\n`);
-    console.log(`📤 Sent connection message to user ${userId}:`, connectionMessage);
+    try {
+      const connectionMessage = {
+        type: 'connected',
+        message: 'SSE connection established',
+        userId: userId,
+        userRole: userRole,
+        timestamp: new Date().toISOString()
+      };
+      res.write(`data: ${JSON.stringify(connectionMessage)}\n\n`);
+      console.log(`📤 Sent connection message to user ${userId}:`, connectionMessage);
+    } catch (error) {
+      console.error('❌ Error sending initial connection message:', error.message);
+      if (!res.headersSent) {
+        return res.status(500).json({ error: 'Failed to establish SSE connection' });
+      }
+      return;
+    }
 
     // Add client to SSE service
     try {
@@ -90,15 +100,25 @@ router.get('/notifications', async (req, res, next) => {
     }
 
     // Keep connection alive with periodic ping
+    // Use 20 seconds to stay well within Heroku's 55-second timeout
     const pingInterval = setInterval(() => {
       try {
+        // Check if connection is still writable before sending ping
+        if (res.destroyed || res.closed || !res.writable) {
+          console.warn(`⚠️ Connection not writable for ping, user ${userId}`);
+          clearInterval(pingInterval);
+          sseService.removeClient(userId, res);
+          return;
+        }
+        
         res.write(': ping\n\n');
+        console.log(`💓 Ping sent to user ${userId}`);
       } catch (error) {
-        console.error('❌ Error sending ping:', error);
+        console.error('❌ Error sending ping:', error.message);
         clearInterval(pingInterval);
         sseService.removeClient(userId, res);
       }
-    }, 30000); // Send ping every 30 seconds
+    }, 20000); // Send ping every 20 seconds (well within Heroku's 55s timeout)
 
     // Clean up on close
     res.on('close', () => {
@@ -109,15 +129,32 @@ router.get('/notifications', async (req, res, next) => {
 
     // Handle errors
     res.on('error', (error) => {
-      console.error(`❌ SSE connection error for user ${userId}:`, error);
+      console.error(`❌ SSE connection error for user ${userId}:`, error.message || error);
       clearInterval(pingInterval);
       sseService.removeClient(userId, res);
     });
-  } catch (error) {
-    console.error('❌ SSE authentication error:', error.message);
-    if (!res.headersSent) {
-      return res.status(401).json({ error: 'Invalid or expired token' });
+
+    // Handle finish event (connection ended normally)
+    res.on('finish', () => {
+      console.log(`✅ SSE connection finished for user: ${userId}`);
+      clearInterval(pingInterval);
+      sseService.removeClient(userId, res);
+    });
+    } catch (error) {
+      console.error('❌ SSE authentication error:', error.message);
+      if (!res.headersSent) {
+        return res.status(401).json({ error: 'Invalid or expired token' });
+      }
+      return;
     }
+  } catch (error) {
+    // Catch any unexpected errors
+    console.error('❌ Unexpected SSE route error:', error.message || error);
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+    // If headers already sent, we can't send a response, but we should still log
+    console.error('❌ SSE error after headers sent, connection may be broken');
   }
 });
 

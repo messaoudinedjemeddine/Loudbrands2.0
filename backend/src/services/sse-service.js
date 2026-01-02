@@ -25,12 +25,19 @@ class SSEService {
 
       // Handle client disconnect
       res.on('close', () => {
+        console.log(`🔌 SSE connection closed event for user ${userId}`);
         this.removeClient(userId, res);
       });
 
       // Handle errors
       res.on('error', (error) => {
-        console.error(`SSE connection error for user ${userId}:`, error);
+        console.error(`❌ SSE connection error for user ${userId}:`, error.message || error);
+        this.removeClient(userId, res);
+      });
+
+      // Handle finish event
+      res.on('finish', () => {
+        console.log(`✅ SSE connection finished for user ${userId}`);
         this.removeClient(userId, res);
       });
 
@@ -57,6 +64,27 @@ class SSEService {
   }
 
   /**
+   * Check if a response object is still writable
+   * @param {Object} res - Express response object
+   * @returns {boolean}
+   */
+  isConnectionAlive(res) {
+    try {
+      if (!res) return false;
+      // Check if response is still writable and not destroyed
+      // res.headersSent can be true (headers sent) or false (not sent yet)
+      // We need res.writable to be true and res.destroyed/res.closed to be false
+      return !res.destroyed && 
+             !res.closed && 
+             res.writable !== false && 
+             typeof res.write === 'function';
+    } catch (error) {
+      console.error('Error checking connection state:', error.message);
+      return false;
+    }
+  }
+
+  /**
    * Send a message to a specific client connection
    * @param {string} userId - User ID
    * @param {Object} res - Express response object
@@ -64,13 +92,22 @@ class SSEService {
    */
   sendToClient(userId, res, data) {
     try {
+      // Check if connection is still alive before writing
+      if (!this.isConnectionAlive(res)) {
+        console.warn(`⚠️ Connection not writable for user ${userId}, removing client`);
+        this.removeClient(userId, res);
+        return false;
+      }
+
       const message = `data: ${JSON.stringify(data)}\n\n`;
       console.log(`📤 Sending SSE message to client ${userId}:`, data.type || 'unknown');
       res.write(message);
       console.log(`✅ SSE message written to client ${userId}`);
+      return true;
     } catch (error) {
-      console.error(`❌ Error sending SSE message to client ${userId}:`, error);
+      console.error(`❌ Error sending SSE message to client ${userId}:`, error.message);
       this.removeClient(userId, res);
+      return false;
     }
   }
 
@@ -91,6 +128,13 @@ class SSEService {
 
     userClients.forEach(res => {
       try {
+        // Check if connection is still alive before writing
+        if (!this.isConnectionAlive(res)) {
+          console.warn(`⚠️ Connection not writable for user ${userId}, marking for removal`);
+          disconnectedClients.push(res);
+          return;
+        }
+
         const message = `data: ${JSON.stringify(notification)}\n\n`;
         res.write(message);
         successCount++;
