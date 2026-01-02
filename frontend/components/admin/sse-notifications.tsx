@@ -168,9 +168,9 @@ export function SSENotifications() {
           }
           connectionCheckIntervalRef.current = setInterval(() => {
             const timeSinceLastMessage = Date.now() - lastMessageTimeRef.current;
-            // If no message in 60 seconds, connection might be dead
-            if (timeSinceLastMessage > 60000 && eventSourceRef.current) {
-              console.warn('⚠️ No SSE messages received in 60 seconds, connection may be dead');
+            // If no message in 90 seconds (pings come every 20s, so 90s means connection is likely dead)
+            if (timeSinceLastMessage > 90000 && eventSourceRef.current) {
+              console.warn('⚠️ No SSE messages received in 90 seconds, connection may be dead');
               setIsConnected(false);
               if (eventSourceRef.current.readyState === EventSource.OPEN) {
                 // Force reconnect by closing and reconnecting
@@ -180,10 +180,11 @@ export function SSENotifications() {
                   console.warn('Error closing stale connection:', e);
                 }
                 eventSourceRef.current = null;
+                isConnectingRef.current = false; // Allow reconnection
                 connectSSE();
               }
             }
-          }, 30000); // Check every 30 seconds
+          }, 45000); // Check every 45 seconds (less aggressive)
           
           // Show a test notification to confirm connection works (only on initial connect)
           if (reconnectAttempts.current === 0) {
