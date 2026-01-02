@@ -1,7 +1,7 @@
 'use client'
 
 import { Preloader } from '@/components/preloader'
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 // Tree-shakeable: only import what we need from framer-motion
 import { motion, AnimatePresence } from 'framer-motion'
@@ -77,7 +77,7 @@ interface LuxuryProductDetailProps {
   product: Product
 }
 
-export default function LuxuryProductDetail({ product }: LuxuryProductDetailProps) {
+export default function LuxuryProductDetail({ product }: LuxuryProductDetailProps): React.ReactElement {
   const router = useRouter()
   const [mounted, setMounted] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
@@ -172,18 +172,17 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
       quantity: quantity
     })
 
-      if (window.gtag) {
-        window.gtag('event', 'add_to_cart', {
-          currency: 'DZD',
-          value: product.price,
-          items: [{
-            item_id: product.id,
-            item_name: product.name,
-            price: product.price,
-            item_variant: selectedSize
-          }]
-        })
-      }
+    if (window.gtag) {
+      window.gtag('event', 'add_to_cart', {
+        currency: 'DZD',
+        value: product.price,
+        items: [{
+          item_id: product.id,
+          item_name: product.name,
+          price: product.price,
+          item_variant: selectedSize
+        }]
+      })
     }
 
     setCartOpen(true)
@@ -291,7 +290,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   };
 
   return (
-    <>
+    <React.Fragment>
       <LoudStylesNavbar />
       <div
         className="min-h-screen bg-gradient-to-br from-cream-50 via-warm-50 to-cream-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 overflow-x-hidden"
@@ -823,6 +822,6 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
           )}
         </AnimatePresence>
       </div>
-    </>
+    </React.Fragment>
   )
 }
