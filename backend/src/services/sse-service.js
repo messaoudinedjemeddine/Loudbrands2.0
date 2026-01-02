@@ -12,13 +12,35 @@ class SSEService {
    * Add a new SSE client connection
    * @param {string} userId - User ID
    * @param {Object} res - Express response object
+   * @param {number} maxConnectionsPerUser - Maximum connections allowed per user (default: 2)
    */
-  addClient(userId, res) {
+  addClient(userId, res, maxConnectionsPerUser = 2) {
     try {
       if (!this.clients.has(userId)) {
         this.clients.set(userId, new Set());
       }
-      this.clients.get(userId).add(res);
+      
+      const userClients = this.clients.get(userId);
+      
+      // Limit connections per user - close oldest connections if limit exceeded
+      if (userClients.size >= maxConnectionsPerUser) {
+        console.warn(`⚠️ User ${userId} has ${userClients.size} connections, limiting to ${maxConnectionsPerUser}`);
+        // Close oldest connections (first in Set)
+        const clientsArray = Array.from(userClients);
+        const toClose = clientsArray.slice(0, userClients.size - maxConnectionsPerUser + 1);
+        toClose.forEach(oldRes => {
+          try {
+            if (oldRes && !oldRes.destroyed && oldRes.writable) {
+              oldRes.end(); // Gracefully close old connection
+            }
+          } catch (e) {
+            console.warn('Error closing old connection:', e.message);
+          }
+          this.removeClient(userId, oldRes);
+        });
+      }
+      
+      userClients.add(res);
 
       // Note: Headers should be set in the route handler before calling addClient
       // This method just manages the client connection

@@ -33,6 +33,8 @@ export function SSENotifications() {
   const lastMessageTimeRef = useRef<number>(Date.now());
   const isConnectingRef = useRef<boolean>(false); // Prevent duplicate connections
   const processedNotificationsRef = useRef<Set<string>>(new Set()); // Track processed notifications to prevent duplicates
+  const broadcastChannelRef = useRef<BroadcastChannel | null>(null); // For cross-tab communication
+  const connectionIdRef = useRef<string>(`${Date.now()}-${Math.random().toString(36).substr(2, 9)}`); // Unique connection ID
   const [browserNotificationPermission, setBrowserNotificationPermission] = useState<NotificationPermission>('default');
 
   // Request browser notification permission on mount - improved for mobile
@@ -108,6 +110,27 @@ export function SSENotifications() {
       return;
     }
 
+    // Set up BroadcastChannel for cross-tab communication
+    if (typeof window !== 'undefined' && 'BroadcastChannel' in window) {
+      broadcastChannelRef.current = new BroadcastChannel('sse-connections');
+      
+      // Listen for other tabs requesting to close connections
+      broadcastChannelRef.current.onmessage = (event) => {
+        if (event.data.type === 'close-connection' && event.data.connectionId !== connectionIdRef.current) {
+          console.log('📢 Another tab is taking over SSE connection, closing this one...');
+          if (eventSourceRef.current) {
+            try {
+              eventSourceRef.current.close();
+            } catch (e) {
+              console.warn('Error closing connection from broadcast:', e);
+            }
+            eventSourceRef.current = null;
+            setIsConnected(false);
+          }
+        }
+      };
+    }
+
     const connectSSE = () => {
       // Prevent duplicate connections
       if (isConnectingRef.current || (eventSourceRef.current && eventSourceRef.current.readyState === EventSource.OPEN)) {
@@ -116,6 +139,15 @@ export function SSENotifications() {
       }
 
       isConnectingRef.current = true;
+
+      // Notify other tabs to close their connections (this tab is taking over)
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.postMessage({
+          type: 'close-connection',
+          connectionId: connectionIdRef.current,
+          timestamp: Date.now()
+        });
+      }
 
       // Close existing connection if any
       if (eventSourceRef.current) {
@@ -135,9 +167,11 @@ export function SSENotifications() {
       apiUrl = apiUrl.replace(/\/api\/?$/, '');
       
       // Build SSE URL - ensure we have the base URL without /api, then add /api/sse
-      const sseUrl = `${apiUrl}/api/sse/notifications?token=${encodeURIComponent(token)}`;
+      // Add connection ID to help identify connections
+      const sseUrl = `${apiUrl}/api/sse/notifications?token=${encodeURIComponent(token)}&connId=${connectionIdRef.current}`;
       
       console.log('🔗 Connecting to SSE endpoint:', sseUrl.replace(/token=[^&]+/, 'token=***'));
+      console.log('🔍 Connection ID:', connectionIdRef.current);
       console.log('🔍 API URL before processing:', process.env.NEXT_PUBLIC_API_URL);
       console.log('🔍 API URL after processing:', apiUrl);
 
@@ -644,8 +678,14 @@ export function SSENotifications() {
       playNotificationSound('notification');
     };
 
-    // Connect when component mounts
-    connectSSE();
+    // Connect when component mounts (with a small delay to prevent race conditions)
+    const connectTimeout = setTimeout(() => {
+      connectSSE();
+    }, 100);
+
+    return () => {
+      clearTimeout(connectTimeout);
+    };
 
     // Cleanup on unmount
     return () => {
@@ -665,6 +705,10 @@ export function SSENotifications() {
       if (connectionCheckIntervalRef.current) {
         clearInterval(connectionCheckIntervalRef.current);
         connectionCheckIntervalRef.current = null;
+      }
+      if (broadcastChannelRef.current) {
+        broadcastChannelRef.current.close();
+        broadcastChannelRef.current = null;
       }
       setIsConnected(false);
     };
