@@ -95,25 +95,77 @@ export function AdminDashboard() {
 
   useEffect(() => {
     fetchDashboardData()
+    
+    // Set up periodic refresh every 30 seconds to keep data fresh
+    const refreshInterval = setInterval(() => {
+      console.log('🔄 Auto-refreshing dashboard data...')
+      fetchDashboardData()
+    }, 30000) // Refresh every 30 seconds
+
+    return () => {
+      clearInterval(refreshInterval)
+    }
   }, [])
 
-  const fetchDashboardData = async () => {
+  const fetchDashboardData = async (retryCount = 0) => {
+    const maxRetries = 3
     try {
       setLoading(true)
       setError(null)
 
+      console.log('🔄 Fetching dashboard data...', { retryCount })
+
       // Fetch all dashboard data in parallel
       const [statsData, ordersData] = await Promise.all([
-        api.admin.getDashboardStats(),
-        api.admin.getRecentOrders()
+        api.admin.getDashboardStats().catch(err => {
+          console.error('❌ Error fetching dashboard stats:', err)
+          throw new Error(`Failed to fetch stats: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        }),
+        api.admin.getRecentOrders().catch(err => {
+          console.error('❌ Error fetching recent orders:', err)
+          throw new Error(`Failed to fetch orders: ${err instanceof Error ? err.message : 'Unknown error'}`)
+        })
       ])
 
+      console.log('✅ Dashboard data fetched successfully:', {
+        stats: statsData,
+        ordersCount: Array.isArray(ordersData) ? ordersData.length : 'invalid'
+      })
+
       setStats(statsData as DashboardStats)
-      setRecentOrders(ordersData as Order[])
+      setRecentOrders(Array.isArray(ordersData) ? ordersData as Order[] : [])
 
     } catch (err) {
-      console.error('Error fetching dashboard data:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load dashboard data')
+      console.error('❌ Error fetching dashboard data:', err)
+      
+      // Get detailed error message
+      let errorMessage = 'Failed to load dashboard data'
+      if (err instanceof Error) {
+        errorMessage = err.message
+        // Check if it's an authentication error
+        if (err.message.includes('401') || err.message.includes('Unauthorized') || err.message.includes('token')) {
+          errorMessage = 'Session expirée. Veuillez vous reconnecter.'
+        } else if (err.message.includes('403') || err.message.includes('Forbidden')) {
+          errorMessage = 'Accès refusé. Vérifiez vos permissions.'
+        } else if (err.message.includes('Network') || err.message.includes('fetch')) {
+          errorMessage = 'Erreur de connexion. Vérifiez votre connexion internet.'
+        }
+      }
+
+      setError(errorMessage)
+
+      // Retry logic for network errors
+      if (retryCount < maxRetries && (
+        errorMessage.includes('connexion') || 
+        errorMessage.includes('Network') ||
+        errorMessage.includes('fetch')
+      )) {
+        console.log(`🔄 Retrying in 2 seconds... (${retryCount + 1}/${maxRetries})`)
+        setTimeout(() => {
+          fetchDashboardData(retryCount + 1)
+        }, 2000)
+        return
+      }
     } finally {
       setLoading(false)
     }
@@ -133,10 +185,23 @@ export function AdminDashboard() {
   if (error) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="text-center">
+        <div className="text-center max-w-md">
           <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-4" />
-          <p className="text-red-500 mb-4">{error}</p>
-          <Button onClick={fetchDashboardData}>Réessayer</Button>
+          <p className="text-red-500 mb-2 font-medium">{error}</p>
+          <p className="text-sm text-muted-foreground mb-4">
+            Si le problème persiste, vérifiez votre connexion internet ou contactez le support.
+          </p>
+          <div className="flex gap-2 justify-center">
+            <Button onClick={() => fetchDashboardData(0)} variant="default">
+              Réessayer
+            </Button>
+            <Button 
+              onClick={() => window.location.reload()} 
+              variant="outline"
+            >
+              Recharger la page
+            </Button>
+          </div>
         </div>
       </div>
     )
@@ -145,11 +210,28 @@ export function AdminDashboard() {
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Tableau de Bord Administrateur</h1>
-        <p className="text-muted-foreground">
-          Vue d'ensemble complète de votre plateforme e-commerce. Gérez les produits, commandes, utilisateurs et analyses.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">Tableau de Bord Administrateur</h1>
+          <p className="text-muted-foreground">
+            Vue d'ensemble complète de votre plateforme e-commerce. Gérez les produits, commandes, utilisateurs et analyses.
+          </p>
+        </div>
+        <Button 
+          onClick={() => fetchDashboardData(0)} 
+          variant="outline" 
+          size="sm"
+          disabled={loading}
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              Chargement...
+            </>
+          ) : (
+            'Actualiser'
+          )}
+        </Button>
       </div>
 
       {/* Stats Cards */}

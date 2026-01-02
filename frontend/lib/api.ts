@@ -1,4 +1,11 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com/api';
+// Ensure API_BASE_URL doesn't have double /api
+const getApiBaseUrl = () => {
+  const url = process.env.NEXT_PUBLIC_API_URL || 'https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com/api';
+  // Remove trailing /api if present to avoid double /api/api
+  return url.replace(/\/api\/?$/, '') + '/api';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 // Helper function to get auth token
 const getAuthToken = (): string | null => {
@@ -66,14 +73,43 @@ class ApiClient {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const validationError = new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
+        const errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`;
+        const validationError = new Error(errorMessage);
         (validationError as any).response = { data: errorData, status: response.status };
+        
+        // Log detailed error information
+        console.error('❌ API Error:', {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          error: errorData,
+          endpoint
+        });
+        
         throw validationError;
       }
 
       const data = await response.json();
+      
+      // Log successful responses in development
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ API Response:', {
+          url,
+          status: response.status,
+          dataKeys: Object.keys(data)
+        });
+      }
+      
       return data;
     } catch (error) {
+      // Enhanced error logging
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        console.error('❌ Network Error:', {
+          url,
+          endpoint,
+          message: 'Network request failed. Check internet connection or API server status.'
+        });
+      }
       throw error;
     }
   }
