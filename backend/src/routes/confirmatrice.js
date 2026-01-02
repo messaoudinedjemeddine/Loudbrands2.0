@@ -293,7 +293,7 @@ router.patch('/orders/:orderId/confirm', async (req, res) => {
         customerName: updatedOrder.customerName,
         total: updatedOrder.total,
         trackingNumber: updatedOrder.trackingNumber,
-        url: `/agent-livraison/dashboard?orderId=${updatedOrder.id}`,
+        url: `/admin/dashboard/agent_livraison?tab=confirmed&orderId=${updatedOrder.id}`,
         timestamp: new Date().toISOString(),
         sound: 'confirm.mp3' // Specify sound file
       };
@@ -446,6 +446,32 @@ router.patch('/orders/:orderId', async (req, res) => {
       notes
     } = req.body;
 
+    // Get current order to check if status is changing to CONFIRMED
+    const currentOrder = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        items: {
+          include: {
+            product: {
+              include: {
+                sizes: true
+              }
+            },
+            productSize: true
+          }
+        },
+        city: true,
+        deliveryDesk: true
+      }
+    });
+
+    if (!currentOrder) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const wasConfirmed = currentOrder.callCenterStatus === 'CONFIRMED';
+    const willBeConfirmed = callCenterStatus === 'CONFIRMED';
+
     const order = await prisma.order.update({
       where: { id: orderId },
       data: {
@@ -455,7 +481,7 @@ router.patch('/orders/:orderId', async (req, res) => {
         deliveryType,
         deliveryAddress,
         callCenterStatus,
-        notes: notes ? `${order.notes || ''}\n[UPDATED] ${notes}` : order.notes
+        notes: notes ? `${currentOrder.notes || ''}\n[UPDATED] ${notes}` : currentOrder.notes
       },
       include: {
         items: {
@@ -467,9 +493,69 @@ router.patch('/orders/:orderId', async (req, res) => {
             },
             productSize: true
           }
-        }
+        },
+        city: true,
+        deliveryDesk: true
       }
     });
+
+    // Send SSE notification to delivery agents if status changed to CONFIRMED
+    if (!wasConfirmed && willBeConfirmed) {
+      try {
+        const sseService = require('../services/sse-service');
+        
+        // Get all delivery agents
+        const deliveryAgents = await prisma.user.findMany({
+          where: { 
+            role: 'AGENT_LIVRAISON'
+          }
+        });
+
+        console.log(`📢 Preparing SSE notification for confirmed order: ${order.orderNumber}`);
+        console.log(`👥 Found ${deliveryAgents.length} delivery agents to notify`);
+
+        const sseNotification = {
+          type: 'order_confirmed',
+          title: 'Nouvelle Commande Confirmée',
+          message: `Commande #${order.orderNumber} de ${order.customerName}. Prête pour la livraison. Total: ${order.total.toLocaleString()} DA`,
+          orderId: order.id,
+          orderNumber: order.orderNumber,
+          customerName: order.customerName,
+          total: order.total,
+          trackingNumber: order.trackingNumber,
+          url: `/admin/dashboard/agent_livraison?tab=confirmed&orderId=${order.id}`,
+          timestamp: new Date().toISOString(),
+          sound: 'confirm.mp3' // Specify sound file
+        };
+
+        // Broadcast to all delivery agents via SSE
+        let notifiedCount = 0;
+        const totalClients = sseService.getTotalClients();
+        console.log(`📊 Broadcasting to ${deliveryAgents.length} delivery agents, ${totalClients} total SSE clients connected`);
+        
+        deliveryAgents.forEach(agent => {
+          const userClientCount = sseService.getUserClientCount(agent.id);
+          console.log(`👤 Agent ${agent.id} (${agent.role}): ${userClientCount} active SSE connection(s)`);
+          
+          const sent = sseService.sendToUser(agent.id, sseNotification);
+          if (sent) {
+            notifiedCount++;
+            console.log(`✅ SSE notification sent to delivery agent: ${agent.id}`);
+          } else {
+            console.log(`⚠️ No active SSE connection for delivery agent: ${agent.id} - agent may not be connected`);
+          }
+        });
+
+        console.log(`📨 SSE notification sent to ${notifiedCount}/${deliveryAgents.length} connected delivery agents for order: ${order.orderNumber}`);
+        
+        if (notifiedCount === 0 && totalClients > 0) {
+          console.warn(`⚠️ WARNING: ${totalClients} SSE clients connected but none matched delivery agents!`);
+        }
+      } catch (sseError) {
+        console.error('❌ Failed to send SSE notification to delivery agents:', sseError);
+        // Don't fail the order update if notification fails
+      }
+    }
 
     res.json(order);
   } catch (error) {
