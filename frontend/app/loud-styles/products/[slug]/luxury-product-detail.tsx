@@ -85,6 +85,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   const [quantity, setQuantity] = useState(1)
   const [showImageModal, setShowImageModal] = useState(false)
   const [timerCompleted, setTimerCompleted] = useState(false)
+  const [showAccessoryPopup, setShowAccessoryPopup] = useState(false)
+  const [relatedAccessories, setRelatedAccessories] = useState<Product[]>([])
+  const [loadingAccessories, setLoadingAccessories] = useState(false)
   const isOrderable = !product?.isLaunchActive || timerCompleted
 
   const addItem = useCartStore((state) => state.addItem)
@@ -122,6 +125,90 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
       setSelectedSize(typeof firstSize === 'string' ? firstSize : firstSize.size)
     }
   }, [product?.sizes, selectedSize, isAccessoires])
+
+  // Fetch related accessories for yennayer-dress
+  useEffect(() => {
+    const isYennayerDress = product?.slug === 'yennayer-dress'
+    
+    if (isYennayerDress && mounted) {
+      const fetchAccessories = async () => {
+        setLoadingAccessories(true)
+        const accessorySlugs = ['pack-yennayer', 'accessoires-yennayer', 'djbine-yennayer']
+        
+        try {
+          const accessoriesPromises = accessorySlugs.map(async (slug) => {
+            try {
+              const res = await fetch(`/api/products/slug/${slug}?brand=loud-styles`)
+              if (res.ok) {
+                const data = await res.json()
+                return data.product
+              }
+              return null
+            } catch (error) {
+              console.error(`Error fetching ${slug}:`, error)
+              return null
+            }
+          })
+          
+          const accessories = (await Promise.all(accessoriesPromises)).filter(Boolean)
+          setRelatedAccessories(accessories)
+          
+          // Show popup after 3 seconds if accessories are loaded
+          if (accessories.length > 0) {
+            const timer = setTimeout(() => {
+              // Check if popup was already dismissed in this session
+              const dismissed = localStorage.getItem('yennayer-accessories-popup-dismissed')
+              if (!dismissed) {
+                setShowAccessoryPopup(true)
+              }
+            }, 3000)
+            
+            return () => clearTimeout(timer)
+          }
+        } catch (error) {
+          console.error('Error fetching accessories:', error)
+        } finally {
+          setLoadingAccessories(false)
+        }
+      }
+      
+      fetchAccessories()
+    }
+  }, [product?.slug, mounted])
+
+  // Handle adding accessory to cart
+  const handleAddAccessoryToCart = (accessory: Product) => {
+    const categorySlug = accessory?.category?.slug?.toLowerCase() || '';
+    const isAccessoryAccessoires = categorySlug.includes('accessoire') || categorySlug.includes('accessories');
+    
+    addItem({
+      id: accessory.id,
+      name: isRTL ? accessory.nameAr || accessory.name : accessory.name,
+      price: accessory.price,
+      image: accessory.images[0],
+      size: isAccessoryAccessoires ? undefined : undefined,
+      sizeId: undefined,
+      quantity: 1
+    })
+
+    if (window.gtag) {
+      window.gtag('event', 'add_to_cart', {
+        currency: 'DZD',
+        value: accessory.price,
+        items: [{
+          item_id: accessory.id,
+          item_name: accessory.name,
+          price: accessory.price
+        }]
+      })
+    }
+
+    setCartOpen(true)
+    toast.success(isRTL ? 'تمت الإضافة إلى السلة' : 'Added to cart', {
+      className: 'bg-green-500 text-white border-green-600',
+      icon: <Check className="w-4 h-4 text-white" />
+    })
+  }
 
 
   // Safety check for product - AFTER all hooks but before conditional return
@@ -818,6 +905,116 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     </Button>
                   </>
                 )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Accessory Popup for Yennayer Dress */}
+        <AnimatePresence>
+          {showAccessoryPopup && relatedAccessories.length > 0 && (
+            <motion.div
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setShowAccessoryPopup(false)
+                localStorage.setItem('yennayer-accessories-popup-dismissed', 'true')
+              }}
+            >
+              <motion.div
+                className="relative bg-background dark:bg-gray-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                transition={{ duration: 0.3 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Close Button */}
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-4 right-4 z-10 bg-background/80 hover:bg-background"
+                  onClick={() => {
+                    setShowAccessoryPopup(false)
+                    localStorage.setItem('yennayer-accessories-popup-dismissed', 'true')
+                  }}
+                >
+                  <X className="w-5 h-5" />
+                </Button>
+
+                {/* Popup Content */}
+                <div className="p-6 sm:p-8">
+                  <div className="text-center mb-6">
+                    <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
+                      {isRTL ? 'أكمل إطلالتك' : 'Complete Your Look'}
+                    </h2>
+                    <p className="text-muted-foreground text-sm sm:text-base">
+                      {isRTL 
+                        ? 'أضف الإكسسوارات المطابقة لهذا الفستان لإطلالة كاملة ومميزة'
+                        : 'Add matching accessories to complete your elegant look'
+                      }
+                    </p>
+                  </div>
+
+                  {/* Accessories Grid */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
+                    {relatedAccessories.map((accessory) => (
+                      <motion.div
+                        key={accessory.id}
+                        className="group relative bg-background/50 dark:bg-gray-800/50 rounded-xl overflow-hidden border border-border hover:border-primary transition-all duration-300"
+                        whileHover={{ y: -4 }}
+                      >
+                        {/* Product Image */}
+                        <div className="relative aspect-square w-full overflow-hidden bg-muted">
+                          <Image
+                            src={accessory.images[0] || '/placeholder.svg'}
+                            alt={isRTL ? accessory.nameAr || accessory.name : accessory.name}
+                            fill
+                            className="object-cover group-hover:scale-110 transition-transform duration-300"
+                            sizes="(max-width: 640px) 100vw, 33vw"
+                          />
+                        </div>
+
+                        {/* Product Info */}
+                        <div className="p-4 space-y-2">
+                          <h3 className="font-semibold text-foreground text-sm sm:text-base line-clamp-2">
+                            {isRTL ? accessory.nameAr || accessory.name : accessory.name}
+                          </h3>
+                          <div className="flex items-center justify-between">
+                            <span className="text-lg font-bold text-primary">
+                              {accessory.price.toLocaleString()} DA
+                            </span>
+                          </div>
+
+                          {/* Add to Cart Button */}
+                          <Button
+                            size="sm"
+                            className="w-full mt-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                            onClick={() => handleAddAccessoryToCart(accessory)}
+                          >
+                            <ShoppingCart className="w-4 h-4 mr-2" />
+                            {isRTL ? 'أضف للسلة' : 'Add to Cart'}
+                          </Button>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  {/* Footer */}
+                  <div className="mt-6 pt-6 border-t border-border text-center">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowAccessoryPopup(false)
+                        localStorage.setItem('yennayer-accessories-popup-dismissed', 'true')
+                      }}
+                    >
+                      {isRTL ? 'ربما لاحقاً' : 'Maybe Later'}
+                    </Button>
+                  </div>
+                </div>
               </motion.div>
             </motion.div>
           )}
