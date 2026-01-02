@@ -135,7 +135,7 @@ const nextConfig = {
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com data:",
               "img-src 'self' data: https: blob:",
-              "connect-src 'self' https://connect.facebook.net https://www.google-analytics.com https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com https://vercel.live wss://vercel.live",
+              "connect-src 'self' https://connect.facebook.net https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com https://vercel.live wss://vercel.live",
               "frame-src 'self' https://www.facebook.com",
               "object-src 'none'",
               "base-uri 'self'",
