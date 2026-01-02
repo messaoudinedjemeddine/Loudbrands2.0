@@ -111,7 +111,19 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
       window.addEventListener('resize', checkMobile)
       return () => window.removeEventListener('resize', checkMobile)
     }
-  }, [])
+
+    // Track ViewContent Event (Meta Pixel) - when user views product page
+    if (typeof window !== 'undefined' && window.fbq && product) {
+      window.fbq('track', 'ViewContent', {
+        content_name: product.name,
+        content_ids: [product.id],
+        content_type: 'product',
+        content_category: product.category?.name || 'Product',
+        value: product.price,
+        currency: 'DZD'
+      })
+    }
+  }, [product])
 
   useEffect(() => {
     // Auto-select first size if available (only for non-accessoires)
@@ -167,17 +179,21 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
       price: product.price,
       image: product.images[0],
       size: isAccessoires ? undefined : (selectedSize || undefined),
-      sizeId: isAccessoires ? undefined : selectedSizeObj?.id
+      sizeId: isAccessoires ? undefined : selectedSizeObj?.id,
+      quantity: quantity
     })
 
-    // Track AddToCart Event
+    // Track AddToCart Event (Meta Pixel)
     if (typeof window !== 'undefined') {
       if (window.fbq) {
         window.fbq('track', 'AddToCart', {
+          content_name: product.name,
           content_ids: [product.id],
           content_type: 'product',
-          value: product.price,
-          currency: 'DZD'
+          content_category: product.category?.name || 'Product',
+          value: product.price * quantity,
+          currency: 'DZD',
+          num_items: quantity
         })
       }
       if (window.gtag) {
