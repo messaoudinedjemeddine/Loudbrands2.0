@@ -56,6 +56,13 @@ export default function ConfirmatriceHistoryPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('ALL')
   const [dateFilter, setDateFilter] = useState('ALL')
+  const [orderStats, setOrderStats] = useState<{
+    totalOrders: number
+    statusBreakdown: Record<string, number>
+  }>({
+    totalOrders: 0,
+    statusBreakdown: {}
+  })
 
   useEffect(() => {
     fetchAllOrders()
@@ -74,7 +81,18 @@ export default function ConfirmatriceHistoryPage() {
       })
       if (response.ok) {
         const data = await response.json()
-        setOrders(data)
+        // Handle both old format (array) and new format (object with orders and stats)
+        if (Array.isArray(data)) {
+          setOrders(data)
+        } else {
+          setOrders(data.orders || [])
+          if (data.stats) {
+            setOrderStats({
+              totalOrders: data.stats.totalOrders || 0,
+              statusBreakdown: data.stats.statusBreakdown || {}
+            })
+          }
+        }
       }
     } catch (error) {
       console.error('Error fetching orders:', error)
@@ -164,6 +182,10 @@ export default function ConfirmatriceHistoryPage() {
   }
 
   const getStatusCount = (status: string) => {
+    // Use stats if available, otherwise fall back to filtering orders
+    if (orderStats.statusBreakdown[status] !== undefined) {
+      return orderStats.statusBreakdown[status]
+    }
     return orders.filter(order => order.callCenterStatus === status).length
   }
 

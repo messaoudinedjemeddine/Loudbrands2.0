@@ -213,6 +213,13 @@ function OrdersContent() {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(10)
+  const [orderStats, setOrderStats] = useState<{
+    totalOrders: number
+    statusBreakdown: Record<string, number>
+  }>({
+    totalOrders: 0,
+    statusBreakdown: {}
+  })
 
   useEffect(() => {
     setMounted(true)
@@ -262,6 +269,13 @@ function OrdersContent() {
       const response = await api.admin.getOrders({ page: fetchPage, limit }) as any
       setOrders(response.orders || [])
       setTotalPages(response.pagination?.pages || 1)
+      // Update stats if available
+      if (response.stats) {
+        setOrderStats({
+          totalOrders: response.stats.totalOrders || 0,
+          statusBreakdown: response.stats.statusBreakdown || {}
+        })
+      }
     } catch (error) {
       console.error('Failed to fetch orders:', error)
       toast.error('Failed to load orders')
@@ -553,7 +567,7 @@ function OrdersContent() {
                 <ShoppingCart className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{orders.length}</div>
+                <div className="text-2xl font-bold">{orderStats.totalOrders}</div>
                 <p className="text-xs text-muted-foreground">
                   Toutes les commandes
                 </p>
@@ -574,7 +588,7 @@ function OrdersContent() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {orders.filter(o => o.callCenterStatus === 'NEW').length}
+                  {orderStats.statusBreakdown['NEW'] || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Commandes nouvelles
@@ -596,7 +610,7 @@ function OrdersContent() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {orders.filter(o => o.callCenterStatus === 'CONFIRMED').length}
+                  {orderStats.statusBreakdown['CONFIRMED'] || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Commandes confirmées
@@ -618,7 +632,7 @@ function OrdersContent() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-yellow-600">
-                  {orders.filter(o => o.callCenterStatus === 'PENDING').length}
+                  {orderStats.statusBreakdown['PENDING'] || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   En attente de traitement

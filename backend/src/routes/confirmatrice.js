@@ -133,32 +133,56 @@ router.get('/dashboard/stats', async (req, res) => {
 // Get orders that need confirmation (all statuses except DONE)
 router.get('/orders/pending', async (req, res) => {
   try {
-    const orders = await prisma.order.findMany({
-      where: {
-        callCenterStatus: {
-          in: ['NEW', 'CONFIRMED', 'PENDING', 'DOUBLE_ORDER', 'DELAYED', 'NO_RESPONSE']
-        }
-      },
-      include: {
-        items: {
-          include: {
-            product: {
-              include: {
-                sizes: true
-              }
-            },
-            productSize: true
+    const [orders, statusCounts] = await Promise.all([
+      prisma.order.findMany({
+        where: {
+          callCenterStatus: {
+            in: ['NEW', 'CONFIRMED', 'PENDING', 'DOUBLE_ORDER', 'DELAYED', 'NO_RESPONSE']
           }
         },
-        city: true,
-        deliveryDesk: true
-      },
-      orderBy: {
-        createdAt: 'asc'
+        include: {
+          items: {
+            include: {
+              product: {
+                include: {
+                  sizes: true
+                }
+              },
+              productSize: true
+            }
+          },
+          city: true,
+          deliveryDesk: true
+        },
+        orderBy: {
+          createdAt: 'asc'
+        }
+      }),
+      // Get total counts by status (for stats cards)
+      prisma.order.groupBy({
+        by: ['callCenterStatus'],
+        _count: {
+          callCenterStatus: true
+        }
+      })
+    ]);
+
+    // Format status counts into an object
+    const statusBreakdown = statusCounts.reduce((acc, item) => {
+      acc[item.callCenterStatus] = item._count.callCenterStatus;
+      return acc;
+    }, {});
+
+    // Calculate total orders (sum of all statuses)
+    const totalOrders = Object.values(statusBreakdown).reduce((sum, count) => sum + count, 0);
+
+    res.json({
+      orders,
+      stats: {
+        totalOrders,
+        statusBreakdown
       }
     });
-
-    res.json(orders);
   } catch (error) {
     console.error('Error fetching pending orders:', error);
     res.status(500).json({ error: 'Failed to fetch pending orders' });

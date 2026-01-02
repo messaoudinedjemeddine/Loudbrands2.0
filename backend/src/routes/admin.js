@@ -434,7 +434,7 @@ router.get('/orders', async (req, res) => {
       ];
     }
 
-    const [orders, total] = await Promise.all([
+    const [orders, total, statusCounts] = await Promise.all([
       prisma.order.findMany({
         where,
         include: {
@@ -457,7 +457,14 @@ router.get('/orders', async (req, res) => {
         skip,
         take: parseInt(limit)
       }),
-      prisma.order.count({ where })
+      prisma.order.count({ where }),
+      // Get total counts by status (without filters for stats cards)
+      prisma.order.groupBy({
+        by: ['callCenterStatus'],
+        _count: {
+          callCenterStatus: true
+        }
+      })
     ]);
 
     // Format orders to include proper structure
@@ -472,6 +479,15 @@ router.get('/orders', async (req, res) => {
       }))
     }));
 
+    // Format status counts into an object
+    const statusBreakdown = statusCounts.reduce((acc, item) => {
+      acc[item.callCenterStatus] = item._count.callCenterStatus;
+      return acc;
+    }, {});
+
+    // Calculate total orders (sum of all statuses)
+    const totalOrders = Object.values(statusBreakdown).reduce((sum, count) => sum + count, 0);
+
     res.json({
       orders: formattedOrders,
       pagination: {
@@ -479,6 +495,10 @@ router.get('/orders', async (req, res) => {
         limit: parseInt(limit),
         total,
         pages: Math.ceil(total / parseInt(limit))
+      },
+      stats: {
+        totalOrders,
+        statusBreakdown
       }
     });
   } catch (error) {

@@ -46,6 +46,13 @@ interface Order {
 export default function ConfirmatriceConfirmPage() {
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
+  const [orderStats, setOrderStats] = useState<{
+    totalOrders: number
+    statusBreakdown: Record<string, number>
+  }>({
+    totalOrders: 0,
+    statusBreakdown: {}
+  })
 
   useEffect(() => {
     fetchConfirmedOrders()
@@ -60,8 +67,21 @@ export default function ConfirmatriceConfirmPage() {
       })
       if (response.ok) {
         const data = await response.json()
+        // Handle both old format (array) and new format (object with orders and stats)
+        let ordersData: Order[] = []
+        if (Array.isArray(data)) {
+          ordersData = data
+        } else {
+          ordersData = data.orders || []
+          if (data.stats) {
+            setOrderStats({
+              totalOrders: data.stats.totalOrders || 0,
+              statusBreakdown: data.stats.statusBreakdown || {}
+            })
+          }
+        }
         // Filter for confirmed orders
-        const confirmedOrders = data.filter((order: Order) => 
+        const confirmedOrders = ordersData.filter((order: Order) => 
           order.callCenterStatus === 'CONFIRMED'
         )
         setOrders(confirmedOrders)
@@ -249,9 +269,13 @@ export default function ConfirmatriceConfirmPage() {
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{orders.length}</div>
+            <div className="text-2xl font-bold text-green-600">
+              {orderStats.statusBreakdown['CONFIRMED'] !== undefined 
+                ? orderStats.statusBreakdown['CONFIRMED'] 
+                : orders.length}
+            </div>
             <p className="text-xs text-muted-foreground">
-              Commandes confirmées aujourd'hui
+              Toutes les commandes confirmées
             </p>
           </CardContent>
         </Card>
