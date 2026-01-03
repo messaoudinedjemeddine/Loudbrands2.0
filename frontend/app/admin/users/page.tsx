@@ -72,7 +72,7 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState('all')
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 20,
+    limit: 1000,
     total: 0,
     pages: 0
   })
