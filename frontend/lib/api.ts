@@ -338,7 +338,7 @@ class ApiClient {
     items: Array<{
       productName: string;
       reference?: string;
-      size: string;
+      size: string | null;
       quantity: number;
       barcode?: string;
     }>;
