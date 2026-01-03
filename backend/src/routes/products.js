@@ -27,73 +27,126 @@ router.post('/scan', async (req, res) => {
       return res.status(400).json({ error: 'Barcode is required' });
     }
 
-    // Parse barcode: REF-SIZE (e.g., TSHIRT123-M)
-    // We assume the last part after the last hyphen is the size
+    // Parse barcode: REF-SIZE (e.g., TSHIRT123-M) or REF (for accessories)
     const lastHyphenIndex = barcode.lastIndexOf('-');
+    let reference, sizeName;
 
     if (lastHyphenIndex === -1) {
-      return res.status(400).json({ error: 'Invalid barcode format. Expected REF-SIZE' });
+      // No hyphen found - treat as reference only (for accessories)
+      reference = barcode;
+      sizeName = null;
+    } else {
+      // Has hyphen - parse as REF-SIZE
+      reference = barcode.substring(0, lastHyphenIndex);
+      sizeName = barcode.substring(lastHyphenIndex + 1);
     }
-
-    const reference = barcode.substring(0, lastHyphenIndex);
-    const sizeName = barcode.substring(lastHyphenIndex + 1);
 
     // Find product by reference
     const product = await prisma.product.findUnique({
       where: { reference },
-      include: { sizes: true }
+      include: { 
+        sizes: true,
+        category: true // Include category to check if it's an accessory
+      }
     });
 
     if (!product) {
       return res.status(404).json({ error: `Product with reference "${reference}" not found` });
     }
 
-    // Find size
-    const size = product.sizes.find(s => s.size.toLowerCase() === sizeName.toLowerCase());
+    // Check if product is an accessory (no sizes or category is accessories)
+    const categorySlug = product.category?.slug?.toLowerCase() || '';
+    const isAccessoire = categorySlug.includes('accessoire') || 
+                        categorySlug.includes('accessories') ||
+                        !product.sizes || 
+                        product.sizes.length === 0;
 
-    if (!size) {
-      return res.status(404).json({ error: `Size "${sizeName}" not found for product "${product.name}"` });
-    }
-
-    // Calculate new stock
-    let newStock = size.stock;
-    if (action === 'add') {
-      newStock += 1;
-    } else if (action === 'remove') {
-      if (newStock > 0) {
-        newStock -= 1;
+    if (isAccessoire) {
+      // Handle accessories - update product stock directly (no size-based stock)
+      let newStock = product.stock || 0;
+      if (action === 'add') {
+        newStock += 1;
+      } else if (action === 'remove') {
+        if (newStock > 0) {
+          newStock -= 1;
+        } else {
+          return res.status(400).json({ error: 'Cannot remove stock. Stock is already 0.' });
+        }
       } else {
-        return res.status(400).json({ error: 'Cannot remove stock. Stock is already 0.' });
+        return res.status(400).json({ error: 'Invalid action. Use "add" or "remove".' });
       }
+
+      // Update product stock
+      await prisma.product.update({
+        where: { id: product.id },
+        data: { stock: newStock }
+      });
+
+      res.json({
+        success: true,
+        product: {
+          name: product.name,
+          reference: product.reference,
+          size: null,
+          oldStock: product.stock,
+          newStock: newStock,
+          image: product.images && product.images.length > 0 ? product.images[0].url : null
+        },
+        message: `Successfully ${action === 'add' ? 'added' : 'removed'} 1x ${product.name}`
+      });
     } else {
-      return res.status(400).json({ error: 'Invalid action. Use "add" or "remove".' });
+      // Handle products with sizes
+      if (!sizeName) {
+        return res.status(400).json({ error: `Product "${product.name}" requires a size. Format: ${product.reference}-SIZE` });
+      }
+
+      // Find size
+      const size = product.sizes.find(s => s.size.toLowerCase() === sizeName.toLowerCase());
+
+      if (!size) {
+        return res.status(404).json({ error: `Size "${sizeName}" not found for product "${product.name}"` });
+      }
+
+      // Calculate new stock
+      let newStock = size.stock;
+      if (action === 'add') {
+        newStock += 1;
+      } else if (action === 'remove') {
+        if (newStock > 0) {
+          newStock -= 1;
+        } else {
+          return res.status(400).json({ error: 'Cannot remove stock. Stock is already 0.' });
+        }
+      } else {
+        return res.status(400).json({ error: 'Invalid action. Use "add" or "remove".' });
+      }
+
+      // Update stock
+      await prisma.productSize.update({
+        where: { id: size.id },
+        data: { stock: newStock }
+      });
+
+      // Also update total product stock
+      const totalStock = product.sizes.reduce((acc, s) => acc + (s.id === size.id ? newStock : s.stock), 0);
+      await prisma.product.update({
+        where: { id: product.id },
+        data: { stock: totalStock }
+      });
+
+      res.json({
+        success: true,
+        product: {
+          name: product.name,
+          reference: product.reference,
+          size: size.size,
+          oldStock: size.stock,
+          newStock: newStock,
+          image: product.images && product.images.length > 0 ? product.images[0].url : null
+        },
+        message: `Successfully ${action === 'add' ? 'added' : 'removed'} 1x ${product.name} (${size.size})`
+      });
     }
-
-    // Update stock
-    await prisma.productSize.update({
-      where: { id: size.id },
-      data: { stock: newStock }
-    });
-
-    // Also update total product stock
-    const totalStock = product.sizes.reduce((acc, s) => acc + (s.id === size.id ? newStock : s.stock), 0);
-    await prisma.product.update({
-      where: { id: product.id },
-      data: { stock: totalStock }
-    });
-
-    res.json({
-      success: true,
-      product: {
-        name: product.name,
-        reference: product.reference,
-        size: size.size,
-        oldStock: size.stock,
-        newStock: newStock,
-        image: product.images && product.images.length > 0 ? product.images[0].url : null
-      },
-      message: `Successfully ${action === 'add' ? 'added' : 'removed'} 1x ${product.name} (${size.size})`
-    });
 
   } catch (error) {
     console.error('Scan API error:', error);

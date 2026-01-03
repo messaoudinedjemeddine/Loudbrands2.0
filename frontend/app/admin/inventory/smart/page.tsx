@@ -1069,37 +1069,75 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                         continue
                     }
 
-                    // 2. Check Size
-                    const sizeObj = product.sizes?.find((s: any) => s.size === item.size)
-                    if (!sizeObj) {
-                        logs.push({
-                            status: 'error',
-                            message: `Taille "${item.size}" introuvable pour "${product.name}"`,
-                            item
-                        })
-                        continue
-                    }
+                    // Check if product is an accessory (no sizes or category is accessories)
+                    const categorySlug = product.category?.slug?.toLowerCase() || ''
+                    const isAccessoire = categorySlug.includes('accessoire') || 
+                                        categorySlug.includes('accessories') ||
+                                        !product.sizes || 
+                                        product.sizes.length === 0
 
-                    // 3. Check Stock
-                    if ((sizeObj.stock || 0) < item.quantity) {
-                        logs.push({
-                            status: 'error',
-                            message: `Stock insuffisant pour "${product.name}" (${item.size}). Stock: ${sizeObj.stock}, Requis: ${item.quantity}`,
-                            item
-                        })
-                        continue
-                    }
+                    let barcode: string
+                    let oldStock: number
+                    let newStock: number
+                    let size: string
 
-                    // 4. Deduct Stock
-                    const barcode = `${product.reference}-${item.size}`
-                    for (let i = 0; i < item.quantity; i++) {
-                        await api.products.scanProduct(barcode, 'remove')
+                    if (isAccessoire) {
+                        // Handle accessories - no size needed
+                        barcode = product.reference
+                        oldStock = product.stock || 0
+                        
+                        // 2. Check Stock for accessories
+                        if (oldStock < item.quantity) {
+                            logs.push({
+                                status: 'error',
+                                message: `Stock insuffisant pour "${product.name}". Stock: ${oldStock}, Requis: ${item.quantity}`,
+                                item
+                            })
+                            continue
+                        }
+
+                        // 3. Deduct Stock
+                        for (let i = 0; i < item.quantity; i++) {
+                            await api.products.scanProduct(barcode, 'remove')
+                        }
+
+                        newStock = Math.max(0, oldStock - item.quantity)
+                        size = '' // No size for accessories
+                    } else {
+                        // Handle products with sizes
+                        // 2. Check Size
+                        const sizeObj = product.sizes?.find((s: any) => s.size === item.size)
+                        if (!sizeObj) {
+                            logs.push({
+                                status: 'error',
+                                message: `Taille "${item.size}" introuvable pour "${product.name}"`,
+                                item
+                            })
+                            continue
+                        }
+
+                        // 3. Check Stock
+                        if ((sizeObj.stock || 0) < item.quantity) {
+                            logs.push({
+                                status: 'error',
+                                message: `Stock insuffisant pour "${product.name}" (${item.size}). Stock: ${sizeObj.stock}, Requis: ${item.quantity}`,
+                                item
+                            })
+                            continue
+                        }
+
+                        // 4. Deduct Stock
+                        barcode = `${product.reference}-${item.size}`
+                        for (let i = 0; i < item.quantity; i++) {
+                            await api.products.scanProduct(barcode, 'remove')
+                        }
+
+                        oldStock = sizeObj.stock || 0
+                        newStock = Math.max(0, oldStock - item.quantity)
+                        size = item.size
                     }
 
                     // 5. Add History
-                    const oldStock = sizeObj.stock || 0
-                    const newStock = Math.max(0, oldStock - item.quantity)
-
                     const movement: StockMovement = {
                         id: Date.now().toString() + Math.random(),
                         timestamp: new Date(),
@@ -1107,7 +1145,7 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                         barcode,
                         productName: product.name,
                         productReference: product.reference,
-                        size: item.size,
+                        size: size,
                         quantity: item.quantity,
                         oldStock,
                         newStock,
@@ -1119,7 +1157,7 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
 
                     logs.push({
                         status: 'success',
-                        message: `Retiré ${item.quantity}x ${product.name} (${item.size})`,
+                        message: `Retiré ${item.quantity}x ${product.name}${size ? ` (${size})` : ''}`,
                         item
                     })
                     successCount++
@@ -1627,22 +1665,60 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                         continue
                     }
 
-                    // Check Size
-                    const sizeObj = product.sizes?.find((s: any) => s.size === item.size)
-                    if (!sizeObj) {
-                        logs.push({ status: 'error', message: `Taille "${item.size}" introuvable`, item })
-                        continue
-                    }
+                    // Check if product is an accessory (no sizes or category is accessories)
+                    const categorySlug = product.category?.slug?.toLowerCase() || ''
+                    const isAccessoire = categorySlug.includes('accessoire') || 
+                                        categorySlug.includes('accessories') ||
+                                        !product.sizes || 
+                                        product.sizes.length === 0
 
-                    // Check Stock
-                    if ((sizeObj.stock || 0) < item.quantity) {
-                        logs.push({ status: 'error', message: `Stock insuffisant (${sizeObj.stock})`, item })
-                        continue
-                    }
+                    let barcode: string
+                    let oldStock: number
+                    let newStock: number
+                    let size: string
 
-                    // Deduct Stock
-                    for (let i = 0; i < item.quantity; i++) {
-                        await api.products.scanProduct(`${product.reference}-${item.size}`, 'remove')
+                    if (isAccessoire) {
+                        // Handle accessories - no size needed
+                        barcode = product.reference
+                        oldStock = product.stock || 0
+                        
+                        // Check Stock for accessories
+                        if (oldStock < item.quantity) {
+                            logs.push({ status: 'error', message: `Stock insuffisant (${oldStock})`, item })
+                            continue
+                        }
+
+                        // Deduct Stock
+                        for (let i = 0; i < item.quantity; i++) {
+                            await api.products.scanProduct(barcode, 'remove')
+                        }
+
+                        newStock = Math.max(0, oldStock - item.quantity)
+                        size = '' // No size for accessories
+                    } else {
+                        // Handle products with sizes
+                        // Check Size
+                        const sizeObj = product.sizes?.find((s: any) => s.size === item.size)
+                        if (!sizeObj) {
+                            logs.push({ status: 'error', message: `Taille "${item.size}" introuvable`, item })
+                            continue
+                        }
+
+                        // Check Stock
+                        if ((sizeObj.stock || 0) < item.quantity) {
+                            logs.push({ status: 'error', message: `Stock insuffisant (${sizeObj.stock})`, item })
+                            continue
+                        }
+
+                        // Deduct Stock
+                        barcode = `${product.reference}-${item.size}`
+                        for (let i = 0; i < item.quantity; i++) {
+                            await api.products.scanProduct(barcode, 'remove')
+                        }
+
+                        oldStock = sizeObj.stock || 0
+                        newStock = Math.max(0, oldStock - item.quantity)
+                        size = item.size
                     }
 
                     // Log History
@@ -1650,19 +1726,19 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                         id: Date.now().toString() + Math.random(),
                         timestamp: new Date(),
                         type: 'out',
-                        barcode: `${product.reference}-${item.size}`,
+                        barcode,
                         productName: product.name,
                         productReference: product.reference,
-                        size: item.size,
+                        size: size,
                         quantity: item.quantity,
-                        oldStock: sizeObj.stock,
-                        newStock: sizeObj.stock - item.quantity,
+                        oldStock,
+                        newStock,
                         trackingNumber: tracking,
                         notes: `Echange Yalidine: ${code}`
                     }
                     onStockRemoved(movement)
 
-                    logs.push({ status: 'success', message: `Échangé: ${item.quantity}x ${product.name}`, item })
+                    logs.push({ status: 'success', message: `Échangé: ${item.quantity}x ${product.name}${size ? ` (${size})` : ''}`, item })
                     successCount++
 
                 } catch (err: any) {
@@ -1769,18 +1845,38 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                 const product = productsResponse.products?.[0]
 
                 if (product) {
-                    const sizeObj = product.sizes?.find((s: any) => s.size === item.size)
-                    if (sizeObj) {
+                    // Check if product is an accessory (no sizes or category is accessories)
+                    const categorySlug = product.category?.slug?.toLowerCase() || ''
+                    const isAccessoire = categorySlug.includes('accessoire') || 
+                                        categorySlug.includes('accessories') ||
+                                        !product.sizes || 
+                                        product.sizes.length === 0
+
+                    if (isAccessoire) {
+                        // Handle accessories - no size needed
                         receptionItems.push({
                             productName: product.name,
                             reference: product.reference,
-                            size: item.size,
+                            size: '',
                             quantity: item.quantity,
-                            barcode: `${product.reference}-${item.size}`
+                            barcode: product.reference
                         })
                         logs.push({ status: 'success', message: `Retour: ${item.quantity}x ${product.name}`, item })
                     } else {
-                        logs.push({ status: 'error', message: `Taille inconnue: ${item.size}`, item })
+                        // Handle products with sizes
+                        const sizeObj = product.sizes?.find((s: any) => s.size === item.size)
+                        if (sizeObj) {
+                            receptionItems.push({
+                                productName: product.name,
+                                reference: product.reference,
+                                size: item.size,
+                                quantity: item.quantity,
+                                barcode: `${product.reference}-${item.size}`
+                            })
+                            logs.push({ status: 'success', message: `Retour: ${item.quantity}x ${product.name}`, item })
+                        } else {
+                            logs.push({ status: 'error', message: `Taille inconnue: ${item.size}`, item })
+                        }
                     }
                 } else {
                     logs.push({ status: 'error', message: `Produit inconnu: ${item.productName}`, item })
