@@ -367,7 +367,6 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                     value={productData.stock}
                     onChange={(e) => handleInputChange('stock', parseInt(e.target.value) || 0)}
                     className={stockMismatch ? 'border-red-500' : ''}
-                    disabled
                   />
                   {stockMismatch && (
                     <p className="text-sm text-red-500 font-medium">
@@ -439,7 +438,6 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                         variant={isSelected ? "default" : "outline"}
                         className="h-12"
                         onClick={() => isSelected ? handleRemoveSize(size) : handleAddSize(size)}
-                        disabled
                       >
                         {size}
                       </Button>
@@ -470,7 +468,6 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                             onChange={(e) => handleSizeStockChange(sizeData.size, parseInt(e.target.value) || 0)}
                             min="0"
                             className="flex-1"
-                            disabled
                           />
                         </div>
                       ))}

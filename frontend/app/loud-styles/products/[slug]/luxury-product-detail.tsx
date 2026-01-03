@@ -86,6 +86,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   const [showImageModal, setShowImageModal] = useState(false)
   const [timerCompleted, setTimerCompleted] = useState(false)
   const [showAccessoryPopup, setShowAccessoryPopup] = useState(false)
+  const [accessoryPopupDismissed, setAccessoryPopupDismissed] = useState(false)
+  const [showSizeGuide, setShowSizeGuide] = useState(false)
   const [relatedAccessories, setRelatedAccessories] = useState<Product[]>([])
   const [loadingAccessories, setLoadingAccessories] = useState(false)
   const isOrderable = !product?.isLaunchActive || timerCompleted
@@ -119,10 +121,15 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   }, [product])
 
   useEffect(() => {
-    // Auto-select first size if available (only for non-accessoires)
+    // Auto-select first size if available (only for non-accessoires, skip 'S')
     if (!isAccessoires && product?.sizes && product.sizes.length > 0 && !selectedSize) {
-      const firstSize = product.sizes[0];
-      setSelectedSize(typeof firstSize === 'string' ? firstSize : firstSize.size)
+      const firstSize = product.sizes.find(s => {
+        const size = typeof s === 'string' ? s : s.size;
+        return size !== 'S';
+      });
+      if (firstSize) {
+        setSelectedSize(typeof firstSize === 'string' ? firstSize : firstSize.size)
+      }
     }
   }, [product?.sizes, selectedSize, isAccessoires])
 
@@ -153,14 +160,10 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
           const accessories = (await Promise.all(accessoriesPromises)).filter(Boolean)
           setRelatedAccessories(accessories)
           
-          // Show popup after 3 seconds if accessories are loaded
-          if (accessories.length > 0) {
+          // Show popup after 3 seconds if accessories are loaded and not dismissed in this session
+          if (accessories.length > 0 && !accessoryPopupDismissed) {
             const timer = setTimeout(() => {
-              // Check if popup was already dismissed in this session
-              const dismissed = localStorage.getItem('yennayer-accessories-popup-dismissed')
-              if (!dismissed) {
-                setShowAccessoryPopup(true)
-              }
+              setShowAccessoryPopup(true)
             }, 3000)
             
             return () => clearTimeout(timer)
@@ -209,6 +212,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
       icon: <Check className="w-4 h-4 text-white" />
     })
   }
+
 
 
   // Safety check for product - AFTER all hooks but before conditional return
@@ -347,7 +351,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   const getDisplaySizes = () => {
     // Don't show sizes for accessoires
     if (isAccessoires) return [];
-    return ['M', 'L', 'XL', 'XXL'];
+    // Filter out 'S' and return available sizes
+    const availableSizes = product.sizes?.map(s => s.size) || [];
+    return ['M', 'L', 'XL', 'XXL', 'XXXL'].filter(size => availableSizes.includes(size));
   }
 
   const displaySizes = getDisplaySizes();
@@ -632,11 +638,21 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                   className="space-y-2 sm:space-y-3 lg:space-y-4"
                   variants={itemVariants}
                 >
-                  <h3 className="text-base sm:text-lg font-semibold text-foreground">
-                    {isRTL ? 'المقاس' : 'Size'}
-                  </h3>
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-base sm:text-lg font-semibold text-foreground">
+                      {isRTL ? 'المقاس' : 'Size'}
+                    </h3>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowSizeGuide(!showSizeGuide)}
+                      className="text-primary hover:text-primary/80 text-xs sm:text-sm"
+                    >
+                      {isRTL ? 'دليل المقاسات' : 'Size Guide'}
+                    </Button>
+                  </div>
                   <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 sm:gap-2 lg:gap-3">
-                    {displaySizes.map((size) => (
+                    {displaySizes.filter(size => size !== 'S').map((size) => (
                       <motion.button
                         key={size}
                         className={`group relative px-3 py-2 sm:px-4 sm:py-2.5 lg:px-6 lg:py-3 rounded-md sm:rounded-lg border-2 transition-all duration-300 font-medium text-sm sm:text-base ${selectedSize === size
@@ -664,6 +680,205 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       </motion.button>
                     ))}
                   </div>
+
+                  {/* Size Guide */}
+                  <AnimatePresence>
+                    {showSizeGuide && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.3 }}
+                        className="overflow-hidden"
+                      >
+                        <Card className="mt-4 bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700">
+                          <CardContent className="p-4 sm:p-6">
+                            <div className="flex items-center justify-between mb-6">
+                              <h4 className="text-lg sm:text-xl font-bold text-foreground">
+                                {isRTL ? 'دليل المقاسات' : 'Size Guide'}
+                              </h4>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => setShowSizeGuide(false)}
+                                className="h-8 w-8"
+                              >
+                                <X className="w-4 h-4" />
+                              </Button>
+                            </div>
+
+                            {/* Size Selection Buttons */}
+                            <div className="mb-6">
+                              <p className="text-sm text-muted-foreground mb-3">
+                                {isRTL ? 'المقاس المعروض.' : 'Size displayed.'}
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {displaySizes.filter(size => size !== 'S').map((size) => {
+                                  const isSelected = selectedSize === size || (!selectedSize && size === displaySizes.find(s => s !== 'S'))
+                                  return (
+                                    <button
+                                      key={size}
+                                      onClick={() => setSelectedSize(size)}
+                                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                                        isSelected
+                                          ? 'bg-black text-white border-2 border-black'
+                                          : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-gray-400'
+                                      }`}
+                                    >
+                                      {size}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Dress Figure and Size Chart */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                              {/* Dress Figure */}
+                              <div className="relative flex flex-col items-center">
+                                <div className="relative w-full max-w-[200px]">
+                                  {/* Use image from public folder */}
+                                  <div className="relative w-full aspect-[1/2]">
+                                    <Image
+                                      src="/dress-size-guide.png"
+                                      alt={isRTL ? 'رسم توضيحي للفستان' : 'Dress illustration'}
+                                      fill
+                                      className="object-contain"
+                                      sizes="(max-width: 768px) 100vw, 200px"
+                                    />
+                                    {/* Overlay measurement lines and labels */}
+                                    <svg
+                                      viewBox="0 0 200 400"
+                                      className="absolute inset-0 w-full h-full pointer-events-none"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                      {/* Bust Measurement Line */}
+                                      <line x1="50" y1="120" x2="150" y2="120" stroke="#d4af37" strokeWidth="3" />
+                                      <circle cx="100" cy="120" r="20" fill="#d4af37" />
+                                      <text x="100" y="125" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">
+                                        {(() => {
+                                          const sizeData = {
+                                            'M': '98',
+                                            'L': '104',
+                                            'XL': '110',
+                                            'XXL': '116',
+                                            'XXXL': '122'
+                                          }[selectedSize || displaySizes.find(s => s !== 'S') || 'M'] || '98')
+                                          return sizeData
+                                        })()}
+                                      </text>
+                                      
+                                      {/* Waist Measurement Line */}
+                                      <line x1="55" y1="220" x2="145" y2="220" stroke="#d4af37" strokeWidth="3" />
+                                      <circle cx="100" cy="220" r="20" fill="#d4af37" />
+                                      <text x="100" y="225" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">
+                                        {(() => {
+                                          const sizeData = {
+                                            'M': '76',
+                                            'L': '82',
+                                            'XL': '88',
+                                            'XXL': '94',
+                                            'XXXL': '100'
+                                          }[selectedSize || displaySizes.find(s => s !== 'S') || 'M'] || '76')
+                                          return sizeData
+                                        })()}
+                                      </text>
+                                      
+                                      {/* Length Measurement Line */}
+                                      <line x1="20" y1="20" x2="20" y2="360" stroke="#d4af37" strokeWidth="2" strokeDasharray="4,4" />
+                                      <circle cx="20" cy="190" r="18" fill="#d4af37" />
+                                      <text x="20" y="195" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold">
+                                        {(() => {
+                                          const sizeData = {
+                                            'M': '133',
+                                            'L': '134',
+                                            'XL': '135',
+                                            'XXL': '136',
+                                            'XXXL': '137'
+                                          }[selectedSize || displaySizes.find(s => s !== 'S') || 'M'] || '133')
+                                          return sizeData
+                                        })()}
+                                      </text>
+                                    </svg>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Size Chart Table */}
+                              <div className="w-full">
+                                <div className="overflow-x-auto">
+                                  <table className="w-full border-collapse">
+                                    <thead>
+                                      <tr className="bg-gray-50 dark:bg-gray-800">
+                                        <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm font-semibold text-foreground">
+                                          المقاس
+                                        </th>
+                                        <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm font-semibold text-foreground">
+                                          الصدر
+                                        </th>
+                                        <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm font-semibold text-foreground">
+                                          الخصر
+                                        </th>
+                                        <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm font-semibold text-foreground">
+                                          الطول
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {[
+                                        { size: 'M', chest: '98', waist: '76', length: '133' },
+                                        { size: 'L', chest: '104', waist: '82', length: '134' },
+                                        { size: 'XL', chest: '110', waist: '88', length: '135' },
+                                        { size: 'XXL', chest: '116', waist: '94', length: '136' },
+                                        { size: 'XXXL', chest: '122', waist: '100', length: '137' }
+                                      ].filter(item => displaySizes.includes(item.size) && item.size !== 'S').map((item, index) => {
+                                        const isSelected = selectedSize === item.size || (!selectedSize && index === 0)
+                                        return (
+                                          <tr 
+                                            key={item.size}
+                                            className={`transition-colors ${
+                                              isSelected 
+                                                ? 'bg-orange-100 dark:bg-orange-900/20' 
+                                                : index % 2 === 0 
+                                                  ? 'bg-white dark:bg-gray-900' 
+                                                  : 'bg-gray-50 dark:bg-gray-800'
+                                            }`}
+                                          >
+                                            <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm font-medium text-foreground">
+                                              {item.size}
+                                            </td>
+                                            <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm text-muted-foreground">
+                                              {item.chest}
+                                            </td>
+                                            <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm text-muted-foreground">
+                                              {item.waist}
+                                            </td>
+                                            <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm text-muted-foreground">
+                                              {item.length}
+                                            </td>
+                                          </tr>
+                                        )
+                                      })}
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Disclaimer */}
+                            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                              <p className="text-xs text-muted-foreground text-center" dir="rtl">
+                                البيانات مقاسة يدوياً وقد يكون هناك اختلافات طفيفة. شاهد كيفية القياس
+                                <button className="mr-1 text-primary hover:underline inline-flex items-center">
+                                  ←
+                                </button>
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               )}
 
@@ -910,115 +1125,134 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
           )}
         </AnimatePresence>
 
-        {/* Accessory Popup for Yennayer Dress */}
+        {/* Accessories Bottom Slide-Up Panel */}
         <AnimatePresence>
           {showAccessoryPopup && relatedAccessories.length > 0 && (
             <motion.div
-              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => {
-                setShowAccessoryPopup(false)
-                localStorage.setItem('yennayer-accessories-popup-dismissed', 'true')
+              className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none"
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ 
+                type: 'spring',
+                damping: 25,
+                stiffness: 200
               }}
             >
               <motion.div
-                className="relative bg-background dark:bg-gray-900 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-                initial={{ scale: 0.9, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                transition={{ duration: 0.3 }}
-                onClick={(e) => e.stopPropagation()}
+                className="bg-gradient-to-br from-primary/95 via-primary/90 to-primary/95 backdrop-blur-xl border-t-2 border-primary/50 shadow-2xl rounded-t-3xl p-4 sm:p-6 pointer-events-auto max-h-[85vh] overflow-y-auto"
+                initial={{ scale: 0.95 }}
+                animate={{ scale: 1 }}
+                exit={{ scale: 0.95 }}
+                transition={{ delay: 0.1 }}
               >
-                {/* Close Button */}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-4 right-4 z-10 bg-background/80 hover:bg-background"
-                  onClick={() => {
-                    setShowAccessoryPopup(false)
-                    localStorage.setItem('yennayer-accessories-popup-dismissed', 'true')
-                  }}
-                >
-                  <X className="w-5 h-5" />
-                </Button>
-
-                {/* Popup Content */}
-                <div className="p-6 sm:p-8">
-                  <div className="text-center mb-6">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-foreground mb-2">
-                      {isRTL ? 'أكمل إطلالتك' : 'Complete Your Look'}
-                    </h2>
-                    <p className="text-muted-foreground text-sm sm:text-base">
+                {/* Header with close button */}
+                <div className="flex items-center justify-between mb-4 sm:mb-6">
+                  <div className="flex-1">
+                    <motion.h2 
+                      className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      {isRTL ? '✨ أكمل إطلالتك ✨' : '✨ Complete Your Look ✨'}
+                    </motion.h2>
+                    <motion.p 
+                      className="text-white/90 text-sm sm:text-base"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.3 }}
+                    >
                       {isRTL 
-                        ? 'أضف الإكسسوارات المطابقة لهذا الفستان لإطلالة كاملة ومميزة'
+                        ? 'أضف الإكسسوارات المطابقة لإطلالة كاملة ومميزة'
                         : 'Add matching accessories to complete your elegant look'
                       }
-                    </p>
+                    </motion.p>
                   </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="ml-4 h-8 w-8 sm:h-10 sm:w-10 text-white hover:bg-white/20 rounded-full"
+                    onClick={() => {
+                      setShowAccessoryPopup(false)
+                      setAccessoryPopupDismissed(true)
+                    }}
+                  >
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                  </Button>
+                </div>
 
-                  {/* Accessories Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6">
-                    {relatedAccessories.map((accessory) => (
-                      <motion.div
-                        key={accessory.id}
-                        className="group relative bg-background/50 dark:bg-gray-800/50 rounded-xl overflow-hidden border border-border hover:border-primary transition-all duration-300"
-                        whileHover={{ y: -4 }}
-                      >
-                        {/* Product Image */}
-                        <div className="relative aspect-square w-full overflow-hidden bg-muted">
-                          <Image
-                            src={accessory.images[0] || '/placeholder.svg'}
-                            alt={isRTL ? accessory.nameAr || accessory.name : accessory.name}
-                            fill
-                            className="object-cover group-hover:scale-110 transition-transform duration-300"
-                            sizes="(max-width: 640px) 100vw, 33vw"
-                          />
-                        </div>
-
-                        {/* Product Info */}
-                        <div className="p-4 space-y-2">
-                          <h3 className="font-semibold text-foreground text-sm sm:text-base line-clamp-2">
-                            {isRTL ? accessory.nameAr || accessory.name : accessory.name}
-                          </h3>
-                          <div className="flex items-center justify-between">
-                            <span className="text-lg font-bold text-primary">
-                              {accessory.price.toLocaleString()} DA
-                            </span>
-                          </div>
-
-                          {/* Add to Cart Button */}
-                          <Button
-                            size="sm"
-                            className="w-full mt-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
-                            onClick={() => handleAddAccessoryToCart(accessory)}
-                          >
-                            <ShoppingCart className="w-4 h-4 mr-2" />
-                            {isRTL ? 'أضف للسلة' : 'Add to Cart'}
-                          </Button>
-                        </div>
-                      </motion.div>
-                    ))}
-                  </div>
-
-                  {/* Footer */}
-                  <div className="mt-6 pt-6 border-t border-border text-center">
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowAccessoryPopup(false)
-                        localStorage.setItem('yennayer-accessories-popup-dismissed', 'true')
-                      }}
+                {/* Accessories Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+                  {relatedAccessories.map((accessory, index) => (
+                    <motion.div
+                      key={accessory.id}
+                      className="group relative bg-white/10 backdrop-blur-sm rounded-xl overflow-hidden border border-white/20 hover:border-white/40 transition-all duration-300 hover:bg-white/15"
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.4 + index * 0.1 }}
+                      whileHover={{ y: -4, scale: 1.02 }}
                     >
-                      {isRTL ? 'ربما لاحقاً' : 'Maybe Later'}
-                    </Button>
-                  </div>
+                      {/* Product Image */}
+                      <div className="relative aspect-square w-full overflow-hidden bg-white/5">
+                        <Image
+                          src={accessory.images[0] || '/placeholder.svg'}
+                          alt={isRTL ? accessory.nameAr || accessory.name : accessory.name}
+                          fill
+                          className="object-cover group-hover:scale-110 transition-transform duration-300"
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        />
+                        {/* Shine effect on hover */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      </div>
+
+                      {/* Product Info */}
+                      <div className="p-2 sm:p-3 space-y-1 sm:space-y-2">
+                        <h3 className="font-semibold text-white text-xs sm:text-sm line-clamp-2 min-h-[2.5em]">
+                          {isRTL ? accessory.nameAr || accessory.name : accessory.name}
+                        </h3>
+                        <div className="flex items-center justify-between">
+                          <span className="text-base sm:text-lg font-bold text-white">
+                            {accessory.price.toLocaleString()} DA
+                          </span>
+                        </div>
+
+                        {/* Add to Cart Button */}
+                        <Button
+                          size="sm"
+                          className="w-full mt-2 bg-white text-primary hover:bg-white/90 font-semibold text-xs sm:text-sm h-8 sm:h-9"
+                          onClick={() => {
+                            handleAddAccessoryToCart(accessory)
+                            // Optional: close popup after adding
+                            // setShowAccessoryPopup(false)
+                          }}
+                        >
+                          <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                          {isRTL ? 'أضف للسلة' : 'Add to Cart'}
+                        </Button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {/* Footer */}
+                <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/20 text-center">
+                  <Button
+                    variant="outline"
+                    className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white"
+                    onClick={() => {
+                      setShowAccessoryPopup(false)
+                      setAccessoryPopupDismissed(true)
+                    }}
+                  >
+                    {isRTL ? 'ربما لاحقاً' : 'Maybe Later'}
+                  </Button>
                 </div>
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
+
       </div>
     </React.Fragment>
   )
