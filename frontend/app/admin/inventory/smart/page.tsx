@@ -69,7 +69,7 @@ interface StockMovement {
     barcode: string
     productName: string
     productReference: string
-    size: string
+    size: string | null
     quantity: number
     oldStock: number
     newStock: number
@@ -1161,7 +1161,6 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                         item
                     })
                     successCount++
-
                 } catch (err: any) {
                     console.error(err)
                     logs.push({
@@ -1474,7 +1473,7 @@ function HistoryTable({ data, title = "Historique", showFilters = true }: { data
             Type: item.type === 'in' ? 'Entrée' : 'Sortie',
             Produit: item.productName,
             Reference: item.productReference,
-            Taille: item.size,
+            Taille: item.size || 'Accessoire',
             Quantite: item.quantity,
             Ancien_Stock: item.oldStock,
             Nouveau_Stock: item.newStock,
@@ -1579,7 +1578,7 @@ function HistoryTable({ data, title = "Historique", showFilters = true }: { data
                                             </div>
                                             <div className="text-[10px] text-muted-foreground">{item.productReference}</div>
                                         </TableCell>
-                                        <TableCell className="text-xs py-2">{item.size}</TableCell>
+                                        <TableCell className="text-xs py-2">{item.size || 'Accessoire'}</TableCell>
                                         <TableCell className="text-xs py-2 text-right font-medium">
                                             {item.quantity}
                                         </TableCell>
@@ -1861,7 +1860,7 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                             quantity: item.quantity,
                             barcode: product.reference
                         })
-                        logs.push({ status: 'success', message: `Retour: ${item.quantity}x ${product.name}`, item })
+                        logs.push({ status: 'success', message: `Retour: ${item.quantity}x ${product.name} (Accessoire)`, item })
                     } else {
                         // Handle products with sizes
                         const sizeObj = product.sizes?.find((s: any) => s.size === item.size)
