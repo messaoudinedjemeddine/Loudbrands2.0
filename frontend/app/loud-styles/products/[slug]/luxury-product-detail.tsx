@@ -757,13 +757,14 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       <circle cx="100" cy="120" r="20" fill="#d4af37" />
                                       <text x="100" y="125" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">
                                         {(() => {
+                                          const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
                                             'M': '98',
                                             'L': '104',
                                             'XL': '110',
                                             'XXL': '116',
                                             'XXXL': '122'
-                                          }[selectedSize || displaySizes.find(s => s !== 'S') || 'M'] || '98')
+                                          }[currentSize] || '98'
                                           return sizeData
                                         })()}
                                       </text>
@@ -773,13 +774,14 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       <circle cx="100" cy="220" r="20" fill="#d4af37" />
                                       <text x="100" y="225" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">
                                         {(() => {
+                                          const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
                                             'M': '76',
                                             'L': '82',
                                             'XL': '88',
                                             'XXL': '94',
                                             'XXXL': '100'
-                                          }[selectedSize || displaySizes.find(s => s !== 'S') || 'M'] || '76')
+                                          }[currentSize] || '76'
                                           return sizeData
                                         })()}
                                       </text>
@@ -789,13 +791,14 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       <circle cx="20" cy="190" r="18" fill="#d4af37" />
                                       <text x="20" y="195" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold">
                                         {(() => {
+                                          const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
                                             'M': '133',
                                             'L': '134',
                                             'XL': '135',
                                             'XXL': '136',
                                             'XXXL': '137'
-                                          }[selectedSize || displaySizes.find(s => s !== 'S') || 'M'] || '133')
+                                          }[currentSize] || '133'
                                           return sizeData
                                         })()}
                                       </text>
