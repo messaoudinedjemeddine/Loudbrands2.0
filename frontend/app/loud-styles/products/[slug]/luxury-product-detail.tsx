@@ -744,18 +744,21 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       alt={isRTL ? 'رسم توضيحي للفستان' : 'Dress illustration'}
                                       fill
                                       className="object-contain"
+                                      quality={100}
+                                      unoptimized={false}
                                       sizes="(max-width: 768px) 100vw, 200px"
                                     />
-                                    {/* Overlay measurement lines and labels */}
+                                    {/* Overlay measurement lines and labels - aligned with dress outline */}
                                     <svg
                                       viewBox="0 0 200 400"
                                       className="absolute inset-0 w-full h-full pointer-events-none"
                                       xmlns="http://www.w3.org/2000/svg"
+                                      preserveAspectRatio="xMidYMid meet"
                                     >
-                                      {/* Bust Measurement Line */}
-                                      <line x1="50" y1="120" x2="150" y2="120" stroke="#d4af37" strokeWidth="3" />
-                                      <circle cx="100" cy="120" r="20" fill="#d4af37" />
-                                      <text x="100" y="125" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">
+                                      {/* Bust Measurement Line - aligned with dress outline */}
+                                      <line x1="60" y1="130" x2="140" y2="130" stroke="#d4af37" strokeWidth="2.5" />
+                                      <circle cx="100" cy="130" r="18" fill="#d4af37" />
+                                      <text x="100" y="135" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold">
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -769,10 +772,10 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                         })()}
                                       </text>
                                       
-                                      {/* Waist Measurement Line */}
-                                      <line x1="55" y1="220" x2="145" y2="220" stroke="#d4af37" strokeWidth="3" />
-                                      <circle cx="100" cy="220" r="20" fill="#d4af37" />
-                                      <text x="100" y="225" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">
+                                      {/* Waist Measurement Line - aligned with dress outline */}
+                                      <line x1="65" y1="230" x2="135" y2="230" stroke="#d4af37" strokeWidth="2.5" />
+                                      <circle cx="100" cy="230" r="18" fill="#d4af37" />
+                                      <text x="100" y="235" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold">
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -786,10 +789,10 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                         })()}
                                       </text>
                                       
-                                      {/* Length Measurement Line */}
-                                      <line x1="20" y1="20" x2="20" y2="360" stroke="#d4af37" strokeWidth="2" strokeDasharray="4,4" />
-                                      <circle cx="20" cy="190" r="18" fill="#d4af37" />
-                                      <text x="20" y="195" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold">
+                                      {/* Length Measurement Line - aligned with dress outline */}
+                                      <line x1="25" y1="30" x2="25" y2="370" stroke="#d4af37" strokeWidth="2" strokeDasharray="3,3" />
+                                      <circle cx="25" cy="200" r="16" fill="#d4af37" />
+                                      <text x="25" y="205" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -808,21 +811,21 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                               </div>
 
                               {/* Size Chart Table */}
-                              <div className="w-full">
-                                <div className="overflow-x-auto">
+                              <div className="w-full max-w-md mx-auto lg:mx-0">
+                                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
                                   <table className="w-full border-collapse">
                                     <thead>
                                       <tr className="bg-gray-50 dark:bg-gray-800">
-                                        <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm font-semibold text-foreground">
+                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
                                           المقاس
                                         </th>
-                                        <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm font-semibold text-foreground">
+                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
                                           الصدر
                                         </th>
-                                        <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm font-semibold text-foreground">
+                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
                                           الخصر
                                         </th>
-                                        <th className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm font-semibold text-foreground">
+                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
                                           الطول
                                         </th>
                                       </tr>
@@ -841,22 +844,30 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                             key={item.size}
                                             className={`transition-colors ${
                                               isSelected 
-                                                ? 'bg-orange-100 dark:bg-orange-900/20' 
+                                                ? 'bg-[#d4af37]/20 border-l-4 border-[#d4af37]' 
                                                 : index % 2 === 0 
                                                   ? 'bg-white dark:bg-gray-900' 
                                                   : 'bg-gray-50 dark:bg-gray-800'
                                             }`}
                                           >
-                                            <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm font-medium text-foreground">
+                                            <td className={`px-3 py-2 text-right text-xs font-medium ${
+                                              isSelected ? 'text-[#d4af37] font-bold' : 'text-foreground'
+                                            }`}>
                                               {item.size}
                                             </td>
-                                            <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm text-muted-foreground">
+                                            <td className={`px-3 py-2 text-right text-xs ${
+                                              isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
+                                            }`}>
                                               {item.chest}
                                             </td>
-                                            <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm text-muted-foreground">
+                                            <td className={`px-3 py-2 text-right text-xs ${
+                                              isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
+                                            }`}>
                                               {item.waist}
                                             </td>
-                                            <td className="border border-gray-300 dark:border-gray-600 px-4 py-3 text-right text-sm text-muted-foreground">
+                                            <td className={`px-3 py-2 text-right text-xs ${
+                                              isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
+                                            }`}>
                                               {item.length}
                                             </td>
                                           </tr>
@@ -1132,7 +1143,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
         <AnimatePresence>
           {showAccessoryPopup && relatedAccessories.length > 0 && (
             <motion.div
-              className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none"
+              className="fixed bottom-0 right-0 z-50 pointer-events-none"
+              style={{ width: '18%', minWidth: '200px', maxWidth: '280px' }}
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
@@ -1143,17 +1155,17 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
               }}
             >
               <motion.div
-                className="bg-gradient-to-br from-primary/95 via-primary/90 to-primary/95 backdrop-blur-xl border-t-2 border-primary/50 shadow-2xl rounded-t-3xl p-4 sm:p-6 pointer-events-auto max-h-[85vh] overflow-y-auto"
+                className="bg-gradient-to-br from-primary/95 via-primary/90 to-primary/95 backdrop-blur-xl border-t-2 border-l-2 border-primary/50 shadow-2xl rounded-tl-3xl p-3 sm:p-4 pointer-events-auto max-h-[85vh] overflow-y-auto"
                 initial={{ scale: 0.95 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0.95 }}
                 transition={{ delay: 0.1 }}
               >
                 {/* Header with close button */}
-                <div className="flex items-center justify-between mb-4 sm:mb-6">
-                  <div className="flex-1">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1 pr-2">
                     <motion.h2 
-                      className="text-xl sm:text-2xl lg:text-3xl font-bold text-white mb-1 sm:mb-2"
+                      className="text-sm sm:text-base font-bold text-white mb-1"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.2 }}
@@ -1161,32 +1173,32 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       {isRTL ? '✨ أكمل إطلالتك ✨' : '✨ Complete Your Look ✨'}
                     </motion.h2>
                     <motion.p 
-                      className="text-white/90 text-sm sm:text-base"
+                      className="text-white/90 text-xs"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 }}
                     >
                       {isRTL 
-                        ? 'أضف الإكسسوارات المطابقة لإطلالة كاملة ومميزة'
-                        : 'Add matching accessories to complete your elegant look'
+                        ? 'إكسسوارات مطابقة'
+                        : 'Matching accessories'
                       }
                     </motion.p>
                   </div>
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="ml-4 h-8 w-8 sm:h-10 sm:w-10 text-white hover:bg-white/20 rounded-full"
+                    className="h-6 w-6 text-white hover:bg-white/20 rounded-full flex-shrink-0"
                     onClick={() => {
                       setShowAccessoryPopup(false)
                       setAccessoryPopupDismissed(true)
                     }}
                   >
-                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <X className="w-3 h-3" />
                   </Button>
                 </div>
 
                 {/* Accessories Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+                <div className="grid grid-cols-1 gap-2 sm:gap-3">
                   {relatedAccessories.map((accessory, index) => (
                     <motion.div
                       key={accessory.id}
@@ -1197,25 +1209,25 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       whileHover={{ y: -4, scale: 1.02 }}
                     >
                       {/* Product Image */}
-                      <div className="relative aspect-square w-full overflow-hidden bg-white/5">
+                      <div className="relative aspect-square w-full overflow-hidden bg-white/5 rounded-lg">
                         <Image
                           src={accessory.images[0] || '/placeholder.svg'}
                           alt={isRTL ? accessory.nameAr || accessory.name : accessory.name}
                           fill
                           className="object-cover group-hover:scale-110 transition-transform duration-300"
-                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                          sizes="200px"
                         />
                         {/* Shine effect on hover */}
                         <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                       </div>
 
                       {/* Product Info */}
-                      <div className="p-2 sm:p-3 space-y-1 sm:space-y-2">
-                        <h3 className="font-semibold text-white text-xs sm:text-sm line-clamp-2 min-h-[2.5em]">
+                      <div className="p-2 space-y-1">
+                        <h3 className="font-semibold text-white text-xs line-clamp-2 min-h-[2.5em]">
                           {isRTL ? accessory.nameAr || accessory.name : accessory.name}
                         </h3>
-                        <div className="flex items-center justify-between">
-                          <span className="text-base sm:text-lg font-bold text-white">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-sm font-bold text-white">
                             {accessory.price.toLocaleString()} DA
                           </span>
                         </div>
@@ -1223,15 +1235,13 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                         {/* Add to Cart Button */}
                         <Button
                           size="sm"
-                          className="w-full mt-2 bg-white text-primary hover:bg-white/90 font-semibold text-xs sm:text-sm h-8 sm:h-9"
+                          className="w-full mt-1 bg-white text-primary hover:bg-white/90 font-semibold text-xs h-7"
                           onClick={() => {
                             handleAddAccessoryToCart(accessory)
-                            // Optional: close popup after adding
-                            // setShowAccessoryPopup(false)
                           }}
                         >
-                          <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
-                          {isRTL ? 'أضف للسلة' : 'Add to Cart'}
+                          <ShoppingCart className="w-3 h-3 mr-1" />
+                          {isRTL ? 'أضف' : 'Add'}
                         </Button>
                       </div>
                     </motion.div>
@@ -1239,16 +1249,17 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                 </div>
 
                 {/* Footer */}
-                <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-white/20 text-center">
+                <div className="mt-3 pt-3 border-t border-white/20 text-center">
                   <Button
                     variant="outline"
-                    className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white"
+                    size="sm"
+                    className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white text-xs h-7"
                     onClick={() => {
                       setShowAccessoryPopup(false)
                       setAccessoryPopupDismissed(true)
                     }}
                   >
-                    {isRTL ? 'ربما لاحقاً' : 'Maybe Later'}
+                    {isRTL ? 'لاحقاً' : 'Later'}
                   </Button>
                 </div>
               </motion.div>
