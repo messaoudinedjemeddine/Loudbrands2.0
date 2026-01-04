@@ -1143,11 +1143,11 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
           )}
         </AnimatePresence>
 
-        {/* Accessories Bottom Alert Panel - Horizontal */}
+        {/* Accessories Bottom Alert Panel - Horizontal, Centered */}
         <AnimatePresence>
           {showAccessoryPopup && relatedAccessories.length > 0 && (
             <motion.div
-              className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none px-4 pb-4"
+              className="fixed bottom-0 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none pb-4"
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
@@ -1158,7 +1158,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
               }}
             >
               <motion.div
-                className="bg-gradient-to-r from-primary/95 via-primary/90 to-primary/95 backdrop-blur-xl border-2 border-primary/50 shadow-2xl rounded-2xl p-4 pointer-events-auto"
+                className="bg-white border-2 border-[#d4af37] shadow-2xl rounded-2xl p-4 pointer-events-auto"
+                style={{ width: 'fit-content', minWidth: '320px', maxWidth: '400px' }}
                 initial={{ scale: 0.95 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0.95 }}
@@ -1168,7 +1169,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex-1">
                     <motion.h2 
-                      className="text-base sm:text-lg font-bold text-white mb-1"
+                      className="text-base sm:text-lg font-bold text-gray-900 mb-1"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.2 }}
@@ -1176,7 +1177,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       {isRTL ? '✨ أكمل إطلالتك ✨' : '✨ Complete Your Look ✨'}
                     </motion.h2>
                     <motion.p 
-                      className="text-white/90 text-xs sm:text-sm"
+                      className="text-gray-600 text-xs sm:text-sm"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 }}
@@ -1190,7 +1191,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-white hover:bg-white/20 rounded-full flex-shrink-0 ml-4"
+                    className="h-8 w-8 text-gray-700 hover:bg-gray-100 rounded-full flex-shrink-0 ml-4"
                     onClick={() => {
                       setShowAccessoryPopup(false)
                       setAccessoryPopupDismissed(true)
@@ -1200,9 +1201,17 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                   </Button>
                 </div>
 
-                {/* Accessories Horizontal Scroll */}
-                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-                  {relatedAccessories.map((accessory, index) => (
+                {/* Accessories Horizontal Layout - 3 cards */}
+                <div className="flex gap-3 justify-center items-start">
+                  {relatedAccessories.slice(0, 3).map((accessory, index) => {
+                    // Get image URL - handle different possible formats
+                    const imageUrl = accessory.images?.[0] || 
+                                   (accessory as any).image || 
+                                   (accessory as any).images?.[0]?.url || 
+                                   (accessory as any).images?.[0] || 
+                                   '/placeholder.svg'
+                    
+                    return (
                     <motion.div
                       key={accessory.id}
                       className="group relative flex-shrink-0"
@@ -1212,28 +1221,33 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       whileHover={{ scale: 1.05 }}
                     >
                       {/* Circular Card */}
-                      <div className="bg-white/10 backdrop-blur-sm rounded-full overflow-hidden border-2 border-white/30 hover:border-white/60 transition-all duration-300 hover:bg-white/15 p-2 w-24 h-24 sm:w-28 sm:h-28 flex flex-col items-center justify-center">
+                      <div className="bg-gray-50 rounded-full overflow-hidden border-2 border-[#d4af37] hover:border-[#d4af37]/80 transition-all duration-300 p-2 w-20 h-20 sm:w-24 sm:h-24 flex flex-col items-center justify-center">
                         {/* Circular Product Image */}
-                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-white/5">
+                        <div className="relative w-14 h-14 sm:w-18 sm:h-18 rounded-full overflow-hidden bg-white">
                           <img
-                            src={accessory.images[0] || '/placeholder.svg'}
+                            src={imageUrl}
                             alt={isRTL ? accessory.nameAr || accessory.name : accessory.name}
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement
+                              target.src = '/placeholder.svg'
+                              target.onerror = null
+                            }}
                           />
                         </div>
                       </div>
                       
                       {/* Product Info Below Circle */}
-                      <div className="mt-2 text-center w-24 sm:w-28">
-                        <h3 className="font-semibold text-white text-[10px] sm:text-xs line-clamp-1 mb-1">
+                      <div className="mt-2 text-center w-20 sm:w-24">
+                        <h3 className="font-semibold text-gray-900 text-[10px] sm:text-xs line-clamp-1 mb-1">
                           {isRTL ? accessory.nameAr || accessory.name : accessory.name}
                         </h3>
-                        <span className="text-xs font-bold text-white block mb-1">
+                        <span className="text-xs font-bold text-[#d4af37] block mb-1">
                           {accessory.price.toLocaleString()} DA
                         </span>
                         <Button
                           size="sm"
-                          className="w-full bg-white text-primary hover:bg-white/90 font-semibold text-[10px] h-6 px-2"
+                          className="w-full bg-[#d4af37] text-white hover:bg-[#d4af37]/90 font-semibold text-[10px] h-6 px-2"
                           onClick={() => {
                             handleAddAccessoryToCart(accessory)
                           }}
@@ -1243,15 +1257,16 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                         </Button>
                       </div>
                     </motion.div>
-                  ))}
+                    )
+                  })}
                 </div>
 
                 {/* Footer */}
-                <div className="mt-4 pt-3 border-t border-white/20 text-center">
+                <div className="mt-4 pt-3 border-t border-gray-200 text-center">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white text-xs h-8"
+                    className="bg-white border-[#d4af37] text-[#d4af37] hover:bg-[#d4af37]/10 hover:text-[#d4af37] text-xs h-8"
                     onClick={() => {
                       setShowAccessoryPopup(false)
                       setAccessoryPopupDismissed(true)
