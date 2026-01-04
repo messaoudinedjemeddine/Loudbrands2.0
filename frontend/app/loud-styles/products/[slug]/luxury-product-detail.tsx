@@ -751,9 +751,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       xmlns="http://www.w3.org/2000/svg"
                                       preserveAspectRatio="xMidYMid meet"
                                     >
-                                      {/* Bust Measurement Number - centered on horizontal line */}
-                                      <circle cx="150" cy="180" r="22" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
-                                      <text x="150" y="188" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                                      {/* Bust Measurement Number - centered on first orange curved line */}
+                                      <circle cx="120" cy="160" r="22" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
+                                      <text x="120" y="168" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -767,9 +767,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                         })()}
                                       </text>
                                       
-                                      {/* Waist Measurement Number - centered on horizontal line */}
-                                      <circle cx="150" cy="280" r="22" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
-                                      <text x="150" y="288" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                                      {/* Waist Measurement Number - centered on middle orange curved line */}
+                                      <circle cx="120" cy="260" r="22" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
+                                      <text x="120" y="268" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -783,9 +783,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                         })()}
                                       </text>
                                       
-                                      {/* Hips Measurement Number - centered on horizontal line */}
-                                      <circle cx="150" cy="380" r="22" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
-                                      <text x="150" y="388" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                                      {/* Hips Measurement Number - centered on bottom orange curved line */}
+                                      <circle cx="120" cy="360" r="22" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
+                                      <text x="120" y="368" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -799,9 +799,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                         })()}
                                       </text>
                                       
-                                      {/* Height Measurement Number - positioned on the vertical orange line (right side) */}
-                                      <circle cx="260" cy="300" r="20" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
-                                      <text x="260" y="308" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                                      {/* Height Measurement Number - positioned directly on the vertical orange line */}
+                                      <circle cx="270" cy="300" r="20" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
+                                      <text x="270" y="308" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
