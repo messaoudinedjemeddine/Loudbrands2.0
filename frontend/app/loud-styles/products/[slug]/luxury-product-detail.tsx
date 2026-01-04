@@ -715,7 +715,6 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                               <div className="flex flex-wrap gap-2">
                                 {displaySizes.filter(size => size !== 'S').map((size) => {
                                   const isSelected = selectedSize === size || (!selectedSize && size === displaySizes.find(s => s !== 'S'))
-                                  const displayLabel = size === 'M' ? 'S/M' : size
                                   return (
                                     <button
                                       key={size}
@@ -726,7 +725,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                           : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-gray-400'
                                       }`}
                                     >
-                                      {displayLabel}
+                                      {size}
                                     </button>
                                   )
                                 })}
@@ -737,14 +736,13 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
                               {/* Body Figure with Temu measurements */}
                               <div className="relative flex flex-col items-center">
-                                <div className="relative w-full max-w-[300px]">
+                                <div className="relative w-full max-w-[210px] mx-auto">
                                   {/* Use Temu body image from public folder - image already has measurement lines */}
-                                  <div className="relative w-full">
+                                  <div className="relative w-full" style={{ transform: 'scale(0.7)', transformOrigin: 'center' }}>
                                     <img
                                       src="/temu-body-size.avif"
                                       alt={isRTL ? 'رسم توضيحي للجسم' : 'Body measurement guide'}
                                       className="w-full h-auto object-contain"
-                                      style={{ maxHeight: '600px' }}
                                     />
                                     {/* Overlay measurement numbers only - positioned on existing lines */}
                                     <svg
@@ -801,9 +799,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                         })()}
                                       </text>
                                       
-                                      {/* Height Measurement Number - positioned on existing line */}
-                                      <circle cx="50" cy="300" r="18" fill="#d4af37" opacity="0.9" />
-                                      <text x="50" y="307" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">
+                                      {/* Height Measurement Number - positioned in the middle of vertical line */}
+                                      <circle cx="150" cy="300" r="18" fill="#d4af37" opacity="0.9" />
+                                      <text x="150" y="307" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -864,27 +862,27 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                                   : 'bg-gray-50 dark:bg-gray-800'
                                             }`}
                                           >
-                                            <td className={`px-3 py-2 text-right text-xs font-medium ${
+                                            <td className={`px-3 py-2 text-right text-[10px] font-medium ${
                                               isSelected ? 'text-[#d4af37] font-bold' : 'text-foreground'
                                             }`}>
-                                              {item.size === 'M' ? 'S/M' : item.size}
+                                              {item.size}
                                             </td>
-                                            <td className={`px-3 py-2 text-right text-xs ${
+                                            <td className={`px-3 py-2 text-right text-[10px] whitespace-nowrap ${
                                               isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
                                             }`}>
                                               {item.chest}
                                             </td>
-                                            <td className={`px-3 py-2 text-right text-xs ${
+                                            <td className={`px-3 py-2 text-right text-[10px] whitespace-nowrap ${
                                               isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
                                             }`}>
                                               {item.waist}
                                             </td>
-                                            <td className={`px-3 py-2 text-right text-xs ${
+                                            <td className={`px-3 py-2 text-right text-[10px] whitespace-nowrap ${
                                               isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
                                             }`}>
                                               {item.hips}
                                             </td>
-                                            <td className={`px-3 py-2 text-right text-xs ${
+                                            <td className={`px-3 py-2 text-right text-[10px] whitespace-nowrap ${
                                               isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
                                             }`}>
                                               {item.height}
@@ -901,10 +899,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                             {/* Disclaimer */}
                             <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
                               <p className="text-xs text-muted-foreground text-center" dir="rtl">
-                                البيانات مقاسة يدوياً وقد يكون هناك اختلافات طفيفة. شاهد كيفية القياس
-                                <button className="mr-1 text-primary hover:underline inline-flex items-center">
-                                  ←
-                                </button>
+                                البيانات مقاسة يدوياً وقد يكون هناك اختلافات طفيفة.
                               </p>
                             </div>
                           </CardContent>
