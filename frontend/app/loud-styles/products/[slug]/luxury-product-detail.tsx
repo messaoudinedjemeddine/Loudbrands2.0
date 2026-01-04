@@ -732,13 +732,13 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                               </div>
                             </div>
 
-                            {/* Dress Figure and Size Chart */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start justify-items-center">
+                            {/* Dress Figure and Size Chart - Vertical Layout */}
+                            <div className="flex flex-col gap-8 items-center">
                               {/* Body Figure with Temu measurements */}
                               <div className="relative flex flex-col items-center justify-center w-full">
-                                <div className="relative w-full max-w-[210px] mx-auto flex justify-center">
+                                <div className="relative w-full max-w-[528px] mx-auto flex justify-center">
                                   {/* Use Temu body image from public folder - image already has measurement lines */}
-                                  <div className="relative w-full" style={{ transform: 'scale(0.7)', transformOrigin: 'center' }}>
+                                  <div className="relative w-full">
                                     <img
                                       src="/temu-body-size.avif"
                                       alt={isRTL ? 'رسم توضيحي للجسم' : 'Body measurement guide'}
@@ -746,71 +746,71 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                     />
                                     {/* Overlay measurement numbers only - positioned on existing lines */}
                                     <svg
-                                      viewBox="0 0 300 600"
+                                      viewBox="0 0 528 1122"
                                       className="absolute inset-0 w-full h-full pointer-events-none"
                                       xmlns="http://www.w3.org/2000/svg"
                                       preserveAspectRatio="xMidYMid meet"
                                     >
-                                      {/* Bust Measurement Number - centered on first orange curved line */}
-                                      <circle cx="120" cy="160" r="22" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
-                                      <text x="120" y="168" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                                      {/* Bust Measurement Range - exact coordinates */}
+                                      <circle cx="170" cy="362" r="30" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
+                                      <text x="170" y="365" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
-                                            'M': '90', // Combined S/M: 86-94, using midpoint
-                                            'L': '98', // L: 95-101, using midpoint
-                                            'XL': '104', // XL: 101-107, using midpoint
-                                            'XXL': '110', // XXL: 107-113, using midpoint
-                                            'XXXL': '116'
-                                          }[currentSize] || '90'
+                                            'M': '86-94',
+                                            'L': '95-101',
+                                            'XL': '101-107',
+                                            'XXL': '107-113',
+                                            'XXXL': '113-119'
+                                          }[currentSize] || '86-94'
                                           return sizeData
                                         })()}
                                       </text>
                                       
-                                      {/* Waist Measurement Number - centered on middle orange curved line */}
-                                      <circle cx="120" cy="260" r="22" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
-                                      <text x="120" y="268" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                                      {/* Waist Measurement Range - exact coordinates */}
+                                      <circle cx="170" cy="456" r="30" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
+                                      <text x="170" y="459" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
-                                            'M': '70', // Combined S/M: 66-74, using midpoint
-                                            'L': '78', // L: 75-81, using midpoint
-                                            'XL': '84', // XL: 81-87, using midpoint
-                                            'XXL': '90', // XXL: 87-93, using midpoint
-                                            'XXXL': '96'
-                                          }[currentSize] || '70'
+                                            'M': '66-74',
+                                            'L': '75-81',
+                                            'XL': '81-87',
+                                            'XXL': '87-93',
+                                            'XXXL': '93-99'
+                                          }[currentSize] || '66-74'
                                           return sizeData
                                         })()}
                                       </text>
                                       
-                                      {/* Hips Measurement Number - centered on bottom orange curved line */}
-                                      <circle cx="120" cy="360" r="22" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
-                                      <text x="120" y="368" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                                      {/* Hips Measurement Range - exact coordinates */}
+                                      <circle cx="170" cy="577" r="30" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
+                                      <text x="170" y="580" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
-                                            'M': '95', // Combined S/M: 91-99, using midpoint
-                                            'L': '103', // L: 100-106, using midpoint
-                                            'XL': '109', // XL: 106-112, using midpoint
-                                            'XXL': '115', // XXL: 112-118, using midpoint
-                                            'XXXL': '121'
-                                          }[currentSize] || '95'
+                                            'M': '91-99',
+                                            'L': '100-106',
+                                            'XL': '106-112',
+                                            'XXL': '112-118',
+                                            'XXXL': '118-124'
+                                          }[currentSize] || '91-99'
                                           return sizeData
                                         })()}
                                       </text>
                                       
-                                      {/* Height Measurement Number - positioned directly on the vertical orange line */}
-                                      <circle cx="270" cy="300" r="20" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
-                                      <text x="270" y="308" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
+                                      {/* Height Measurement Range - exact coordinates */}
+                                      <circle cx="412" cy="536" r="28" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
+                                      <text x="412" y="539" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
-                                            'M': '170', // Combined S/M: 165-175, using midpoint
-                                            'L': '178', // L: 175-180, using midpoint
-                                            'XL': '178', // XL: 175-180, using midpoint
-                                            'XXL': '183', // XXL: 180-185, using midpoint
-                                            'XXXL': '183'
-                                          }[currentSize] || '170'
+                                            'M': '165-175',
+                                            'L': '175-180',
+                                            'XL': '175-180',
+                                            'XXL': '180-185',
+                                            'XXXL': '180-185'
+                                          }[currentSize] || '165-175'
                                           return sizeData
                                         })()}
                                       </text>
@@ -819,25 +819,25 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                 </div>
                               </div>
 
-                              {/* Size Chart Table */}
-                              <div className="w-full max-w-md mx-auto lg:mx-0 overflow-x-auto">
-                                <div className="rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg min-w-full">
-                                  <table className="w-full border-collapse min-w-[500px]">
+                              {/* Size Chart Table - Below body image */}
+                              <div className="w-full max-w-2xl mx-auto">
+                                <div className="rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-x-auto">
+                                  <table className="w-full border-collapse">
                                     <thead>
                                       <tr className="bg-gray-50 dark:bg-gray-800">
-                                        <th className="px-2 py-2 text-right text-[10px] font-semibold text-foreground whitespace-nowrap">
+                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
                                           المقاس
                                         </th>
-                                        <th className="px-2 py-2 text-right text-[10px] font-semibold text-foreground whitespace-nowrap">
+                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
                                           الصدر
                                         </th>
-                                        <th className="px-2 py-2 text-right text-[10px] font-semibold text-foreground whitespace-nowrap">
+                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
                                           الخصر
                                         </th>
-                                        <th className="px-2 py-2 text-right text-[10px] font-semibold text-foreground whitespace-nowrap">
+                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
                                           الورك
                                         </th>
-                                        <th className="px-2 py-2 text-right text-[10px] font-semibold text-foreground whitespace-nowrap">
+                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
                                           الطول
                                         </th>
                                       </tr>
@@ -862,27 +862,27 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                                   : 'bg-gray-50 dark:bg-gray-800'
                                             }`}
                                           >
-                                            <td className={`px-2 py-2 text-right text-[10px] font-medium whitespace-nowrap ${
+                                            <td className={`px-3 py-2 text-right text-xs font-medium ${
                                               isSelected ? 'text-[#d4af37] font-bold' : 'text-foreground'
                                             }`}>
                                               {item.size}
                                             </td>
-                                            <td className={`px-2 py-2 text-right text-[10px] whitespace-nowrap ${
+                                            <td className={`px-3 py-2 text-right text-xs ${
                                               isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
                                             }`}>
                                               {item.chest}
                                             </td>
-                                            <td className={`px-2 py-2 text-right text-[10px] whitespace-nowrap ${
+                                            <td className={`px-3 py-2 text-right text-xs ${
                                               isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
                                             }`}>
                                               {item.waist}
                                             </td>
-                                            <td className={`px-2 py-2 text-right text-[10px] whitespace-nowrap ${
+                                            <td className={`px-3 py-2 text-right text-xs ${
                                               isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
                                             }`}>
                                               {item.hips}
                                             </td>
-                                            <td className={`px-2 py-2 text-right text-[10px] whitespace-nowrap ${
+                                            <td className={`px-3 py-2 text-right text-xs ${
                                               isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
                                             }`}>
                                               {item.height}
