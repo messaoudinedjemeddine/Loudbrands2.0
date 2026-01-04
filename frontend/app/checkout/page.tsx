@@ -333,7 +333,7 @@ export default function CheckoutPage() {
           price: item.price,
           quantity: item.quantity,
           size: item.size,
-          image: item.image
+          image: item.image || '/placeholder.svg' // Ensure image is always a valid string
         })),
         subtotal: getTotalPrice(),
         deliveryFee: getDeliveryFee(),

@@ -86,7 +86,32 @@ function OrderSuccessContent() {
     if (storedOrderDetails) {
       try {
         const parsedDetails = JSON.parse(storedOrderDetails)
-        setOrderDetails(parsedDetails)
+        
+        // Ensure all items have valid image URLs
+        const itemsWithImages = parsedDetails.items.map((item: OrderItem) => {
+          // Try to get image from various possible locations
+          let imageUrl = item.image || 
+                        (item as any).images?.[0]?.url || 
+                        (item as any).images?.[0] || 
+                        (item as any).product?.image || 
+                        (item as any).product?.images?.[0]?.url || 
+                        (item as any).product?.images?.[0]
+          
+          // If no image found, use placeholder
+          if (!imageUrl || imageUrl === '' || imageUrl === 'undefined' || imageUrl === 'null') {
+            imageUrl = '/placeholder.svg'
+          }
+          
+          return {
+            ...item,
+            image: imageUrl
+          }
+        })
+        
+        setOrderDetails({
+          ...parsedDetails,
+          items: itemsWithImages
+        })
 
         // Check if this order has already been tracked to prevent duplicate events
         const trackedOrdersKey = 'metaPixelTrackedOrders'
@@ -382,29 +407,29 @@ function OrderSuccessContent() {
                     <div className="col-span-2 mt-4 border-t pt-4">
                       <span className="font-medium mb-3 block text-right">المنتجات:</span>
                       <div className="space-y-3">
-                        {orderDetails.items.map((item, index) => (
+                        {orderDetails.items.map((item, index) => {
+                          // Get image URL - should already be set in useEffect, but fallback here too
+                          const imageUrl = item.image && item.image !== '/placeholder.svg' ? item.image : '/placeholder.svg'
+                          
+                          return (
                           <div key={index} className="flex items-center gap-4 bg-background/50 p-3 rounded-lg">
                             <div className="relative w-16 h-16 bg-muted rounded-md overflow-hidden flex-shrink-0">
-                              {(() => {
-                                const imageUrl = item.image || (item as any).images?.[0]?.url || (item as any).images?.[0] || (item as any).product?.image || (item as any).product?.images?.[0]?.url || (item as any).product?.images?.[0]
-                                return imageUrl ? (
-                                  <Image
-                                    src={imageUrl}
-                                    alt={item.name}
-                                    fill
-                                    className="object-cover"
-                                    unoptimized={imageUrl?.startsWith('http') || imageUrl?.includes('cloudinary.com')}
-                                    onError={(e) => {
-                                      const target = e.target as HTMLImageElement
-                                      target.style.display = 'none'
-                                    }}
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                                    <ShoppingBag className="w-6 h-6" />
-                                  </div>
-                                )
-                              })()}
+                              {imageUrl && imageUrl !== '/placeholder.svg' ? (
+                                <img
+                                  src={imageUrl}
+                                  alt={item.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement
+                                    target.src = '/placeholder.svg'
+                                    target.onerror = null // Prevent infinite loop
+                                  }}
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center text-muted-foreground bg-gray-100 dark:bg-gray-800">
+                                  <ShoppingBag className="w-6 h-6" />
+                                </div>
+                              )}
                             </div>
                             <div className="flex-1 text-right">
                               <h4 className="font-medium text-sm line-clamp-1">{item.name}</h4>
@@ -417,7 +442,8 @@ function OrderSuccessContent() {
                               </div>
                             </div>
                           </div>
-                        ))}
+                          )
+                        })}
                       </div>
                     </div>
                   </div>
