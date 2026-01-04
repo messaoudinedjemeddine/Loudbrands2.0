@@ -736,8 +736,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                             <div className="flex flex-col gap-8 items-center">
                               {/* Body Figure with Temu measurements */}
                               <div className="relative flex flex-col items-center justify-center w-full">
-                                <div className="relative w-full max-w-[528px] mx-auto flex justify-center">
+                                <div className="relative w-full max-w-[264px] mx-auto flex justify-center">
                                   {/* Use Temu body image from public folder - image already has measurement lines */}
+                                  {/* Reduced to 50% size: 528*0.5=264, 1122*0.5=561 */}
                                   <div className="relative w-full">
                                     <img
                                       src="/temu-body-size.avif"
@@ -745,15 +746,16 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       className="w-full h-auto object-contain"
                                     />
                                     {/* Overlay measurement numbers only - positioned on existing lines */}
+                                    {/* Coordinates scaled by 0.5: Bust(170,362)->(85,181), Waist(170,456)->(85,228), Hips(170,577)->(85,289), Height(412,536)->(206,268) */}
                                     <svg
                                       viewBox="0 0 528 1122"
                                       className="absolute inset-0 w-full h-full pointer-events-none"
                                       xmlns="http://www.w3.org/2000/svg"
                                       preserveAspectRatio="xMidYMid meet"
                                     >
-                                      {/* Bust Measurement Range - exact coordinates */}
-                                      <circle cx="170" cy="362" r="30" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
-                                      <text x="170" y="365" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                      {/* Bust Measurement Range - scaled coordinates (85, 181) */}
+                                      <circle cx="85" cy="181" r="15" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1.5" />
+                                      <text x="85" y="184" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -767,9 +769,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                         })()}
                                       </text>
                                       
-                                      {/* Waist Measurement Range - exact coordinates */}
-                                      <circle cx="170" cy="456" r="30" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
-                                      <text x="170" y="459" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                      {/* Waist Measurement Range - scaled coordinates (85, 228) */}
+                                      <circle cx="85" cy="228" r="15" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1.5" />
+                                      <text x="85" y="231" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -783,9 +785,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                         })()}
                                       </text>
                                       
-                                      {/* Hips Measurement Range - exact coordinates */}
-                                      <circle cx="170" cy="577" r="30" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
-                                      <text x="170" y="580" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                      {/* Hips Measurement Range - scaled coordinates (85, 289) */}
+                                      <circle cx="85" cy="289" r="15" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1.5" />
+                                      <text x="85" y="292" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -799,9 +801,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                         })()}
                                       </text>
                                       
-                                      {/* Height Measurement Range - exact coordinates */}
-                                      <circle cx="412" cy="536" r="28" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
-                                      <text x="412" y="539" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                      {/* Height Measurement Range - scaled coordinates (206, 268) */}
+                                      <circle cx="206" cy="268" r="14" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1.5" />
+                                      <text x="206" y="271" textAnchor="middle" fill="white" fontSize="9" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
