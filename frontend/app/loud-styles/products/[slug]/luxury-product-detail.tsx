@@ -1143,12 +1143,11 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
           )}
         </AnimatePresence>
 
-        {/* Accessories Bottom Slide-Up Panel */}
+        {/* Accessories Bottom Alert Panel - Horizontal */}
         <AnimatePresence>
           {showAccessoryPopup && relatedAccessories.length > 0 && (
             <motion.div
-              className="fixed bottom-0 right-0 z-50 pointer-events-none"
-              style={{ width: '18%', minWidth: '200px', maxWidth: '280px' }}
+              className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none px-4 pb-4"
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
@@ -1159,17 +1158,17 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
               }}
             >
               <motion.div
-                className="bg-gradient-to-br from-primary/95 via-primary/90 to-primary/95 backdrop-blur-xl border-t-2 border-l-2 border-primary/50 shadow-2xl rounded-tl-3xl p-3 sm:p-4 pointer-events-auto max-h-[85vh] overflow-y-auto"
+                className="bg-gradient-to-r from-primary/95 via-primary/90 to-primary/95 backdrop-blur-xl border-2 border-primary/50 shadow-2xl rounded-2xl p-4 pointer-events-auto"
                 initial={{ scale: 0.95 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0.95 }}
                 transition={{ delay: 0.1 }}
               >
                 {/* Header with close button */}
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1 pr-2">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex-1">
                     <motion.h2 
-                      className="text-sm sm:text-base font-bold text-white mb-1"
+                      className="text-base sm:text-lg font-bold text-white mb-1"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.2 }}
@@ -1177,7 +1176,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       {isRTL ? '✨ أكمل إطلالتك ✨' : '✨ Complete Your Look ✨'}
                     </motion.h2>
                     <motion.p 
-                      className="text-white/90 text-xs"
+                      className="text-white/90 text-xs sm:text-sm"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 }}
@@ -1191,55 +1190,50 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-6 w-6 text-white hover:bg-white/20 rounded-full flex-shrink-0"
+                    className="h-8 w-8 text-white hover:bg-white/20 rounded-full flex-shrink-0 ml-4"
                     onClick={() => {
                       setShowAccessoryPopup(false)
                       setAccessoryPopupDismissed(true)
                     }}
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-4 h-4" />
                   </Button>
                 </div>
 
-                {/* Accessories Grid */}
-                <div className="grid grid-cols-1 gap-2 sm:gap-3">
+                {/* Accessories Horizontal Scroll */}
+                <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
                   {relatedAccessories.map((accessory, index) => (
                     <motion.div
                       key={accessory.id}
-                      className="group relative bg-white/10 backdrop-blur-sm rounded-xl overflow-hidden border border-white/20 hover:border-white/40 transition-all duration-300 hover:bg-white/15"
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
+                      className="group relative flex-shrink-0"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.4 + index * 0.1 }}
-                      whileHover={{ y: -4, scale: 1.02 }}
+                      whileHover={{ scale: 1.05 }}
                     >
-                      {/* Product Image */}
-                      <div className="relative aspect-square w-full overflow-hidden bg-white/5 rounded-lg">
-                        <Image
-                          src={accessory.images[0] || '/placeholder.svg'}
-                          alt={isRTL ? accessory.nameAr || accessory.name : accessory.name}
-                          fill
-                          className="object-cover group-hover:scale-110 transition-transform duration-300"
-                          sizes="200px"
-                        />
-                        {/* Shine effect on hover */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-transparent via-white/0 to-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      {/* Circular Card */}
+                      <div className="bg-white/10 backdrop-blur-sm rounded-full overflow-hidden border-2 border-white/30 hover:border-white/60 transition-all duration-300 hover:bg-white/15 p-2 w-24 h-24 sm:w-28 sm:h-28 flex flex-col items-center justify-center">
+                        {/* Circular Product Image */}
+                        <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-full overflow-hidden bg-white/5">
+                          <img
+                            src={accessory.images[0] || '/placeholder.svg'}
+                            alt={isRTL ? accessory.nameAr || accessory.name : accessory.name}
+                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                          />
+                        </div>
                       </div>
-
-                      {/* Product Info */}
-                      <div className="p-2 space-y-1">
-                        <h3 className="font-semibold text-white text-xs line-clamp-2 min-h-[2.5em]">
+                      
+                      {/* Product Info Below Circle */}
+                      <div className="mt-2 text-center w-24 sm:w-28">
+                        <h3 className="font-semibold text-white text-[10px] sm:text-xs line-clamp-1 mb-1">
                           {isRTL ? accessory.nameAr || accessory.name : accessory.name}
                         </h3>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-bold text-white">
-                            {accessory.price.toLocaleString()} DA
-                          </span>
-                        </div>
-
-                        {/* Add to Cart Button */}
+                        <span className="text-xs font-bold text-white block mb-1">
+                          {accessory.price.toLocaleString()} DA
+                        </span>
                         <Button
                           size="sm"
-                          className="w-full mt-1 bg-white text-primary hover:bg-white/90 font-semibold text-xs h-7"
+                          className="w-full bg-white text-primary hover:bg-white/90 font-semibold text-[10px] h-6 px-2"
                           onClick={() => {
                             handleAddAccessoryToCart(accessory)
                           }}
@@ -1253,11 +1247,11 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                 </div>
 
                 {/* Footer */}
-                <div className="mt-3 pt-3 border-t border-white/20 text-center">
+                <div className="mt-4 pt-3 border-t border-white/20 text-center">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white text-xs h-7"
+                    className="bg-white/10 border-white/30 text-white hover:bg-white/20 hover:text-white text-xs h-8"
                     onClick={() => {
                       setShowAccessoryPopup(false)
                       setAccessoryPopupDismissed(true)
