@@ -733,10 +733,10 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                             </div>
 
                             {/* Dress Figure and Size Chart */}
-                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start justify-items-center">
                               {/* Body Figure with Temu measurements */}
-                              <div className="relative flex flex-col items-center">
-                                <div className="relative w-full max-w-[210px] mx-auto">
+                              <div className="relative flex flex-col items-center justify-center w-full">
+                                <div className="relative w-full max-w-[210px] mx-auto flex justify-center">
                                   {/* Use Temu body image from public folder - image already has measurement lines */}
                                   <div className="relative w-full" style={{ transform: 'scale(0.7)', transformOrigin: 'center' }}>
                                     <img
@@ -751,9 +751,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       xmlns="http://www.w3.org/2000/svg"
                                       preserveAspectRatio="xMidYMid meet"
                                     >
-                                      {/* Bust Measurement Number - positioned on existing line */}
-                                      <circle cx="150" cy="180" r="20" fill="#d4af37" opacity="0.9" />
-                                      <text x="150" y="187" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">
+                                      {/* Bust Measurement Number - centered on horizontal line */}
+                                      <circle cx="150" cy="180" r="22" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
+                                      <text x="150" y="188" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -767,9 +767,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                         })()}
                                       </text>
                                       
-                                      {/* Waist Measurement Number - positioned on existing line */}
-                                      <circle cx="150" cy="280" r="20" fill="#d4af37" opacity="0.9" />
-                                      <text x="150" y="287" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">
+                                      {/* Waist Measurement Number - centered on horizontal line */}
+                                      <circle cx="150" cy="280" r="22" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
+                                      <text x="150" y="288" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -783,9 +783,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                         })()}
                                       </text>
                                       
-                                      {/* Hips Measurement Number - positioned on existing line */}
-                                      <circle cx="150" cy="380" r="20" fill="#d4af37" opacity="0.9" />
-                                      <text x="150" y="387" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">
+                                      {/* Hips Measurement Number - centered on horizontal line */}
+                                      <circle cx="150" cy="380" r="22" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
+                                      <text x="150" y="388" textAnchor="middle" fill="white" fontSize="16" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -799,9 +799,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                         })()}
                                       </text>
                                       
-                                      {/* Height Measurement Number - positioned in the middle of vertical line */}
-                                      <circle cx="150" cy="300" r="18" fill="#d4af37" opacity="0.9" />
-                                      <text x="150" y="307" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">
+                                      {/* Height Measurement Number - positioned on the vertical orange line (right side) */}
+                                      <circle cx="260" cy="300" r="20" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="1" />
+                                      <text x="260" y="308" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.3)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -820,24 +820,24 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                               </div>
 
                               {/* Size Chart Table */}
-                              <div className="w-full max-w-md mx-auto lg:mx-0">
-                                <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg">
-                                  <table className="w-full border-collapse">
+                              <div className="w-full max-w-md mx-auto lg:mx-0 overflow-x-auto">
+                                <div className="rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg min-w-full">
+                                  <table className="w-full border-collapse min-w-[500px]">
                                     <thead>
                                       <tr className="bg-gray-50 dark:bg-gray-800">
-                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
+                                        <th className="px-2 py-2 text-right text-[10px] font-semibold text-foreground whitespace-nowrap">
                                           المقاس
                                         </th>
-                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
+                                        <th className="px-2 py-2 text-right text-[10px] font-semibold text-foreground whitespace-nowrap">
                                           الصدر
                                         </th>
-                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
+                                        <th className="px-2 py-2 text-right text-[10px] font-semibold text-foreground whitespace-nowrap">
                                           الخصر
                                         </th>
-                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
+                                        <th className="px-2 py-2 text-right text-[10px] font-semibold text-foreground whitespace-nowrap">
                                           الورك
                                         </th>
-                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
+                                        <th className="px-2 py-2 text-right text-[10px] font-semibold text-foreground whitespace-nowrap">
                                           الطول
                                         </th>
                                       </tr>
@@ -862,27 +862,27 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                                   : 'bg-gray-50 dark:bg-gray-800'
                                             }`}
                                           >
-                                            <td className={`px-3 py-2 text-right text-[10px] font-medium ${
+                                            <td className={`px-2 py-2 text-right text-[10px] font-medium whitespace-nowrap ${
                                               isSelected ? 'text-[#d4af37] font-bold' : 'text-foreground'
                                             }`}>
                                               {item.size}
                                             </td>
-                                            <td className={`px-3 py-2 text-right text-[10px] whitespace-nowrap ${
+                                            <td className={`px-2 py-2 text-right text-[10px] whitespace-nowrap ${
                                               isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
                                             }`}>
                                               {item.chest}
                                             </td>
-                                            <td className={`px-3 py-2 text-right text-[10px] whitespace-nowrap ${
+                                            <td className={`px-2 py-2 text-right text-[10px] whitespace-nowrap ${
                                               isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
                                             }`}>
                                               {item.waist}
                                             </td>
-                                            <td className={`px-3 py-2 text-right text-[10px] whitespace-nowrap ${
+                                            <td className={`px-2 py-2 text-right text-[10px] whitespace-nowrap ${
                                               isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
                                             }`}>
                                               {item.hips}
                                             </td>
-                                            <td className={`px-3 py-2 text-right text-[10px] whitespace-nowrap ${
+                                            <td className={`px-2 py-2 text-right text-[10px] whitespace-nowrap ${
                                               isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
                                             }`}>
                                               {item.height}
