@@ -1223,7 +1223,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       {/* Circular Card */}
                       <div className="bg-gray-50 rounded-full overflow-hidden border-2 border-[#d4af37] hover:border-[#d4af37]/80 transition-all duration-300 p-2 w-20 h-20 sm:w-24 sm:h-24 flex flex-col items-center justify-center">
                         {/* Circular Product Image */}
-                        <div className="relative w-14 h-14 sm:w-18 sm:h-18 rounded-full overflow-hidden bg-white">
+                        <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-white">
                           <img
                             src={imageUrl}
                             alt={isRTL ? accessory.nameAr || accessory.name : accessory.name}
