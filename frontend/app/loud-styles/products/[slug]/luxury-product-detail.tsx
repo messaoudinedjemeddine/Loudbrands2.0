@@ -10,6 +10,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import {
   ShoppingCart,
   Heart,
   Star,
@@ -681,31 +687,15 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     ))}
                   </div>
 
-                  {/* Size Guide */}
-                  <AnimatePresence>
-                    {showSizeGuide && (
-                      <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.3 }}
-                        className="overflow-hidden"
-                      >
-                        <Card className="mt-4 bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700">
-                          <CardContent className="p-4 sm:p-6">
-                            <div className="flex items-center justify-between mb-6">
-                              <h4 className="text-lg sm:text-xl font-bold text-foreground">
-                                {isRTL ? 'دليل المقاسات' : 'Size Guide'}
-                              </h4>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setShowSizeGuide(false)}
-                                className="h-8 w-8"
-                              >
-                                <X className="w-4 h-4" />
-                              </Button>
-                            </div>
+                  {/* Size Guide Modal */}
+                  <Dialog open={showSizeGuide} onOpenChange={setShowSizeGuide}>
+                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
+                      <DialogHeader>
+                        <DialogTitle className="text-lg sm:text-xl font-bold text-foreground">
+                          {isRTL ? 'دليل المقاسات' : 'Size Guide'}
+                        </DialogTitle>
+                      </DialogHeader>
+                      <div className="p-4 sm:p-6">
 
                             {/* Size Selection Buttons */}
                             <div className="mb-6">
@@ -898,17 +888,15 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                               </div>
                             </div>
 
-                            {/* Disclaimer */}
-                            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-                              <p className="text-xs text-muted-foreground text-center" dir="rtl">
-                                البيانات مقاسة يدوياً وقد يكون هناك اختلافات طفيفة.
-                              </p>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                        {/* Disclaimer */}
+                        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                          <p className="text-xs text-muted-foreground text-center" dir="rtl">
+                            البيانات مقاسة يدوياً وقد يكون هناك اختلافات طفيفة.
+                          </p>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
                 </motion.div>
               )}
 
