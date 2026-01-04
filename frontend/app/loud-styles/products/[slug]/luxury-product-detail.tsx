@@ -689,7 +689,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
 
                   {/* Size Guide Modal */}
                   <Dialog open={showSizeGuide} onOpenChange={setShowSizeGuide}>
-                    <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
+                    <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto" dir={isRTL ? 'rtl' : 'ltr'}>
                       <DialogHeader>
                         <DialogTitle className="text-lg sm:text-xl font-bold text-foreground">
                           {isRTL ? 'دليل المقاسات' : 'Size Guide'}
@@ -744,8 +744,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       preserveAspectRatio="xMidYMid meet"
                                     >
                                       {/* Bust Measurement Range - exact coordinates (85, 181) */}
-                                      <circle cx="85" cy="181" r="28" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
-                                      <text x="85" y="187" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                      <circle cx="85" cy="181" r="18" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
+                                      <text x="85" y="185" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -760,8 +760,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       </text>
                                       
                                       {/* Waist Measurement Range - exact coordinates (85, 228) */}
-                                      <circle cx="85" cy="228" r="28" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
-                                      <text x="85" y="234" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                      <circle cx="85" cy="228" r="18" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
+                                      <text x="85" y="232" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -776,8 +776,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       </text>
                                       
                                       {/* Hips Measurement Range - exact coordinates (85, 288) */}
-                                      <circle cx="85" cy="288" r="28" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
-                                      <text x="85" y="294" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                      <circle cx="85" cy="288" r="18" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
+                                      <text x="85" y="292" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
@@ -792,8 +792,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       </text>
                                       
                                       {/* Height Measurement Range - exact coordinates (208, 280) */}
-                                      <circle cx="208" cy="280" r="26" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
-                                      <text x="208" y="286" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                      <circle cx="208" cy="280" r="17" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
+                                      <text x="208" y="284" textAnchor="middle" fill="white" fontSize="9" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
