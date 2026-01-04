@@ -741,7 +741,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                   {/* Use Temu body image from public folder - image already has measurement lines */}
                                   <div className="relative w-full">
                                     <img
-                                      src="/temu-body-guide.png"
+                                      src="/temu-body-size.avif"
                                       alt={isRTL ? 'رسم توضيحي للجسم' : 'Body measurement guide'}
                                       className="w-full h-auto object-contain"
                                       style={{ maxHeight: '600px' }}
