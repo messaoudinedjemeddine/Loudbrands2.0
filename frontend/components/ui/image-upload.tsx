@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import Image from 'next/image';
 import { Upload, X, Image as ImageIcon } from 'lucide-react';
 import { Button } from './button';
 import { Card } from './card';
@@ -224,13 +223,15 @@ export function ImageUpload({
           {images.map((image, index) => (
             <Card key={index} className="relative group">
               <div className="aspect-square relative overflow-hidden rounded-lg">
-                <Image
+                <img
                   src={image.url}
                   alt={image.alt || `Image ${index + 1}`}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
-                  unoptimized={image.url.startsWith('http') || image.url.includes('cloudinary.com')}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement
+                    target.src = '/placeholder.svg'
+                    target.onerror = null // Prevent infinite loop
+                  }}
                 />
                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-50 transition-all duration-200 flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-2">

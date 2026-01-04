@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import Image from 'next/image'
 import { AdminLayout } from '@/components/admin/admin-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -416,18 +415,16 @@ function LabelsSection() {
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
                                         <div className="relative w-12 h-12 rounded overflow-hidden flex-shrink-0 bg-muted">
                                             {(() => {
-                                                const imageUrl = product.image || product.images?.[0]?.url || product.images?.[0]
-                                                return imageUrl ? (
-                                                    <Image
+                                                const imageUrl = product.image || product.images?.[0]?.url || product.images?.[0] || '/placeholder.svg'
+                                                return imageUrl && imageUrl !== '/placeholder.svg' ? (
+                                                    <img
                                                         src={imageUrl}
                                                         alt={product.name || 'Product'}
-                                                        fill
-                                                        className="object-cover"
-                                                        unoptimized={imageUrl?.startsWith('http') || imageUrl?.includes('cloudinary.com')}
+                                                        className="w-full h-full object-cover"
                                                         onError={(e) => {
-                                                            // Fallback if image fails to load
                                                             const target = e.target as HTMLImageElement
-                                                            target.style.display = 'none'
+                                                            target.src = '/placeholder.svg'
+                                                            target.onerror = null // Prevent infinite loop
                                                         }}
                                                     />
                                                 ) : (
