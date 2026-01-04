@@ -715,6 +715,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                               <div className="flex flex-wrap gap-2">
                                 {displaySizes.filter(size => size !== 'S').map((size) => {
                                   const isSelected = selectedSize === size || (!selectedSize && size === displaySizes.find(s => s !== 'S'))
+                                  const displayLabel = size === 'M' ? 'S/M' : size
                                   return (
                                     <button
                                       key={size}
@@ -725,7 +726,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                           : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-gray-400'
                                       }`}
                                     >
-                                      {size}
+                                      {displayLabel}
                                     </button>
                                   )
                                 })}
@@ -734,74 +735,84 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
 
                             {/* Dress Figure and Size Chart */}
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
-                              {/* Dress Figure */}
+                              {/* Body Figure with Temu measurements */}
                               <div className="relative flex flex-col items-center">
-                                <div className="relative w-full max-w-[200px]">
-                                  {/* Use image from public folder */}
-                                  <div className="relative w-full aspect-[1/2]">
-                                    <Image
-                                      src="/dress-size-guide.png"
-                                      alt={isRTL ? 'رسم توضيحي للفستان' : 'Dress illustration'}
-                                      fill
-                                      className="object-contain"
-                                      quality={100}
-                                      unoptimized={false}
-                                      sizes="(max-width: 768px) 100vw, 200px"
+                                <div className="relative w-full max-w-[300px]">
+                                  {/* Use Temu body image from public folder - image already has measurement lines */}
+                                  <div className="relative w-full">
+                                    <img
+                                      src="/temu-body-guide.png"
+                                      alt={isRTL ? 'رسم توضيحي للجسم' : 'Body measurement guide'}
+                                      className="w-full h-auto object-contain"
+                                      style={{ maxHeight: '600px' }}
                                     />
-                                    {/* Overlay measurement lines and labels - aligned with dress outline */}
+                                    {/* Overlay measurement numbers only - positioned on existing lines */}
                                     <svg
-                                      viewBox="0 0 200 400"
+                                      viewBox="0 0 300 600"
                                       className="absolute inset-0 w-full h-full pointer-events-none"
                                       xmlns="http://www.w3.org/2000/svg"
                                       preserveAspectRatio="xMidYMid meet"
                                     >
-                                      {/* Bust Measurement Line - aligned with dress outline */}
-                                      <line x1="60" y1="130" x2="140" y2="130" stroke="#d4af37" strokeWidth="2.5" />
-                                      <circle cx="100" cy="130" r="18" fill="#d4af37" />
-                                      <text x="100" y="135" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold">
+                                      {/* Bust Measurement Number - positioned on existing line */}
+                                      <circle cx="150" cy="180" r="20" fill="#d4af37" opacity="0.9" />
+                                      <text x="150" y="187" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
-                                            'M': '98',
-                                            'L': '104',
-                                            'XL': '110',
-                                            'XXL': '116',
-                                            'XXXL': '122'
-                                          }[currentSize] || '98'
+                                            'M': '90', // Combined S/M: 86-94, using midpoint
+                                            'L': '98', // L: 95-101, using midpoint
+                                            'XL': '104', // XL: 101-107, using midpoint
+                                            'XXL': '110', // XXL: 107-113, using midpoint
+                                            'XXXL': '116'
+                                          }[currentSize] || '90'
                                           return sizeData
                                         })()}
                                       </text>
                                       
-                                      {/* Waist Measurement Line - aligned with dress outline */}
-                                      <line x1="65" y1="230" x2="135" y2="230" stroke="#d4af37" strokeWidth="2.5" />
-                                      <circle cx="100" cy="230" r="18" fill="#d4af37" />
-                                      <text x="100" y="235" textAnchor="middle" fill="white" fontSize="11" fontWeight="bold">
+                                      {/* Waist Measurement Number - positioned on existing line */}
+                                      <circle cx="150" cy="280" r="20" fill="#d4af37" opacity="0.9" />
+                                      <text x="150" y="287" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
-                                            'M': '76',
-                                            'L': '82',
-                                            'XL': '88',
-                                            'XXL': '94',
-                                            'XXXL': '100'
-                                          }[currentSize] || '76'
+                                            'M': '70', // Combined S/M: 66-74, using midpoint
+                                            'L': '78', // L: 75-81, using midpoint
+                                            'XL': '84', // XL: 81-87, using midpoint
+                                            'XXL': '90', // XXL: 87-93, using midpoint
+                                            'XXXL': '96'
+                                          }[currentSize] || '70'
                                           return sizeData
                                         })()}
                                       </text>
                                       
-                                      {/* Length Measurement Line - aligned with dress outline */}
-                                      <line x1="25" y1="30" x2="25" y2="370" stroke="#d4af37" strokeWidth="2" strokeDasharray="3,3" />
-                                      <circle cx="25" cy="200" r="16" fill="#d4af37" />
-                                      <text x="25" y="205" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">
+                                      {/* Hips Measurement Number - positioned on existing line */}
+                                      <circle cx="150" cy="380" r="20" fill="#d4af37" opacity="0.9" />
+                                      <text x="150" y="387" textAnchor="middle" fill="white" fontSize="14" fontWeight="bold">
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
                                           const sizeData = {
-                                            'M': '133',
-                                            'L': '134',
-                                            'XL': '135',
-                                            'XXL': '136',
-                                            'XXXL': '137'
-                                          }[currentSize] || '133'
+                                            'M': '95', // Combined S/M: 91-99, using midpoint
+                                            'L': '103', // L: 100-106, using midpoint
+                                            'XL': '109', // XL: 106-112, using midpoint
+                                            'XXL': '115', // XXL: 112-118, using midpoint
+                                            'XXXL': '121'
+                                          }[currentSize] || '95'
+                                          return sizeData
+                                        })()}
+                                      </text>
+                                      
+                                      {/* Height Measurement Number - positioned on existing line */}
+                                      <circle cx="50" cy="300" r="18" fill="#d4af37" opacity="0.9" />
+                                      <text x="50" y="307" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">
+                                        {(() => {
+                                          const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
+                                          const sizeData = {
+                                            'M': '170', // Combined S/M: 165-175, using midpoint
+                                            'L': '178', // L: 175-180, using midpoint
+                                            'XL': '178', // XL: 175-180, using midpoint
+                                            'XXL': '183', // XXL: 180-185, using midpoint
+                                            'XXXL': '183'
+                                          }[currentSize] || '170'
                                           return sizeData
                                         })()}
                                       </text>
@@ -826,17 +837,20 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                           الخصر
                                         </th>
                                         <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
+                                          الورك
+                                        </th>
+                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
                                           الطول
                                         </th>
                                       </tr>
                                     </thead>
                                     <tbody>
                                       {[
-                                        { size: 'M', chest: '98', waist: '76', length: '133' },
-                                        { size: 'L', chest: '104', waist: '82', length: '134' },
-                                        { size: 'XL', chest: '110', waist: '88', length: '135' },
-                                        { size: 'XXL', chest: '116', waist: '94', length: '136' },
-                                        { size: 'XXXL', chest: '122', waist: '100', length: '137' }
+                                        { size: 'M', chest: '86-94', waist: '66-74', hips: '91-99', height: '165-175' }, // Combined S/M
+                                        { size: 'L', chest: '95-101', waist: '75-81', hips: '100-106', height: '175-180' },
+                                        { size: 'XL', chest: '101-107', waist: '81-87', hips: '106-112', height: '175-180' },
+                                        { size: 'XXL', chest: '107-113', waist: '87-93', hips: '112-118', height: '180-185' },
+                                        { size: 'XXXL', chest: '113-119', waist: '93-99', hips: '118-124', height: '180-185' }
                                       ].filter(item => displaySizes.includes(item.size) && item.size !== 'S').map((item, index) => {
                                         const isSelected = selectedSize === item.size || (!selectedSize && index === 0)
                                         return (
@@ -853,7 +867,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                             <td className={`px-3 py-2 text-right text-xs font-medium ${
                                               isSelected ? 'text-[#d4af37] font-bold' : 'text-foreground'
                                             }`}>
-                                              {item.size}
+                                              {item.size === 'M' ? 'S/M' : item.size}
                                             </td>
                                             <td className={`px-3 py-2 text-right text-xs ${
                                               isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
@@ -868,7 +882,12 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                             <td className={`px-3 py-2 text-right text-xs ${
                                               isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
                                             }`}>
-                                              {item.length}
+                                              {item.hips}
+                                            </td>
+                                            <td className={`px-3 py-2 text-right text-xs ${
+                                              isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
+                                            }`}>
+                                              {item.height}
                                             </td>
                                           </tr>
                                         )
