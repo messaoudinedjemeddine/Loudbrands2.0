@@ -190,21 +190,13 @@ router.post('/', async (req, res) => {
           foundSize = product.sizes.find(s => s.id === item.sizeId);
         }
 
-        // If sizeId not found or not provided, try to find by size string
+        // If sizeId not found or not provided, try to find by size string (exact match only)
         if (!foundSize && item.size) {
-          // Try exact match first
+          // Only do exact match - no partial matching to avoid wrong size selection
+          // (e.g., "XXXL" should not match "L" just because "L" is contained in "XXXL")
           foundSize = product.sizes.find(s => 
             s.size.toLowerCase().trim() === item.size.toLowerCase().trim()
           );
-          
-          // If still not found, try partial match (handles cases like "M" matching "36,38")
-          if (!foundSize) {
-            foundSize = product.sizes.find(s => {
-              const sizeLower = s.size.toLowerCase().trim();
-              const itemSizeLower = item.size.toLowerCase().trim();
-              return sizeLower.includes(itemSizeLower) || itemSizeLower.includes(sizeLower);
-            });
-          }
         }
 
         // If we found a size (either by ID or string), use it
