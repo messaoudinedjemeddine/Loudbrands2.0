@@ -35,6 +35,7 @@ import {
   MessageCircle
 } from 'lucide-react'
 import Image from 'next/image'
+import Link from 'next/link'
 import { OptimizedImage } from '@/components/performance/optimized-image'
 import { useCartStore, useWishlistStore, useUIStore } from '@/lib/store'
 import { useLocaleStore } from '@/lib/locale-store'
@@ -96,6 +97,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   const [showSizeGuide, setShowSizeGuide] = useState(false)
   const [relatedAccessories, setRelatedAccessories] = useState<Product[]>([])
   const [loadingAccessories, setLoadingAccessories] = useState(false)
+  const [colorVariants, setColorVariants] = useState<Array<{ slug: string; color: string; name: string; isCurrent: boolean }>>([])
   const isOrderable = !product?.isLaunchActive || timerCompleted
 
   const addItem = useCartStore((state) => state.addItem)
@@ -138,6 +140,28 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
       }
     }
   }, [product?.sizes, selectedSize, isAccessoires])
+
+  // Fetch color variants for Victoria Dress
+  useEffect(() => {
+    const isVictoriaDress = product?.slug?.includes('victoria-dress')
+    
+    if (isVictoriaDress && mounted && product?.slug) {
+      const currentColor = product.slug.includes('black') ? 'black' : product.slug.includes('red') ? 'red' : null
+      
+      // Define color variants for Victoria Dress
+      const variants = [
+        { slug: 'victoria-dress-black', color: 'black', name: 'Black' },
+        { slug: 'victoria-dress-red', color: 'red', name: 'Red' }
+      ].map(variant => ({
+        ...variant,
+        isCurrent: variant.slug === product.slug
+      }))
+      
+      setColorVariants(variants)
+    } else {
+      setColorVariants([])
+    }
+  }, [product?.slug, mounted])
 
   // Fetch related accessories for yennayer-dress
   useEffect(() => {
@@ -623,6 +647,55 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                   )}
                 </div>
               </motion.div>
+
+              {/* Color Selection - Only for Victoria Dress */}
+              {colorVariants.length > 0 && (
+                <motion.div
+                  className="space-y-2 sm:space-y-3 lg:space-y-4"
+                  variants={itemVariants}
+                >
+                  <h3 className="text-base sm:text-lg font-semibold text-foreground">
+                    {isRTL ? 'اللون' : 'Color'}
+                  </h3>
+                  <div className="flex items-center gap-3 sm:gap-4">
+                    {colorVariants.map((variant) => (
+                      <Link
+                        key={variant.slug}
+                        href={`/loud-styles/products/${variant.slug}?brand=loud-styles`}
+                        className={`group relative flex items-center gap-2 sm:gap-3 transition-all duration-300 ${
+                          variant.isCurrent
+                            ? 'opacity-100'
+                            : 'opacity-60 hover:opacity-100'
+                        }`}
+                      >
+                        <div
+                          className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 transition-all duration-300 ${
+                            variant.isCurrent
+                              ? 'border-primary shadow-lg scale-110'
+                              : 'border-border hover:border-primary/50 cursor-pointer'
+                          }`}
+                          style={{
+                            backgroundColor: variant.color === 'black' ? '#000000' : '#DC2626'
+                          }}
+                        >
+                          {variant.isCurrent && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Check className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                            </div>
+                          )}
+                        </div>
+                        <span className={`text-sm sm:text-base font-medium ${
+                          variant.isCurrent
+                            ? 'text-primary font-semibold'
+                            : 'text-foreground'
+                        }`}>
+                          {variant.name}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
 
               {/* Description */}
               <motion.div
