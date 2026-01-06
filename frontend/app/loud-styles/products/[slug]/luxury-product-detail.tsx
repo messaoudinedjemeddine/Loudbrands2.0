@@ -1220,7 +1220,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
         <AnimatePresence>
           {showAccessoryPopup && relatedAccessories.length > 0 && (
             <motion.div
-              className="fixed bottom-0 left-1/2 transform -translate-x-1/2 z-50 pointer-events-none pb-4"
+              className="fixed bottom-0 left-0 right-0 z-50 pointer-events-none p-2 sm:p-4"
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
@@ -1231,18 +1231,22 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
               }}
             >
               <motion.div
-                className="bg-white border-2 border-[#d4af37] shadow-2xl rounded-2xl p-4 pointer-events-auto"
-                style={{ width: 'fit-content', minWidth: '320px', maxWidth: '400px' }}
+                className="bg-white border-2 border-[#d4af37] shadow-2xl rounded-2xl p-3 sm:p-4 md:p-6 pointer-events-auto mx-auto"
+                style={{ 
+                  width: '100%', 
+                  maxWidth: isMobile ? '100%' : '600px',
+                  minWidth: isMobile ? 'auto' : '500px'
+                }}
                 initial={{ scale: 0.95 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0.95 }}
                 transition={{ delay: 0.1 }}
               >
                 {/* Header with close button */}
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
                   <div className="flex-1">
                     <motion.h2 
-                      className="text-base sm:text-lg font-bold text-gray-900 mb-1"
+                      className="text-sm sm:text-base md:text-lg font-bold text-gray-900 mb-1"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.2 }}
@@ -1264,68 +1268,100 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="h-8 w-8 text-gray-700 hover:bg-gray-100 rounded-full flex-shrink-0 ml-4"
+                    className="h-8 w-8 sm:h-9 sm:w-9 text-gray-700 hover:bg-gray-100 rounded-full flex-shrink-0 ml-2 sm:ml-4"
                     onClick={() => {
                       setShowAccessoryPopup(false)
                       setAccessoryPopupDismissed(true)
                     }}
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-4 h-4 sm:w-5 sm:h-5" />
                   </Button>
                 </div>
 
-                {/* Accessories Horizontal Layout - 3 cards */}
-                <div className="flex gap-3 justify-center items-start">
+                {/* Accessories Layout - Responsive: Horizontal scroll on mobile, grid on desktop */}
+                <div className={`${isMobile ? 'flex gap-4 overflow-x-auto pb-2 scrollbar-hide snap-x snap-mandatory' : 'grid grid-cols-3 gap-4'} justify-center items-start`}>
                   {relatedAccessories.slice(0, 3).map((accessory, index) => {
                     // Get image URL - handle different possible formats
-                    const imageUrl = accessory.images?.[0] || 
-                                   (accessory as any).image || 
-                                   (accessory as any).images?.[0]?.url || 
-                                   (accessory as any).images?.[0] || 
-                                   '/placeholder.svg'
+                    let imageUrl = '/placeholder.svg'
+                    
+                    // Try multiple ways to get the image
+                    if (Array.isArray(accessory.images) && accessory.images.length > 0) {
+                      imageUrl = typeof accessory.images[0] === 'string' 
+                        ? accessory.images[0] 
+                        : (accessory.images[0] as any)?.url || '/placeholder.svg'
+                    } else if ((accessory as any).image) {
+                      imageUrl = (accessory as any).image
+                    } else if ((accessory as any).images && Array.isArray((accessory as any).images) && (accessory as any).images.length > 0) {
+                      const firstImg = (accessory as any).images[0]
+                      imageUrl = typeof firstImg === 'string' ? firstImg : (firstImg?.url || '/placeholder.svg')
+                    }
+                    
+                    // Debug logging (remove in production if needed)
+                    if (process.env.NODE_ENV === 'development') {
+                      console.log('Accessory image debug:', {
+                        accessoryName: accessory.name,
+                        images: accessory.images,
+                        imageUrl
+                      })
+                    }
                     
                     return (
                     <motion.div
                       key={accessory.id}
-                      className="group relative flex-shrink-0"
+                      className={`group relative ${isMobile ? 'flex-shrink-0 snap-center' : ''}`}
+                      style={{ minWidth: isMobile ? '120px' : 'auto', maxWidth: isMobile ? '140px' : 'auto' }}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: 0.4 + index * 0.1 }}
                       whileHover={{ scale: 1.05 }}
                     >
                       {/* Circular Card */}
-                      <div className="bg-gray-50 rounded-full overflow-hidden border-2 border-[#d4af37] hover:border-[#d4af37]/80 transition-all duration-300 p-2 w-20 h-20 sm:w-24 sm:h-24 flex flex-col items-center justify-center">
+                      <div className={`bg-gray-50 rounded-full overflow-hidden border-2 border-[#d4af37] hover:border-[#d4af37]/80 transition-all duration-300 p-2 flex flex-col items-center justify-center mx-auto ${
+                        isMobile ? 'w-24 h-24' : 'w-28 h-28 sm:w-32 sm:h-32'
+                      }`}>
                         {/* Circular Product Image */}
-                        <div className="relative w-14 h-14 sm:w-16 sm:h-16 rounded-full overflow-hidden bg-white">
+                        <div className={`relative rounded-full overflow-hidden bg-white ${
+                          isMobile ? 'w-16 h-16' : 'w-20 h-20 sm:w-24 sm:h-24'
+                        }`}>
                           <img
                             src={imageUrl}
                             alt={isRTL ? accessory.nameAr || accessory.name : accessory.name}
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement
-                              target.src = '/placeholder.svg'
-                              target.onerror = null
+                              if (target.src !== '/placeholder.svg') {
+                                target.src = '/placeholder.svg'
+                              }
                             }}
+                            loading="lazy"
                           />
                         </div>
                       </div>
                       
                       {/* Product Info Below Circle */}
-                      <div className="mt-2 text-center w-20 sm:w-24">
-                        <h3 className="font-semibold text-gray-900 text-[10px] sm:text-xs line-clamp-1 mb-1">
+                      <div className={`mt-2 text-center ${isMobile ? 'w-full' : 'w-full'}`}>
+                        <h3 className={`font-semibold text-gray-900 line-clamp-2 mb-1 ${
+                          isMobile ? 'text-[10px]' : 'text-xs sm:text-sm'
+                        }`}>
                           {isRTL ? accessory.nameAr || accessory.name : accessory.name}
                         </h3>
-                        <span className="text-xs font-bold text-[#d4af37] block mb-1">
+                        <span className={`font-bold text-[#d4af37] block mb-1.5 ${
+                          isMobile ? 'text-[10px]' : 'text-xs sm:text-sm'
+                        }`}>
                           {accessory.price.toLocaleString()} DA
                         </span>
                         <Button
                           size="sm"
-                          className="w-full bg-[#d4af37] text-white hover:bg-[#d4af37]/90 font-semibold text-[10px] h-6 px-2"
+                          className={`w-full bg-[#d4af37] text-white hover:bg-[#d4af37]/90 font-semibold ${
+                            isMobile 
+                              ? 'text-[10px] h-6 px-2' 
+                              : 'text-xs h-7 sm:h-8 px-3'
+                          }`}
                           onClick={() => {
                             handleAddAccessoryToCart(accessory)
                           }}
                         >
-                          <ShoppingCart className="w-3 h-3 mr-1" />
+                          <ShoppingCart className={`${isMobile ? 'w-3 h-3' : 'w-3.5 h-3.5 sm:w-4 sm:h-4'} mr-1`} />
                           {isRTL ? 'أضف' : 'Add'}
                         </Button>
                       </div>
@@ -1335,11 +1371,11 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                 </div>
 
                 {/* Footer */}
-                <div className="mt-4 pt-3 border-t border-gray-200 text-center">
+                <div className="mt-3 sm:mt-4 pt-3 border-t border-gray-200 text-center">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="bg-white border-[#d4af37] text-[#d4af37] hover:bg-[#d4af37]/10 hover:text-[#d4af37] text-xs h-8"
+                    className="bg-white border-[#d4af37] text-[#d4af37] hover:bg-[#d4af37]/10 hover:text-[#d4af37] text-xs h-8 sm:h-9 px-4 sm:px-6"
                     onClick={() => {
                       setShowAccessoryPopup(false)
                       setAccessoryPopupDismissed(true)
