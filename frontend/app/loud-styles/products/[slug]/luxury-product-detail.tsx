@@ -357,9 +357,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   const getDisplaySizes = () => {
     // Don't show sizes for accessoires
     if (isAccessoires) return [];
-    // Filter out 'S' and return available sizes
-    const availableSizes = product.sizes?.map(s => s.size) || [];
-    return ['M', 'L', 'XL', 'XXL', 'XXXL'].filter(size => availableSizes.includes(size));
+    // Return all standard sizes regardless of availability
+    return ['M', 'L', 'XL', 'XXL', 'XXXL'];
   }
 
   const displaySizes = getDisplaySizes();

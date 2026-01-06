@@ -198,7 +198,8 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
     'M': '36-38',
     'L': '40',
     'XL': '42-44',
-    'XXL': '46-48'
+    'XXL': '46-48',
+    'XXXL': '50-52'
   }
 
   // Helper to find the correct size object from the displayed size
@@ -228,7 +229,8 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
 
   // Convert numeric sizes to letter sizes for display
   const getDisplaySizes = () => {
-    return ['M', 'L', 'XL', 'XXL'];
+    // Return all standard sizes regardless of availability
+    return ['M', 'L', 'XL', 'XXL', 'XXXL'];
   }
 
   const displaySizes = getDisplaySizes()
@@ -486,7 +488,7 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
             </motion.div>
 
             {/* Size Selection */}
-            {isOrderable && displaySizes.length > 0 && (
+            {isOrderable && (
               <motion.div
                 className="space-y-4"
                 variants={itemVariants}

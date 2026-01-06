@@ -87,9 +87,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
 
   useEffect(() => {
     setMounted(true)
-    // Auto-select first size if available
-    if (product.sizes && product.sizes.length > 0 && !selectedSize) {
-      setSelectedSize(product.sizes[0].size)
+    // Auto-select first size (M) if no size is selected
+    if (!selectedSize) {
+      setSelectedSize('M')
     }
 
   }, [product.sizes, selectedSize, product.id, product.name, product.price, product.category])
@@ -196,14 +196,12 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
 
     // Try finding by numeric map
     const numericMatch = product.sizes.find(s => {
-      const num = parseInt(s.size);
-      if (isNaN(num)) return false;
-
-      if (displaySize === 'M' && (num === 36 || num === 38)) return true;
-      if (displaySize === 'L' && num === 40) return true;
-      if (displaySize === 'XL' && (num >= 42 && num <= 44)) return true;
-      if (displaySize === 'XXL' && (num >= 46 && num <= 48)) return true;
-      if (displaySize === 'XXXL' && (num >= 50 && num <= 52)) return true;
+      const size = s.size;
+      if (displaySize === 'M' && (size === '36,38' || size === '36' || size === '38')) return true;
+      if (displaySize === 'L' && (size === '40,42' || size === '40')) return true;
+      if (displaySize === 'XL' && (size === '44,46' || size === '42' || size === '44')) return true;
+      if (displaySize === 'XXL' && (size === '48,50' || size === '46' || size === '48')) return true;
+      if (displaySize === 'XXXL' && (size === '50' || size === '52')) return true;
 
       return false;
     });
@@ -478,7 +476,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
               </motion.div>
 
               {/* Size Selection */}
-              {isOrderable && product.sizes && product.sizes.length > 0 && (
+              {isOrderable && (
                 <motion.div
                   className="space-y-4"
                   variants={itemVariants}
@@ -487,24 +485,37 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     {isRTL ? 'المقاس' : 'Size'}
                   </h3>
                   <div className="flex flex-wrap gap-3">
-                    {product.sizes.map((sizeData) => {
-                      const size = sizeData.size;
-                      // Standardize size display
-                      const displaySize = size === '36,38' || size === '36' || size === '38'
-                        ? 'M'
-                        : (size === '40,42' ? 'L' : (size === '44,46' ? 'XL' : (size === '48,50' ? 'XXL' : size)));
+                    {['M', 'L', 'XL', 'XXL', 'XXXL'].map((displaySize) => {
+                      // Find corresponding size in product.sizes if it exists
+                      const sizeData = product.sizes?.find(s => {
+                        const size = s.size;
+                        if (displaySize === 'M' && (size === '36,38' || size === '36' || size === '38')) return true;
+                        if (displaySize === 'L' && (size === '40,42' || size === '40')) return true;
+                        if (displaySize === 'XL' && (size === '44,46' || size === '42' || size === '44')) return true;
+                        if (displaySize === 'XXL' && (size === '48,50' || size === '46' || size === '48')) return true;
+                        if (displaySize === 'XXXL' && (size === '50' || size === '52')) return true;
+                        return size === displaySize;
+                      });
+
+                      // Map display size to numeric size for tooltip
+                      const sizeMapping: Record<string, string> = {
+                        'M': '36-38',
+                        'L': '40',
+                        'XL': '42-44',
+                        'XXL': '46-48',
+                        'XXXL': '50-52'
+                      };
 
                       return (
                         <motion.button
-                          key={sizeData.id}
-                          className={`group relative px-6 py-3 rounded-lg border-2 transition-all duration-300 font-medium ${selectedSize === size
+                          key={displaySize}
+                          className={`group relative px-6 py-3 rounded-lg border-2 transition-all duration-300 font-medium ${selectedSize === displaySize
                             ? 'border-primary bg-primary text-primary-foreground shadow-elegant'
                             : 'border-border hover:border-primary/50 bg-background hover:bg-muted/50'
                             }`}
-                          onClick={() => setSelectedSize(size)}
+                          onClick={() => setSelectedSize(displaySize)}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          disabled={sizeData.stock <= 0}
                         >
                           {displaySize}
 
@@ -513,7 +524,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                             <div className="flex items-center space-x-2">
                               <span className="font-semibold text-white">{displaySize}</span>
                               <span className="text-gray-300">=</span>
-                              <span className="font-mono text-yellow-400">{size}</span>
+                              <span className="font-mono text-yellow-400">{sizeMapping[displaySize] || displaySize}</span>
                             </div>
                             {/* Arrow pointing down */}
                             <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
