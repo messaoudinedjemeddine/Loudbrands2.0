@@ -554,7 +554,7 @@ function OrdersContent() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {/* Total Commandes */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -636,6 +636,28 @@ function OrdersContent() {
                 </div>
                 <p className="text-xs text-muted-foreground">
                   En attente de traitement
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Annulé */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+          >
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Annulé</CardTitle>
+                <XCircle className="h-4 w-4 text-red-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-red-600">
+                  {orderStats.statusBreakdown['CANCELED'] || 0}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Commandes annulées
                 </p>
               </CardContent>
             </Card>
