@@ -643,7 +643,7 @@ router.delete('/orders/:orderId/items/:itemId', async (req, res) => {
 router.post('/orders/:orderId/items', async (req, res) => {
   try {
     const { orderId } = req.params;
-    const { productId, quantity, sizeId } = req.body;
+    const { productId, quantity, sizeId, size } = req.body;
 
     // Get product details
     const product = await prisma.product.findUnique({
@@ -656,11 +656,36 @@ router.post('/orders/:orderId/items', async (req, res) => {
     }
 
     // Get size details if provided
-    let size = null;
+    let foundSize = null;
+    let sizeString = null;
+    let finalSizeId = null;
+
     if (sizeId) {
-      size = await prisma.productSize.findUnique({
+      foundSize = await prisma.productSize.findUnique({
         where: { id: sizeId }
       });
+      if (foundSize) {
+        sizeString = foundSize.size;
+        finalSizeId = sizeId;
+      }
+    }
+
+    // If sizeId not found or not provided, try to use the size string
+    if (!foundSize && size) {
+      // Try to find the size in product sizes
+      foundSize = product.sizes?.find(s => 
+        s.size.toLowerCase().trim() === size.toLowerCase().trim()
+      );
+      
+      if (foundSize) {
+        sizeString = foundSize.size;
+        finalSizeId = foundSize.id;
+      } else {
+        // Size string provided but not found in backend - use it as-is
+        sizeString = size;
+        finalSizeId = null;
+        console.log(`ℹ️ Size "${size}" not found in backend for product: ${product.name}, using client's requested size as-is`);
+      }
     }
 
     // Create order item
@@ -670,8 +695,8 @@ router.post('/orders/:orderId/items', async (req, res) => {
         productId,
         quantity,
         price: product.price,
-        size: size?.size || null,
-        sizeId: sizeId || null
+        size: sizeString,
+        sizeId: finalSizeId
       },
       include: {
         product: true,

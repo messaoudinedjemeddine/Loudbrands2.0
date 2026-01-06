@@ -214,19 +214,28 @@ router.post('/', async (req, res) => {
           // Update sizeId to the correct one in case it was found by string
           item.sizeId = foundSize.id;
         } else {
-          // Size was specified but not found - this is an error for products with sizes
-          const availableSizes = product.sizes.map(s => s.size).join(', ') || 'None';
-          console.error(`❌ Size not found for product: ${product.name}`, {
-            requestedSizeId: item.sizeId,
-            requestedSize: item.size,
-            availableSizes: product.sizes.map(s => ({ id: s.id, size: s.size }))
-          });
-          return res.status(400).json({
-            error: `Size "${item.size || item.sizeId || 'not specified'}" not found for product: ${product.name}. Available sizes: ${availableSizes}`,
-            productName: product.name,
-            requestedSize: item.size || item.sizeId,
-            availableSizes: product.sizes.map(s => ({ id: s.id, size: s.size }))
-          });
+          // Size was specified but not found - allow it anyway (custom order)
+          // Use the client's requested size string as-is
+          if (item.size) {
+            sizeString = item.size;
+            // Set sizeId to null since this size doesn't exist in the backend
+            item.sizeId = null;
+            // Use product stock as fallback (since we don't have size-specific stock)
+            availableStock = product.stock;
+            console.log(`ℹ️ Size "${item.size}" not found in backend for product: ${product.name}, using client's requested size as-is`);
+          } else if (item.sizeId) {
+            // If only sizeId was provided but not found, we can't use it
+            // This shouldn't happen in normal flow, but handle it gracefully
+            sizeString = null;
+            item.sizeId = null;
+            availableStock = product.stock;
+            console.warn(`⚠️ SizeId "${item.sizeId}" not found for product: ${product.name}, size will be null`);
+          } else {
+            // No size specified - this is fine for products that might not require sizes
+            sizeString = null;
+            item.sizeId = null;
+            availableStock = product.stock;
+          }
         }
       } else {
         // Product has no sizes (accessories) - sizeId and size should be null/undefined
