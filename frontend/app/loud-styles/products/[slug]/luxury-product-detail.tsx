@@ -97,7 +97,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   const [showSizeGuide, setShowSizeGuide] = useState(false)
   const [relatedAccessories, setRelatedAccessories] = useState<Product[]>([])
   const [loadingAccessories, setLoadingAccessories] = useState(false)
-  const [colorVariants, setColorVariants] = useState<Array<{ slug: string; color: string; name: string; isCurrent: boolean }>>([])
+  const [colorVariants, setColorVariants] = useState<Array<{ slug: string; color: string; name: string; nameEn: string; hexColor: string; isCurrent: boolean }>>([])
   const isOrderable = !product?.isLaunchActive || timerCompleted
 
   const addItem = useCartStore((state) => state.addItem)
@@ -150,8 +150,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
       
       // Define color variants for Victoria Dress
       const variants = [
-        { slug: 'victoria-dress-black', color: 'black', name: 'Black' },
-        { slug: 'victoria-dress-red', color: 'red', name: 'Red' }
+        { slug: 'victoria-dress-black', color: 'black', name: 'أسود', nameEn: 'Black', hexColor: '#000000' },
+        { slug: 'victoria-dress-red', color: 'red', name: 'بوردو', nameEn: 'Bordeaux', hexColor: '#722F37' }
       ].map(variant => ({
         ...variant,
         isCurrent: variant.slug === product.slug
@@ -350,7 +350,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
     'M': '36-38',
     'L': '40',
     'XL': '42-44',
-    'XXL': '46-48'
+    'XXL': '46-48',
+    'XXXL': '50-52'
   }
 
   // Helper to find the correct size object from the displayed size
@@ -675,7 +676,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                               : 'border-border hover:border-primary/50 cursor-pointer'
                           }`}
                           style={{
-                            backgroundColor: variant.color === 'black' ? '#000000' : '#DC2626'
+                            backgroundColor: variant.hexColor || (variant.color === 'black' ? '#000000' : '#722F37')
                           }}
                         >
                           {variant.isCurrent && (
@@ -689,7 +690,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                             ? 'text-primary font-semibold'
                             : 'text-foreground'
                         }`}>
-                          {variant.name}
+                          {isRTL ? variant.name : variant.nameEn}
                         </span>
                       </Link>
                     ))}
