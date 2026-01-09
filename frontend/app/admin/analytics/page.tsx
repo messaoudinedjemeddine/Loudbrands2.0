@@ -209,11 +209,84 @@ export default function AdminAnalyticsPage() {
   const [timelinePeriod, setTimelinePeriod] = useState<'days' | 'weeks' | 'months'>('days')
   const [revenuePeriod, setRevenuePeriod] = useState<'30' | '60' | '90'>('30')
   const [activeTab, setActiveTab] = useState<'orders' | 'revenue' | 'profit'>('orders')
+  const [stockProducts, setStockProducts] = useState<Array<{
+    id: string
+    name: string
+    nameAr?: string
+    reference: string
+    costPrice: number
+    price: number
+    stock: number
+    profitPerPiece: number
+    totalProfit: number
+    margin: number
+  }>>([])
+  const [stockMetrics, setStockMetrics] = useState({
+    totalStockValue: 0,
+    totalStockCost: 0,
+    totalStockProfit: 0
+  })
+  const [stockSearchQuery, setStockSearchQuery] = useState('')
 
   useEffect(() => {
     setMounted(true)
     fetchAnalyticsData()
+    fetchStockProducts()
   }, [])
+
+  const fetchStockProducts = async () => {
+    try {
+      const response = await api.admin.getInventory({ limit: 10000 }) as { products: Array<{
+        id: string
+        name: string
+        nameAr?: string
+        reference: string
+        costPrice: number
+        price: number
+        stock: number
+      }> }
+      
+      const products = response.products || []
+      
+      // Calculate product metrics
+      const productsWithMetrics = products.map(product => {
+        const costPrice = product.costPrice || 0
+        const price = product.price || 0
+        const stock = product.stock || 0
+        const profitPerPiece = price - costPrice
+        const totalProfit = profitPerPiece * stock
+        const margin = price > 0 ? ((profitPerPiece / price) * 100) : 0
+        
+        return {
+          id: product.id,
+          name: product.name,
+          nameAr: product.nameAr,
+          reference: product.reference || '',
+          costPrice,
+          price,
+          stock,
+          profitPerPiece,
+          totalProfit,
+          margin
+        }
+      })
+      
+      setStockProducts(productsWithMetrics)
+      
+      // Calculate total metrics
+      const totalStockValue = productsWithMetrics.reduce((sum, p) => sum + (p.price * p.stock), 0)
+      const totalStockCost = productsWithMetrics.reduce((sum, p) => sum + (p.costPrice * p.stock), 0)
+      const totalStockProfit = productsWithMetrics.reduce((sum, p) => sum + p.totalProfit, 0)
+      
+      setStockMetrics({
+        totalStockValue,
+        totalStockCost,
+        totalStockProfit
+      })
+    } catch (error) {
+      console.error('Failed to fetch stock products:', error)
+    }
+  }
 
   useEffect(() => {
     if (mounted) {
@@ -914,6 +987,163 @@ export default function AdminAnalyticsPage() {
             </Card>
           </motion.div>
         </div>
+
+        {/* Stock Profit Analysis Section */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 1.0 }}
+          className="space-y-6"
+        >
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Analyse de Profit du Stock</h2>
+            <p className="text-muted-foreground">Détails des produits avec prix d'achat, prix de vente et profit</p>
+          </div>
+
+          {/* Stock Metrics Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card className="shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Valeur de Stock</p>
+                    <p className="text-2xl font-bold text-blue-600">
+                      {stockMetrics.totalStockValue.toLocaleString()} DA
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Prix de vente × Stock
+                    </p>
+                  </div>
+                  <Package className="h-8 w-8 text-blue-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Valeur d'Achat du Stock</p>
+                    <p className="text-2xl font-bold text-orange-600">
+                      {stockMetrics.totalStockCost.toLocaleString()} DA
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Prix d'achat × Stock
+                    </p>
+                  </div>
+                  <DollarSign className="h-8 w-8 text-orange-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardContent className="p-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">Profit Total du Stock</p>
+                    <p className="text-2xl font-bold text-green-600">
+                      {stockMetrics.totalStockProfit.toLocaleString()} DA
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Profit potentiel total
+                    </p>
+                  </div>
+                  <TrendingUp className="h-8 w-8 text-green-500 opacity-50" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Products Table */}
+          <Card className="shadow-sm">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Détails des Produits</CardTitle>
+                <div className="w-64">
+                  <Input
+                    placeholder="Rechercher un produit..."
+                    value={stockSearchQuery}
+                    onChange={(e) => setStockSearchQuery(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Produit</TableHead>
+                      <TableHead>Référence</TableHead>
+                      <TableHead className="text-right">Prix d'Achat</TableHead>
+                      <TableHead className="text-right">Prix de Vente</TableHead>
+                      <TableHead className="text-right">Profit/Pièce</TableHead>
+                      <TableHead className="text-right">Stock Total</TableHead>
+                      <TableHead className="text-right">Profit Total</TableHead>
+                      <TableHead className="text-right">Marge</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stockProducts.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                          Chargement des produits...
+                        </TableCell>
+                      </TableRow>
+                    ) : (() => {
+                      // Filter products by search query
+                      const filtered = stockProducts.filter(product =>
+                        product.name.toLowerCase().includes(stockSearchQuery.toLowerCase()) ||
+                        product.nameAr?.toLowerCase().includes(stockSearchQuery.toLowerCase()) ||
+                        product.reference.toLowerCase().includes(stockSearchQuery.toLowerCase())
+                      )
+                      
+                      // Sort by total profit descending
+                      const sorted = [...filtered].sort((a, b) => b.totalProfit - a.totalProfit)
+                      
+                      return sorted.map((product) => (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">{product.name}</div>
+                              {product.nameAr && (
+                                <div className="text-sm text-muted-foreground">{product.nameAr}</div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <span className="font-mono text-sm">{product.reference}</span>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {product.costPrice.toLocaleString()} DA
+                          </TableCell>
+                          <TableCell className="text-right font-medium">
+                            {product.price.toLocaleString()} DA
+                          </TableCell>
+                          <TableCell className={`text-right font-medium ${product.profitPerPiece >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {product.profitPerPiece.toLocaleString()} DA
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {product.stock}
+                          </TableCell>
+                          <TableCell className={`text-right font-bold ${product.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            {product.totalProfit.toLocaleString()} DA
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant={product.margin >= 30 ? 'default' : product.margin >= 15 ? 'secondary' : 'outline'}>
+                              {product.margin.toFixed(1)}%
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    })()}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     </AdminLayout>
   )
