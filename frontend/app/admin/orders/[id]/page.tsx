@@ -807,10 +807,25 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     const pricePerArticle = totalWholesalePrice / totalQuantity
 
     // Update all items with the calculated price per article
-    setOrderItems(prev => prev.map(item => ({
+    const updatedItems = orderItems.map(item => ({
       ...item,
       price: pricePerArticle
-    })))
+    }))
+    setOrderItems(updatedItems)
+
+    // Calculate new subtotal (should equal the wholesale price entered)
+    const newSubtotal = totalWholesalePrice
+    // Calculate new total (subtotal + delivery fee)
+    const newTotal = newSubtotal + (order?.deliveryFee || 0)
+
+    // Update order state with new subtotal and total
+    if (order) {
+      setOrder(prev => prev ? {
+        ...prev,
+        subtotal: newSubtotal,
+        total: newTotal
+      } : null)
+    }
 
     toast.success(`Prix gros appliqué: ${totalWholesalePrice.toLocaleString()} DA (total pour tous les articles)`)
     setShowWholesalePriceDialog(false)
