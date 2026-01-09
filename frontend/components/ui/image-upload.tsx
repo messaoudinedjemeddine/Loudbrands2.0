@@ -181,8 +181,16 @@ export function ImageUpload({
     <div className={`space-y-4 ${className}`}>
       {/* Upload Area */}
       <Card 
-        className="p-6 border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors cursor-pointer"
+        className="p-6 border-2 border-dashed border-gray-300 hover:border-gray-400 transition-colors cursor-pointer touch-manipulation"
         onClick={handleUploadAreaClick}
+        onTouchStart={(e) => {
+          // Ensure touch events work properly on mobile
+          if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('label')) {
+            return;
+          }
+          e.stopPropagation();
+          fileInputRef.current?.click();
+        }}
       >
         <div className="text-center">
           <Upload className="mx-auto h-12 w-12 text-gray-400" />
@@ -202,8 +210,12 @@ export function ImageUpload({
               type="button"
               variant="outline"
               disabled={isUploading || (multiple && images.length >= maxImages)}
-              className="mb-2"
+              className="mb-2 touch-manipulation"
               onClick={handleButtonClick}
+              onTouchStart={(e) => {
+                // Ensure touch events work properly on mobile
+                e.stopPropagation();
+              }}
             >
               {isUploading ? 'Uploading...' : 'Choose Images'}
             </Button>

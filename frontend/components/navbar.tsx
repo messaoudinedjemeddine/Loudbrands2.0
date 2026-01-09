@@ -20,7 +20,8 @@ import {
   Sun,
   Moon,
   Settings,
-  ChevronDown
+  ChevronDown,
+  LogIn
 } from 'lucide-react'
 import { useCartStore, useAuthStore, useWishlistStore, useUIStore } from '@/lib/store'
 import { useLocaleStore } from '@/lib/locale-store'
@@ -243,6 +244,21 @@ export function Navbar() {
 
               {/* Language Switcher */}
               <LanguageSwitcher isTransparent={false} isLightBackground={isScrolled || needsVisibleNavbar} />
+
+              {/* Admin Login */}
+              <Button
+                variant="ghost"
+                size="sm"
+                asChild
+                className={`p-2 rounded-lg transition-all duration-300 hover:scale-105 ${isScrolled || needsVisibleNavbar
+                  ? 'text-gray-800 dark:text-gray-300 hover:text-primary hover:bg-primary/10'
+                  : 'text-white hover:text-primary hover:bg-primary/20'
+                  }`}
+              >
+                <Link href="/admin/login" aria-label={isRTL ? 'تسجيل دخول الأدمن' : 'Admin Login'}>
+                  <LogIn className="w-5 h-5" />
+                </Link>
+              </Button>
 
               {/* Wishlist */}
               <Button
