@@ -105,8 +105,8 @@ export default function AdminInventoryPage() {
     totalStock: 0
   })
 
-  // Check if user is stock manager
-  const isStockManager = user?.role === 'STOCK_MANAGER'
+  // Check if user is stock manager or confirmatrice (hide purchase price and total value)
+  const shouldHidePriceInfo = user?.role === 'STOCK_MANAGER' || user?.role === 'CONFIRMATRICE'
 
   useEffect(() => {
     setMounted(true)
@@ -367,7 +367,7 @@ export default function AdminInventoryPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className={`grid grid-cols-1 gap-6 ${isStockManager ? 'md:grid-cols-4' : 'md:grid-cols-5'}`}>
+        <div className={`grid grid-cols-1 gap-6 ${shouldHidePriceInfo ? 'md:grid-cols-4' : 'md:grid-cols-5'}`}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -444,7 +444,7 @@ export default function AdminInventoryPage() {
             </Card>
           </motion.div>
 
-          {!isStockManager && (
+          {!shouldHidePriceInfo && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -547,7 +547,7 @@ export default function AdminInventoryPage() {
                     <TableHead className="w-[120px]">Référence</TableHead>
                     <TableHead className="w-[200px]">Nom</TableHead>
                     <TableHead className="w-[150px]">Catégorie</TableHead>
-                    {!isStockManager && (
+                    {!shouldHidePriceInfo && (
                       <TableHead className="w-[120px]">Prix d'Achat (DA)</TableHead>
                     )}
                     <TableHead className="w-[120px]">Prix de Vente (DA)</TableHead>
@@ -587,7 +587,7 @@ export default function AdminInventoryPage() {
                         <TableCell className="w-[150px]">
                           <Badge variant="outline" className="truncate">{product.category?.name}</Badge>
                         </TableCell>
-                        {!isStockManager && (
+                        {!shouldHidePriceInfo && (
                           <TableCell className="w-[120px]">
                             <div className="font-medium text-blue-600">
                               {product.costPrice ? product.costPrice.toLocaleString() : '0'} DA
