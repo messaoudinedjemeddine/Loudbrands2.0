@@ -717,19 +717,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                   className="space-y-2 sm:space-y-3 lg:space-y-4"
                   variants={itemVariants}
                 >
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-base sm:text-lg font-semibold text-foreground">
-                      {isRTL ? 'المقاس' : 'Size'}
-                    </h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setShowSizeGuide(!showSizeGuide)}
-                      className="text-primary hover:text-primary/80 text-xs sm:text-sm"
-                    >
-                      {isRTL ? 'دليل المقاسات' : 'Size Guide'}
-                    </Button>
-                  </div>
+                  <h3 className="text-base sm:text-lg font-semibold text-foreground">
+                    {isRTL ? 'المقاس' : 'Size'}
+                  </h3>
                   <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 sm:gap-2 lg:gap-3">
                     {displaySizes.filter(size => size !== 'S').map((size) => (
                       <motion.button
@@ -758,6 +748,16 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                         </div>
                       </motion.button>
                     ))}
+                    {/* Size Guide Button - styled like size buttons */}
+                    <motion.button
+                      className="group relative px-3 py-2 sm:px-4 sm:py-2.5 lg:px-6 lg:py-3 rounded-md sm:rounded-lg border-2 transition-all duration-300 font-medium text-sm sm:text-base border-border hover:border-primary/50 bg-background hover:bg-muted/50"
+                      onClick={() => setShowSizeGuide(!showSizeGuide)}
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      style={{ willChange: 'transform' }}
+                    >
+                      {isRTL ? 'دليل' : 'Guide'}
+                    </motion.button>
                   </div>
 
                   {/* Size Guide Modal */}
