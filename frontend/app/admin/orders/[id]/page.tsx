@@ -432,9 +432,9 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
       // For PICKUP orders, the backend will map centerId to deliveryDeskId
       // Only send deliveryDeskId if it's already a valid database ID (not a Yalidine centerId)
-      // For HOME_DELIVERY, explicitly send null to disconnect delivery desk
+      // For HOME_DELIVERY, explicitly send undefined to disconnect delivery desk
       const deliveryDeskId = deliveryData.deliveryType === 'HOME_DELIVERY'
-        ? null
+        ? undefined
         : (deliveryData.deliveryType === 'PICKUP' 
           ? (deliveryData.deliveryDeskId && !deliveryData.centerId ? deliveryData.deliveryDeskId : undefined)
           : undefined)
@@ -443,7 +443,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       const updateData = {
         deliveryType: deliveryData.deliveryType,
         deliveryAddress: deliveryData.deliveryType === 'HOME_DELIVERY' ? deliveryData.deliveryAddress?.trim() : undefined,
-        deliveryDeskId: deliveryDeskId, // null for HOME_DELIVERY, undefined/mapped for PICKUP
+        deliveryDeskId: deliveryDeskId, // undefined for HOME_DELIVERY (backend will disconnect), undefined/mapped for PICKUP
         deliveryFee: newDeliveryFee,
         total: newTotal,
         // Sync detailed info - backend will use centerId to map to deliveryDeskId

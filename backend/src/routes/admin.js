@@ -846,8 +846,8 @@ router.patch('/orders/:id/status', async (req, res) => {
             // Skip delivery desk connection if there's an error
           }
         }
-      } else if (deliveryDeskId === null || deliveryDeskId === '') {
-        // Explicitly disconnecting
+      } else if (deliveryDeskId === null || deliveryDeskId === '' || deliveryDeskId === undefined) {
+        // Explicitly disconnecting (handles null, empty string, or undefined)
         updateData.deliveryDesk = { disconnect: true };
       }
     }
