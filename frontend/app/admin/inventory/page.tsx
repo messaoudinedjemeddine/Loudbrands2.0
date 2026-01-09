@@ -367,7 +367,7 @@ export default function AdminInventoryPage() {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
+        <div className={`grid grid-cols-1 gap-6 ${isStockManager ? 'md:grid-cols-4' : 'md:grid-cols-5'}`}>
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -444,26 +444,28 @@ export default function AdminInventoryPage() {
             </Card>
           </motion.div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-          >
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-                <TrendingUp className="h-4 w-4 text-green-500" />
-              </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold text-green-600">
-                  {stats.totalValue.toLocaleString()} DA
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Inventory value
-                </p>
-              </CardContent>
-            </Card>
-          </motion.div>
+          {!isStockManager && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+            >
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-green-500" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-green-600">
+                    {stats.totalValue.toLocaleString()} DA
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Inventory value
+                  </p>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
         </div>
 
         {/* Filters */}
