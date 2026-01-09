@@ -95,7 +95,7 @@ export default function CheckoutPage() {
   }
 
   // Load communes when wilaya changes
-  const loadCommunes = async (wilayaId: string, deliveryType: 'HOME_DELIVERY' | 'PICKUP' = formData.deliveryType) => {
+  const loadCommunes = async (wilayaId: string, deliveryType: 'HOME_DELIVERY' | 'PICKUP' = formData.deliveryType as 'HOME_DELIVERY' | 'PICKUP') => {
     if (!wilayaId) {
       setCommunes([])
       setCenters([])
