@@ -35,9 +35,9 @@ function DashboardContent() {
       return
     }
 
-    // Stock manager doesn't have a dashboard, redirect to ateliers
+    // Stock manager doesn't have a dashboard, redirect to inventory
     if (mounted && user && role === 'stock_manager') {
-      router.push('/admin/ateliers')
+      router.push('/admin/inventory')
       return
     }
   }, [mounted, isAuthenticated, user, role, router])

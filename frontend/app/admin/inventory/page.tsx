@@ -26,6 +26,7 @@ import Link from 'next/link'
 import { AdminLayout } from '@/components/admin/admin-layout'
 import { api } from '@/lib/api'
 import { toast } from 'sonner'
+import { useAuthStore } from '@/lib/store'
 import {
   Table,
   TableBody,
@@ -87,6 +88,7 @@ interface InventoryStats {
 }
 
 export default function AdminInventoryPage() {
+  const { user } = useAuthStore()
   const [mounted, setMounted] = useState(false)
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
@@ -102,6 +104,9 @@ export default function AdminInventoryPage() {
     totalValue: 0,
     totalStock: 0
   })
+
+  // Check if user is stock manager
+  const isStockManager = user?.role === 'STOCK_MANAGER'
 
   useEffect(() => {
     setMounted(true)
@@ -540,7 +545,9 @@ export default function AdminInventoryPage() {
                     <TableHead className="w-[120px]">Référence</TableHead>
                     <TableHead className="w-[200px]">Nom</TableHead>
                     <TableHead className="w-[150px]">Catégorie</TableHead>
-                    <TableHead className="w-[120px]">Prix d'Achat (DA)</TableHead>
+                    {!isStockManager && (
+                      <TableHead className="w-[120px]">Prix d'Achat (DA)</TableHead>
+                    )}
                     <TableHead className="w-[120px]">Prix de Vente (DA)</TableHead>
                     <TableHead className="w-[100px]">Stock Principal</TableHead>
                     <TableHead className="w-[200px]">Tailles & Quantités</TableHead>
@@ -578,11 +585,13 @@ export default function AdminInventoryPage() {
                         <TableCell className="w-[150px]">
                           <Badge variant="outline" className="truncate">{product.category?.name}</Badge>
                         </TableCell>
-                        <TableCell className="w-[120px]">
-                          <div className="font-medium text-blue-600">
-                            {product.costPrice ? product.costPrice.toLocaleString() : '0'} DA
-                          </div>
-                        </TableCell>
+                        {!isStockManager && (
+                          <TableCell className="w-[120px]">
+                            <div className="font-medium text-blue-600">
+                              {product.costPrice ? product.costPrice.toLocaleString() : '0'} DA
+                            </div>
+                          </TableCell>
+                        )}
                         <TableCell className="w-[120px]">
                           <div>
                             <div className="font-medium">{product.price.toLocaleString()} DA</div>

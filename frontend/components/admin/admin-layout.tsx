@@ -64,7 +64,7 @@ const getNavigationByRole = (role: string) => {
       ]
     case 'STOCK_MANAGER':
       return [
-        { name: 'Ateliers', href: '/admin/ateliers', icon: Building2 },
+        { name: 'Inventaire', href: '/admin/inventory', icon: Package },
         { name: 'Inventaire Intelligent', href: '/admin/inventory/smart', icon: Package },
       ]
     default:
