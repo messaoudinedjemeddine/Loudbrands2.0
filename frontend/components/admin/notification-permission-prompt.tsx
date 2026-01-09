@@ -25,12 +25,16 @@ export function NotificationPermissionPrompt() {
       // Check if user has dismissed the prompt before
       const dismissed = localStorage.getItem('notification-prompt-dismissed');
       
-      // Show prompt if permission is default and not dismissed
+      // Prompt disabled per user request - always mark as dismissed
+      // if (currentPermission === 'default' && !dismissed) {
+      //   // Small delay to ensure page is loaded
+      //   setTimeout(() => {
+      //     setShowPrompt(true);
+      //   }, 2000);
+      // }
+      // Auto-dismiss to prevent popup from showing
       if (currentPermission === 'default' && !dismissed) {
-        // Small delay to ensure page is loaded
-        setTimeout(() => {
-          setShowPrompt(true);
-        }, 2000);
+        localStorage.setItem('notification-prompt-dismissed', 'true');
       }
     }
   }, [user]);

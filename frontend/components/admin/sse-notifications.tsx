@@ -388,14 +388,18 @@ export function SSENotifications() {
               });
             }
           } catch (error) {
-            console.error('❌ Error parsing SSE message:', error);
-            console.error('Raw event data:', event.data);
+            // Reduced logging - only log critical parsing errors
+            // console.error('❌ Error parsing SSE message:', error);
+            // console.error('Raw event data:', event.data);
           }
         };
 
         eventSource.onerror = (error) => {
-          console.error('❌ SSE connection error:', error);
-          console.error('EventSource readyState:', eventSource.readyState);
+          // Reduced logging to prevent console spam
+          // Only log if it's a significant error (not just connection attempts)
+          if (eventSource.readyState === EventSource.CLOSED) {
+            // Silently handle connection errors - they're expected during reconnection
+          }
           setIsConnected(false);
           isConnectingRef.current = false; // Allow reconnection
           
@@ -417,11 +421,11 @@ export function SSENotifications() {
               reconnectAttempts.current++;
               
               reconnectTimeoutRef.current = setTimeout(() => {
-                console.log(`🔄 Attempting to reconnect SSE (attempt ${reconnectAttempts.current}/${maxReconnectAttempts})...`);
+                // Reduced logging - silently reconnect
                 connectSSE();
               }, delay);
             } else {
-              console.error('❌ Max SSE reconnection attempts reached');
+              // Reduced logging - only show toast, no console error spam
               toast.error('Connexion SSE perdue', {
                 description: 'Impossible de se reconnecter. Veuillez rafraîchir la page.',
                 duration: 10000,
@@ -430,7 +434,7 @@ export function SSENotifications() {
           }
         };
       } catch (error) {
-        console.error('Failed to create SSE connection:', error);
+        // Reduced logging - silently handle connection failures
         setIsConnected(false);
         isConnectingRef.current = false; // Allow retry
       }
@@ -829,14 +833,6 @@ export function SSENotifications() {
     };
   }, [user?.id, token, addNotification, router]); // Include dependencies to prevent stale closures
 
-  // Render connection status indicator (always visible for debugging)
-  return (
-    <div className="fixed bottom-4 right-4 z-50">
-      <div className={`px-3 py-1 rounded-full text-xs shadow-lg ${
-        isConnected ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-      }`}>
-        SSE: {isConnected ? '✅ Connected' : '❌ Disconnected'}
-      </div>
-    </div>
-  );
+  // Connection status indicator removed per user request
+  return null;
 }
