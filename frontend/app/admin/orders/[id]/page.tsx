@@ -1735,7 +1735,10 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                     {(() => {
                       const currentFee = order?.deliveryFee || 0
                       const newFee = getDeliveryFee()
-                      const subtotal = order?.subtotal || 0
+                      // Always calculate subtotal from current orderItems (reflects wholesale price changes immediately)
+                      const subtotal = orderItems.length > 0 
+                        ? orderItems.reduce((sum, item) => sum + (item.quantity * item.price), 0)
+                        : (order?.subtotal || 0)
                       const currentTotal = subtotal + currentFee
                       const newTotal = subtotal + newFee
                       const hasChange = newFee !== currentFee

@@ -569,6 +569,7 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
                     size="lg"
                     className="h-14 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold shadow-elegant hover:shadow-luxury transition-all duration-300"
                     onClick={handleAddToCart}
+                    disabled={product.sizes && product.sizes.length > 0 && !selectedSize}
                   >
                     <ShoppingCart className="w-5 h-5 mr-2" />
                     {isRTL ? 'أضف للسلة' : 'Add to Cart'}

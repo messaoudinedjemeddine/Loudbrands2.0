@@ -198,6 +198,7 @@ function OrdersContent() {
   const [orders, setOrders] = useState<Order[]>([])
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchInput, setSearchInput] = useState('') // Local state for input value
   const [statusFilter, setStatusFilter] = useState(searchParams.get('status') || 'all')
   const [cityFilter, setCityFilter] = useState('all')
   const [loading, setLoading] = useState(true)
@@ -689,11 +690,16 @@ function OrdersContent() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
-                  placeholder="Rechercher par nom ou téléphone..."
-                  value={searchQuery}
+                  placeholder="Rechercher par nom ou téléphone... (Appuyez sur Entrée)"
+                  value={searchInput}
                   onChange={(e) => {
-                    setSearchQuery(e.target.value)
-                    setPage(1) // Reset to first page when searching
+                    setSearchInput(e.target.value)
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      setSearchQuery(searchInput)
+                      setPage(1) // Reset to first page when searching
+                    }
                   }}
                   className="pl-10"
                 />

@@ -319,9 +319,15 @@ export default function CheckoutPage() {
       toast.error('يرجى اختيار الولاية')
       return false
     }
-    if (formData.deliveryType === 'HOME_DELIVERY' && !formData.deliveryAddress) {
-      toast.error('يرجى إدخال عنوان التوصيل')
-      return false
+    if (formData.deliveryType === 'HOME_DELIVERY') {
+      if (!formData.communeId) {
+        toast.error('يرجى اختيار البلدية')
+        return false
+      }
+      if (!formData.deliveryAddress) {
+        toast.error('يرجى إدخال عنوان التوصيل')
+        return false
+      }
     }
     if (formData.deliveryType === 'PICKUP') {
       if (!formData.communeId) {
