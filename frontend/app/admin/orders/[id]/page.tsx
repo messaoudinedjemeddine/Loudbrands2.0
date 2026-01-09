@@ -207,7 +207,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   useEffect(() => {
     if (yalidineStatus?.configured && deliveryData.wilayaId && communes.length === 0) {
       console.log('Yalidine configured and Wilaya present, loading communes...')
-      loadCommunes(deliveryData.wilayaId)
+      loadCommunes(deliveryData.wilayaId, deliveryData.deliveryType)
     }
   }, [yalidineStatus?.configured, deliveryData.wilayaId])
 
@@ -234,8 +234,8 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     }
   }
 
-  // Load communes when wilaya changes
-  const loadCommunes = async (wilayaId: string) => {
+  // Load communes when wilaya changes - using checkout page logic
+  const loadCommunes = async (wilayaId: string, deliveryType: 'HOME_DELIVERY' | 'PICKUP' = deliveryData.deliveryType) => {
     if (!wilayaId) {
       setCommunes([])
       setCenters([])
@@ -250,12 +250,36 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
     try {
       setIsLoadingShipping(true)
-      const communesData = await yalidineAPI.getCommunes(parseInt(wilayaId))
-      setCommunes(communesData.data)
-
-      // Load centers for this wilaya
+      
+      // Always load centers first - we need them for PICKUP
       const centersData = await yalidineAPI.getCenters(parseInt(wilayaId))
-      setCenters(centersData.data)
+      setCenters(centersData.data || [])
+
+      // For PICKUP: derive communes from centers (only communes with desks)
+      // For HOME_DELIVERY: load all communes from API
+      if (deliveryType === 'PICKUP') {
+        // Extract unique communes from centers
+        const communesFromCenters = new Map<number, Commune>()
+        centersData.data?.forEach((center) => {
+          if (center.commune_id && !communesFromCenters.has(center.commune_id)) {
+            communesFromCenters.set(center.commune_id, {
+              id: center.commune_id,
+              name: center.commune_name,
+              wilaya_id: center.wilaya_id,
+              wilaya_name: center.wilaya_name,
+              has_stop_desk: true, // All communes from centers have desks
+              is_deliverable: true,
+              delivery_time_parcel: 0,
+              delivery_time_payment: 0
+            })
+          }
+        })
+        setCommunes(Array.from(communesFromCenters.values()))
+      } else {
+        // For HOME_DELIVERY, load all communes from API
+        const communesData = await yalidineAPI.getCommunes(parseInt(wilayaId))
+        setCommunes(communesData.data || [])
+      }
 
       // Calculate shipping fees
       await calculateShippingFees(parseInt(wilayaId))
@@ -1598,10 +1622,20 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                     <label className="block text-sm font-medium mb-2">Type de Livraison</label>
                     <Select
                       value={deliveryData.deliveryType}
-                      onValueChange={(value) => setDeliveryData(prev => ({
-                        ...prev,
-                        deliveryType: value as 'HOME_DELIVERY' | 'PICKUP'
-                      }))}
+                      onValueChange={(value) => {
+                        const newDeliveryType = value as 'HOME_DELIVERY' | 'PICKUP'
+                        setDeliveryData(prev => ({
+                          ...prev,
+                          deliveryType: newDeliveryType,
+                          // Reset commune and center when delivery type changes
+                          communeId: '',
+                          centerId: ''
+                        }))
+                        // Reload communes based on new delivery type
+                        if (deliveryData.wilayaId) {
+                          loadCommunes(deliveryData.wilayaId, newDeliveryType)
+                        }
+                      }}
                       disabled={isReadOnly}
                     >
                       <SelectTrigger>
@@ -1627,7 +1661,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                             communeId: '',
                             centerId: ''
                           }))
-                          loadCommunes(value)
+                          loadCommunes(value, deliveryData.deliveryType)
                         }}
                         disabled={isReadOnly}
                       >
@@ -1654,31 +1688,54 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                   {/* Commune Selection */}
                   {deliveryData.wilayaId && (
                     <div>
-                      <label className="block text-sm font-medium mb-2">Commune</label>
+                      <label className="block text-sm font-medium mb-2">
+                        Commune {deliveryData.deliveryType === 'PICKUP' ? '(avec bureau Yalidine)' : ''}
+                      </label>
                       <Select
                         value={deliveryData.communeId}
-                        onValueChange={(value) => setDeliveryData(prev => ({
-                          ...prev,
-                          communeId: value
-                        }))}
+                        onValueChange={(value) => {
+                          setDeliveryData(prev => ({
+                            ...prev,
+                            communeId: value,
+                            // Reset center when commune changes
+                            centerId: ''
+                          }))
+                        }}
                         disabled={isReadOnly}
                       >
                         <SelectTrigger>
-                          <SelectValue placeholder="Sélectionner une commune" />
+                          <SelectValue placeholder={
+                            deliveryData.deliveryType === 'PICKUP' 
+                              ? "Sélectionner une commune (avec bureau)" 
+                              : "Sélectionner une commune"
+                          } />
                         </SelectTrigger>
                         <SelectContent>
-                          {communes.map((commune) => (
-                            <SelectItem key={commune.id} value={commune.id.toString()}>
-                              {commune.name}
-                            </SelectItem>
-                          ))}
+                          {isLoadingShipping ? (
+                            <div className="flex items-center justify-center p-4">
+                              <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                              Chargement...
+                            </div>
+                          ) : communes.length === 0 ? (
+                            <div className="p-4 text-center text-muted-foreground text-sm">
+                              {deliveryData.deliveryType === 'PICKUP' 
+                                ? 'Aucune commune avec bureau Yalidine dans cette wilaya'
+                                : 'Aucune commune disponible'}
+                            </div>
+                          ) : (
+                            communes.map((commune) => (
+                              <SelectItem key={commune.id} value={commune.id.toString()}>
+                                {commune.name}
+                              </SelectItem>
+                            ))
+                          )}
                         </SelectContent>
                       </Select>
                     </div>
                   )}
 
                   {/* Center Selection for Pickup */}
-                  {deliveryData.deliveryType === 'PICKUP' && deliveryData.wilayaId && (
+                  {deliveryData.deliveryType === 'PICKUP' && deliveryData.wilayaId && deliveryData.communeId && (
                     <div>
                       <label className="block text-sm font-medium mb-2">Lieu de Retrait *</label>
                       <Select
@@ -1700,10 +1757,13 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                             </div>
                           ) : (
                             centers
-                              .filter(center => center.wilaya_id.toString() === deliveryData.wilayaId)
+                              .filter(center => 
+                                center.wilaya_id.toString() === deliveryData.wilayaId &&
+                                center.commune_id.toString() === deliveryData.communeId
+                              )
                               .map((center) => (
                                 <SelectItem key={center.center_id} value={center.center_id.toString()}>
-                                  {center.name}
+                                  {center.name} - {center.address}
                                 </SelectItem>
                               ))
                           )}
