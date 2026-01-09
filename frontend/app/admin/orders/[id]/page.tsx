@@ -430,25 +430,29 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       const communeName = communes.find(c => c.id.toString() === deliveryData.communeId)?.name
       const centerName = centers.find(c => c.center_id.toString() === deliveryData.centerId)?.name
 
-      // For PICKUP, use centerId as deliveryDeskId
-      const deliveryDeskId = deliveryData.deliveryType === 'PICKUP' 
-        ? (deliveryData.centerId || deliveryData.deliveryDeskId || undefined)
-        : undefined
+      // For PICKUP orders, the backend will map centerId to deliveryDeskId
+      // Only send deliveryDeskId if it's already a valid database ID (not a Yalidine centerId)
+      // For HOME_DELIVERY, explicitly send null to disconnect delivery desk
+      const deliveryDeskId = deliveryData.deliveryType === 'HOME_DELIVERY'
+        ? null
+        : (deliveryData.deliveryType === 'PICKUP' 
+          ? (deliveryData.deliveryDeskId && !deliveryData.centerId ? deliveryData.deliveryDeskId : undefined)
+          : undefined)
 
       // Prepare update data
       const updateData = {
         deliveryType: deliveryData.deliveryType,
         deliveryAddress: deliveryData.deliveryType === 'HOME_DELIVERY' ? deliveryData.deliveryAddress?.trim() : undefined,
-        deliveryDeskId: deliveryDeskId, // Use centerId for PICKUP orders
+        deliveryDeskId: deliveryDeskId, // null for HOME_DELIVERY, undefined/mapped for PICKUP
         deliveryFee: newDeliveryFee,
         total: newTotal,
-        // Sync detailed info
+        // Sync detailed info - backend will use centerId to map to deliveryDeskId
         deliveryDetails: {
           wilayaId: deliveryData.wilayaId,
           wilayaName,
           communeId: deliveryData.communeId,
           communeName,
-          centerId: deliveryData.centerId,
+          centerId: deliveryData.centerId, // Yalidine center ID - backend will map this
           centerName,
           deliveryType: deliveryData.deliveryType,
           deliveryAddress: deliveryData.deliveryAddress

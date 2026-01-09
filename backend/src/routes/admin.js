@@ -4,6 +4,7 @@ const prisma = require('../config/database');
 const { z } = require('zod');
 const { getWilayaById } = require('../utils/wilaya-mapper');
 const yalidineService = require('../services/yalidine');
+const DeliveryDeskMapper = require('../utils/delivery-desk-mapper');
 
 const router = express.Router();
 
@@ -784,11 +785,44 @@ router.patch('/orders/:id/status', async (req, res) => {
     if (deliveryType) updateData.deliveryType = deliveryType;
     if (deliveryAddress !== undefined) updateData.deliveryAddress = deliveryAddress;
 
+    // Handle delivery desk - for PICKUP orders, map Yalidine centerId to deliveryDeskId
+    let finalDeliveryDeskId = deliveryDeskId;
+    if (deliveryType === 'PICKUP' && deliveryDetails && deliveryDetails.centerId && !finalDeliveryDeskId) {
+      // If we have a centerId in deliveryDetails but no deliveryDeskId, map it
+      try {
+        const wilayaIdToUse = cityId || deliveryDetails.wilayaId;
+        if (wilayaIdToUse) {
+          const wilaya = getWilayaById(parseInt(wilayaIdToUse));
+          if (wilaya && wilaya.code) {
+            const city = await prisma.city.findUnique({ where: { code: wilaya.code } });
+            if (city) {
+              const mappedDeskId = await DeliveryDeskMapper.findOrCreateDeliveryDesk(
+                city.id,
+                deliveryDetails.centerId,
+                deliveryDetails.centerName
+              );
+              if (mappedDeskId) {
+                finalDeliveryDeskId = mappedDeskId;
+                console.log(`✅ Mapped Yalidine center ${deliveryDetails.centerId} to delivery desk ${mappedDeskId}`);
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error mapping centerId to deliveryDeskId:', error);
+      }
+    }
+
     // Handle delivery desk
-    if (deliveryDeskId !== undefined) {
-      if (deliveryDeskId) {
-        updateData.deliveryDesk = { connect: { id: deliveryDeskId } };
-      } else {
+    // If deliveryType changed to HOME_DELIVERY, disconnect delivery desk
+    if (deliveryType === 'HOME_DELIVERY' && currentOrder.deliveryType === 'PICKUP') {
+      updateData.deliveryDesk = { disconnect: true };
+    } else if (finalDeliveryDeskId !== undefined || deliveryDeskId !== undefined) {
+      const deskIdToUse = finalDeliveryDeskId !== undefined ? finalDeliveryDeskId : deliveryDeskId;
+      if (deskIdToUse) {
+        updateData.deliveryDesk = { connect: { id: deskIdToUse } };
+      } else if (deliveryDeskId === null || deliveryDeskId === '') {
+        // Explicitly disconnecting
         updateData.deliveryDesk = { disconnect: true };
       }
     }
