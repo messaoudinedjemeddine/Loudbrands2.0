@@ -1285,16 +1285,30 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     // Get image URL - handle different possible formats
                     let imageUrl = '/placeholder.svg'
                     
-                    // Try multiple ways to get the image
-                    if (Array.isArray(accessory.images) && accessory.images.length > 0) {
-                      imageUrl = typeof accessory.images[0] === 'string' 
-                        ? accessory.images[0] 
-                        : (accessory.images[0] as any)?.url || '/placeholder.svg'
-                    } else if ((accessory as any).image) {
-                      imageUrl = (accessory as any).image
-                    } else if ((accessory as any).images && Array.isArray((accessory as any).images) && (accessory as any).images.length > 0) {
-                      const firstImg = (accessory as any).images[0]
-                      imageUrl = typeof firstImg === 'string' ? firstImg : (firstImg?.url || '/placeholder.svg')
+                    // The API returns images as an array of strings
+                    if (accessory.images && Array.isArray(accessory.images) && accessory.images.length > 0) {
+                      // Get first image (should be a string URL)
+                      const firstImage = accessory.images[0]
+                      if (typeof firstImage === 'string' && firstImage.trim() !== '') {
+                        imageUrl = firstImage.trim()
+                        // Ensure absolute URL if it's a relative path
+                        if (imageUrl.startsWith('/') && !imageUrl.startsWith('//')) {
+                          // Keep relative paths as is (Next.js will handle them)
+                          imageUrl = imageUrl
+                        }
+                      } else if (typeof firstImage === 'object' && firstImage !== null && 'url' in firstImage) {
+                        // Handle case where it's an object with url property
+                        imageUrl = (firstImage as any).url || '/placeholder.svg'
+                      }
+                    } 
+                    // Fallback: check for image property (single image)
+                    else if ((accessory as any).image && typeof (accessory as any).image === 'string') {
+                      imageUrl = (accessory as any).image.trim()
+                    }
+                    
+                    // Final validation - ensure we have a valid URL
+                    if (!imageUrl || imageUrl.trim() === '' || imageUrl === '/placeholder.svg') {
+                      imageUrl = '/placeholder.svg'
                     }
                     
                     // Debug logging (remove in production if needed)
@@ -1302,7 +1316,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       console.log('Accessory image debug:', {
                         accessoryName: accessory.name,
                         images: accessory.images,
-                        imageUrl
+                        imageUrl,
+                        hasImages: Array.isArray(accessory.images) && accessory.images.length > 0
                       })
                     }
                     
@@ -1330,8 +1345,14 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                             className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                             onError={(e) => {
                               const target = e.target as HTMLImageElement
+                              console.error('Image failed to load:', imageUrl, 'for accessory:', accessory.name)
                               if (target.src !== '/placeholder.svg') {
                                 target.src = '/placeholder.svg'
+                              }
+                            }}
+                            onLoad={() => {
+                              if (process.env.NODE_ENV === 'development') {
+                                console.log('Image loaded successfully:', imageUrl, 'for accessory:', accessory.name)
                               }
                             }}
                             loading="lazy"
