@@ -254,18 +254,8 @@ export function SSENotifications() {
             }
           }, 45000); // Check every 45 seconds (less aggressive)
           
-          // Show a test notification to confirm connection works (only on initial connect)
-          if (reconnectAttempts.current === 0) {
-            toast.success('Connexion SSE établie', {
-              description: 'Vous recevrez des notifications en temps réel pour les nouvelles commandes',
-              duration: 3000,
-            });
-          } else {
-            toast.success('Reconnexion SSE réussie', {
-              description: 'Connexion rétablie avec succès',
-              duration: 2000,
-            });
-          }
+          // Connection notifications removed per user request
+          // Connection established silently in background
         };
 
         eventSource.onmessage = (event) => {

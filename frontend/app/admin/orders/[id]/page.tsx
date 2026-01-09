@@ -777,15 +777,15 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     ))
   }
 
-  // Update all items with wholesale price
+  // Update all items with wholesale price (total price for all articles)
   const applyWholesalePrice = () => {
     if (isReadOnly) {
       toast.error('Impossible de modifier une commande confirmée')
       return
     }
 
-    const price = parseFloat(wholesalePrice)
-    if (isNaN(price) || price < 0) {
+    const totalWholesalePrice = parseFloat(wholesalePrice)
+    if (isNaN(totalWholesalePrice) || totalWholesalePrice < 0) {
       toast.error('Veuillez entrer un prix valide')
       return
     }
@@ -795,13 +795,24 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       return
     }
 
-    // Update all items with the new wholesale price
+    // Calculate total quantity of all items
+    const totalQuantity = orderItems.reduce((sum, item) => sum + item.quantity, 0)
+    
+    if (totalQuantity === 0) {
+      toast.error('Aucune quantité dans les articles')
+      return
+    }
+
+    // Calculate price per article (divide total wholesale price by total quantity)
+    const pricePerArticle = totalWholesalePrice / totalQuantity
+
+    // Update all items with the calculated price per article
     setOrderItems(prev => prev.map(item => ({
       ...item,
-      price: price
+      price: pricePerArticle
     })))
 
-    toast.success(`Prix gros appliqué: ${price.toLocaleString()} DA pour tous les articles`)
+    toast.success(`Prix gros appliqué: ${totalWholesalePrice.toLocaleString()} DA (total pour tous les articles)`)
     setShowWholesalePriceDialog(false)
     setWholesalePrice('')
   }
@@ -1817,12 +1828,12 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
           <DialogHeader>
             <DialogTitle>Prix Gros</DialogTitle>
             <DialogDescription>
-              Entrez le prix gros qui sera appliqué à tous les articles de la commande (sans les frais de livraison).
+              Entrez le prix total pour tous les articles de la commande (sans les frais de livraison).
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="wholesale-price">Prix (DA)</Label>
+              <Label htmlFor="wholesale-price">Prix Total (DA)</Label>
               <Input
                 id="wholesale-price"
                 type="number"
@@ -1830,7 +1841,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 step="0.01"
                 value={wholesalePrice}
                 onChange={(e) => setWholesalePrice(e.target.value)}
-                placeholder="Entrez le prix gros"
+                placeholder="Entrez le prix total pour tous les articles"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     applyWholesalePrice()
@@ -1838,16 +1849,29 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 }}
               />
             </div>
-            {orderItems.length > 0 && (
-              <div className="text-sm text-muted-foreground">
-                <p>Nombre d'articles: {orderItems.length}</p>
-                {wholesalePrice && !isNaN(parseFloat(wholesalePrice)) && (
-                  <p className="mt-1">
-                    Nouveau sous-total: {(orderItems.reduce((sum, item) => sum + item.quantity, 0) * parseFloat(wholesalePrice)).toLocaleString()} DA
-                  </p>
-                )}
-              </div>
-            )}
+            {orderItems.length > 0 && (() => {
+              const totalQuantity = orderItems.reduce((sum, item) => sum + item.quantity, 0)
+              const oldSubtotal = orderItems.reduce((sum, item) => sum + (item.quantity * item.price), 0)
+              const newSubtotal = wholesalePrice && !isNaN(parseFloat(wholesalePrice)) ? parseFloat(wholesalePrice) : 0
+              
+              return (
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between items-center p-2 bg-muted/50 rounded-md">
+                    <span className="text-muted-foreground">Ancien sous-total:</span>
+                    <span className="font-medium line-through text-muted-foreground">{oldSubtotal.toLocaleString()} DA</span>
+                  </div>
+                  {wholesalePrice && !isNaN(parseFloat(wholesalePrice)) && (
+                    <div className="flex justify-between items-center p-2 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-800">
+                      <span className="text-green-700 dark:text-green-300 font-medium">Nouveau sous-total:</span>
+                      <span className="font-bold text-green-700 dark:text-green-300">{newSubtotal.toLocaleString()} DA</span>
+                    </div>
+                  )}
+                  <div className="text-xs text-muted-foreground pt-1">
+                    Total quantité: {totalQuantity} article{totalQuantity > 1 ? 's' : ''}
+                  </div>
+                </div>
+              )
+            })()}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => {
