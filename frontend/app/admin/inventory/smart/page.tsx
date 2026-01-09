@@ -742,14 +742,9 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                         const possibleReference = parts.slice(0, -1).join('-')
                         
                         if (possibleReference === product.reference) {
-                            const sizeObj = product.sizes?.find((s: any) => s.size === possibleSize)
-                            if (sizeObj) {
-                                reference = possibleReference
-                                size = possibleSize
-                            } else {
-                                toast.error(`Taille "${possibleSize}" introuvable pour "${product.name}"`)
-                                return
-                            }
+                            // Accept the size even if it doesn't exist in product.sizes (stock can be 0)
+                            reference = possibleReference
+                            size = possibleSize
                         } else {
                             // Barcode doesn't match REFERENCE-SIZE format
                             toast.error(`Produit "${product.name}" nécessite une taille. Format: ${product.reference}-TAILLE`)
@@ -789,15 +784,9 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                             reference = product.reference
                             size = null
                         } else {
-                            // Product has sizes, validate the size
-                            const sizeObj = product.sizes?.find((s: any) => s.size === possibleSize)
-                            if (sizeObj) {
-                                reference = possibleReference
-                                size = possibleSize
-                            } else {
-                                toast.error(`Taille "${possibleSize}" introuvable pour "${product.name}"`)
-                                return
-                            }
+                            // Product has sizes - accept the size even if it doesn't exist in product.sizes (stock can be 0)
+                            reference = possibleReference
+                            size = possibleSize
                         }
                     } else {
                         // Product not found - try searching by partial match
