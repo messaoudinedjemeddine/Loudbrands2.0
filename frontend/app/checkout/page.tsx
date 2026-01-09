@@ -202,6 +202,28 @@ export default function CheckoutPage() {
     setFormData(prev => {
       const updates: any = { [field]: value };
 
+      // When delivery type changes, reset delivery-specific fields
+      if (field === 'deliveryType') {
+        if (value === 'HOME_DELIVERY') {
+          // Reset center selection for home delivery
+          updates.centerId = '';
+          updates.centerName = '';
+        } else if (value === 'PICKUP') {
+          // Reset address for pickup
+          updates.deliveryAddress = '';
+          // Reset center if commune doesn't have desks
+          if (prev.communeId) {
+            const commune = communes.find(c => c.id.toString() === prev.communeId);
+            if (!commune || !commune.has_stop_desk) {
+              updates.communeId = '';
+              updates.communeName = '';
+              updates.centerId = '';
+              updates.centerName = '';
+            }
+          }
+        }
+      }
+
       // Update names when IDs change
       if (field === 'wilayaId') {
         const wilaya = wilayas.find(w => w.id.toString() === value);
@@ -216,6 +238,9 @@ export default function CheckoutPage() {
       if (field === 'communeId') {
         const commune = communes.find(c => c.id.toString() === value);
         updates.communeName = commune ? commune.name : '';
+        // Reset center selection when commune changes
+        updates.centerId = '';
+        updates.centerName = '';
       }
 
       if (field === 'centerId') {
@@ -261,9 +286,15 @@ export default function CheckoutPage() {
       toast.error('يرجى إدخال عنوان التوصيل')
       return false
     }
-    if (formData.deliveryType === 'PICKUP' && !formData.centerId) {
-      toast.error('يرجى اختيار مكتب التوصيل')
-      return false
+    if (formData.deliveryType === 'PICKUP') {
+      if (!formData.communeId) {
+        toast.error('يرجى اختيار البلدية')
+        return false
+      }
+      if (!formData.centerId) {
+        toast.error('يرجى اختيار مكتب التوصيل')
+        return false
+      }
     }
 
     // Validate phone number
@@ -493,13 +524,13 @@ export default function CheckoutPage() {
                       </Select>
                     </div>
 
-                    {/* Commune Selection - Only show for Home Delivery */}
-                    {formData.wilayaId && formData.deliveryType !== 'PICKUP' && (
+                    {/* Commune Selection - Show for both Home Delivery and Pickup */}
+                    {formData.wilayaId && (
                       <div>
                         <Label htmlFor="commune">البلدية *</Label>
                         <Select value={formData.communeId} onValueChange={(value) => handleInputChange('communeId', value)}>
                           <SelectTrigger className="h-12 text-base md:h-10 md:text-sm">
-                            <SelectValue placeholder="اختر البلدية" className="[&>span]:text-left [&>span]:dir-ltr" />
+                            <SelectValue placeholder={formData.deliveryType === 'PICKUP' ? "اختر البلدية (التي بها مكتب)" : "اختر البلدية"} className="[&>span]:text-left [&>span]:dir-ltr" />
                           </SelectTrigger>
                           <SelectContent dir="ltr" className="max-h-[300px]">
                             {isLoadingShipping ? (
@@ -508,15 +539,23 @@ export default function CheckoutPage() {
                                 تحمبل...
                               </div>
                             ) : (
-                              communes.map((commune) => (
-                                <SelectItem 
-                                  key={commune.id} 
-                                  value={commune.id.toString()}
-                                  className="text-left py-3 text-base md:py-2 md:text-sm"
-                                >
-                                  {commune.name}
-                                </SelectItem>
-                              ))
+                              communes
+                                // For PICKUP, only show communes that have desks
+                                .filter(commune => {
+                                  if (formData.deliveryType === 'PICKUP') {
+                                    return commune.has_stop_desk === true
+                                  }
+                                  return true // Show all communes for HOME_DELIVERY
+                                })
+                                .map((commune) => (
+                                  <SelectItem 
+                                    key={commune.id} 
+                                    value={commune.id.toString()}
+                                    className="text-left py-3 text-base md:py-2 md:text-sm"
+                                  >
+                                    {commune.name}
+                                  </SelectItem>
+                                ))
                             )}
                           </SelectContent>
                         </Select>
@@ -524,8 +563,8 @@ export default function CheckoutPage() {
                     )}
                   </div>
 
-                  {/* Center Selection (Pickup Only) */}
-                  {formData.deliveryType === 'PICKUP' && formData.wilayaId && (
+                  {/* Center Selection (Pickup Only) - Show after commune is selected */}
+                  {formData.deliveryType === 'PICKUP' && formData.wilayaId && formData.communeId && (
                     <div>
                       <Label htmlFor="center">مكتب الاستلام *</Label>
                       <Select value={formData.centerId} onValueChange={(value) => handleInputChange('centerId', value)}>
@@ -540,7 +579,11 @@ export default function CheckoutPage() {
                             </div>
                           ) : (
                             centers
-                              .filter(center => center.wilaya_id.toString() === formData.wilayaId)
+                              .filter(center => {
+                                // Filter by wilaya and commune
+                                return center.wilaya_id.toString() === formData.wilayaId &&
+                                       center.commune_id.toString() === formData.communeId
+                              })
                               .map((center) => (
                                 <SelectItem 
                                   key={center.center_id} 
