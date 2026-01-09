@@ -756,7 +756,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       whileTap={{ scale: 0.95 }}
                       style={{ willChange: 'transform' }}
                     >
-                      {isRTL ? 'دليل' : 'Guide'}
+                      {isRTL ? 'جدول المقاسات' : 'Size Guide'}
                     </motion.button>
                   </div>
 

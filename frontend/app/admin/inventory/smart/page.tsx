@@ -53,6 +53,7 @@ import {
 import jsPDF from 'jspdf'
 import * as XLSX from 'xlsx'
 import QRCode from 'qrcode'
+import Image from 'next/image'
 
 const exportToExcel = (data: any[], fileName: string) => {
     const ws = XLSX.utils.json_to_sheet(data);
@@ -265,74 +266,109 @@ function LabelsSection() {
             const colWidth = 55 // 110mm / 2
             const rowHeight = 75 // 150mm / 2
 
+            // Get product image URL
+            const productImageUrl = product?.images?.[0]?.url || product?.images?.[0] || product?.image || null
+
             if (isAccessoire) {
-                // For accessories: use total stock and product reference only (no size)
-                const totalStock = product?.stock || 0
+                // For accessories: generate QR code with reference only (no size)
                 const barcodeValue = product?.reference || product?.id || 'N/A'
+                const qrDataUrl = await QRCode.toDataURL(barcodeValue)
 
-                // Generate labels based on total stock
-                for (let i = 0; i < totalStock; i++) {
-                    // Determine x,y based on grid
-                    const x = col * colWidth
-                    const y = row * rowHeight
+                // Determine x,y based on grid
+                const x = col * colWidth
+                const y = row * rowHeight
 
-                    const qrDataUrl = await QRCode.toDataURL(barcodeValue)
+                // Draw Border (Optional, helps visual separation)
+                doc.setDrawColor(200)
+                doc.rect(x + 2, y + 2, colWidth - 4, rowHeight - 4)
 
-                    // Draw Border (Optional, helps visual separation)
-                    doc.setDrawColor(200)
-                    doc.rect(x + 2, y + 2, colWidth - 4, rowHeight - 4)
-
-                    // Product Name (Truncated)
-                    doc.setFontSize(8)
-                    doc.text((product.name || 'Produit').substring(0, 25), x + 5, y + 10)
-
-                    // QR Code (Centered)
-                    // 35x35mm QR code
-                    doc.addImage(qrDataUrl, 'PNG', x + 10, y + 15, 35, 35)
-
-                    // Barcode Value (Small text at bottom)
-                    doc.setFontSize(7)
-                    doc.text(barcodeValue, x + 5, y + 55)
-
-                    // Advance Grid
-                    col++
-                    if (col >= 2) {
-                        col = 0
-                        row++
-                    }
-
-                    // New Page if grid full (2x2 = 4 items)
-                    if (row >= 2) {
-                        doc.addPage()
-                        col = 0
-                        row = 0
+                // Product Image (if available) - 20mm height
+                if (productImageUrl) {
+                    try {
+                        doc.addImage(productImageUrl, 'PNG', x + 5, y + 5, 45, 20, undefined, 'FAST')
+                    } catch (error) {
+                        console.warn('Failed to load product image:', error)
                     }
                 }
+
+                // Product Name (Truncated) - below image or at top if no image
+                doc.setFontSize(8)
+                const nameY = productImageUrl ? y + 28 : y + 10
+                doc.text((product.name || 'Produit').substring(0, 25), x + 5, nameY)
+
+                // QR Code (Centered) - 30x30mm
+                const qrY = productImageUrl ? y + 35 : y + 20
+                doc.addImage(qrDataUrl, 'PNG', x + 12.5, qrY, 30, 30)
+
+                // Barcode Value (Small text at bottom)
+                doc.setFontSize(7)
+                const barcodeY = productImageUrl ? y + 68 : y + 53
+                doc.text(barcodeValue, x + 5, barcodeY)
+
+                // Advance Grid
+                col++
+                if (col >= 2) {
+                    col = 0
+                    row++
+                }
+
+                // New Page if grid full (2x2 = 4 items)
+                if (row >= 2) {
+                    doc.addPage()
+                    col = 0
+                    row = 0
+                }
             } else {
-                // For products with sizes: use existing logic
-                for (const size of product?.sizes || []) {
+                // For products with sizes: generate QR codes for ALL sizes (M, L, XL, XXL, XXXL) even if stock is 0
+                const allSizes = ['M', 'L', 'XL', 'XXL', 'XXXL']
+                
+                for (const sizeLabel of allSizes) {
                     // Determine x,y based on grid
                     const x = col * colWidth
                     const y = row * rowHeight
 
-                    const barcodeValue = `${product.reference}-${size.size}`
+                    const barcodeValue = `${product.reference}-${sizeLabel}`
                     const qrDataUrl = await QRCode.toDataURL(barcodeValue)
+
+                    // Find stock for this size (0 if size doesn't exist)
+                    const sizeData = product?.sizes?.find((s: any) => s.size === sizeLabel)
+                    const stock = sizeData?.stock || 0
 
                     // Draw Border (Optional, helps visual separation)
                     doc.setDrawColor(200)
                     doc.rect(x + 2, y + 2, colWidth - 4, rowHeight - 4)
 
-                    // Product Name (Truncated)
-                    doc.setFontSize(8)
-                    doc.text((product.name || 'Produit').substring(0, 25), x + 5, y + 10)
+                    // Product Image (if available) - 20mm height
+                    if (productImageUrl) {
+                        try {
+                            doc.addImage(productImageUrl, 'PNG', x + 5, y + 5, 45, 20, undefined, 'FAST')
+                        } catch (error) {
+                            console.warn('Failed to load product image:', error)
+                        }
+                    }
 
-                    // QR Code (Centered)
-                    // 35x35mm QR code
-                    doc.addImage(qrDataUrl, 'PNG', x + 10, y + 15, 35, 35)
+                    // Product Name (Truncated) - below image or at top if no image
+                    doc.setFontSize(8)
+                    const nameY = productImageUrl ? y + 28 : y + 10
+                    doc.text((product.name || 'Produit').substring(0, 25), x + 5, nameY)
+
+                    // Size label
+                    doc.setFontSize(7)
+                    const sizeY = productImageUrl ? y + 32 : y + 14
+                    doc.text(`Taille: ${sizeLabel}`, x + 5, sizeY)
+
+                    // QR Code (Centered) - 30x30mm
+                    const qrY = productImageUrl ? y + 35 : y + 20
+                    doc.addImage(qrDataUrl, 'PNG', x + 12.5, qrY, 30, 30)
 
                     // Barcode Value (Small text at bottom)
                     doc.setFontSize(7)
-                    doc.text(barcodeValue, x + 5, y + 55)
+                    const barcodeY = productImageUrl ? y + 68 : y + 53
+                    doc.text(barcodeValue, x + 5, barcodeY)
+
+                    // Stock info (very small)
+                    doc.setFontSize(6)
+                    doc.text(`Stock: ${stock}`, x + 5, barcodeY + 4)
 
                     // Advance Grid
                     col++
@@ -551,41 +587,85 @@ function LabelsSection() {
                                 // Show single preview for accessory with total stock
                                 const barcodeValue = selectedProduct?.reference || selectedProduct?.id
                                 const totalStock = selectedProduct?.stock || 0
+                                const imageUrl = selectedProduct?.images?.[0]?.url || selectedProduct?.images?.[0] || selectedProduct?.image || null
                                 return (
                                     <div className="border rounded-lg p-4">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <div>
-                                                <p className="font-bold">{selectedProduct?.name || 'Produit sans nom'}</p>
-                                                <p className="text-sm text-muted-foreground">Accessoire (Pas de taille)</p>
-                                                <p className="text-xs text-muted-foreground font-mono">{barcodeValue}</p>
+                                        <div className="flex items-center gap-4 mb-4">
+                                            {imageUrl && (
+                                                <div className="relative w-20 h-20 rounded overflow-hidden bg-muted flex-shrink-0">
+                                                    <Image
+                                                        src={imageUrl}
+                                                        alt={selectedProduct?.name || 'Product'}
+                                                        fill
+                                                        className="object-cover"
+                                                        onError={(e) => {
+                                                            const target = e.target as HTMLImageElement
+                                                            target.src = '/placeholder.svg'
+                                                        }}
+                                                        unoptimized={imageUrl.startsWith('http')}
+                                                    />
+                                                </div>
+                                            )}
+                                            <div className="flex-1">
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div>
+                                                        <p className="font-bold">{selectedProduct?.name || 'Produit sans nom'}</p>
+                                                        <p className="text-sm text-muted-foreground">Accessoire (Pas de taille)</p>
+                                                        <p className="text-xs text-muted-foreground font-mono">{barcodeValue}</p>
+                                                    </div>
+                                                    <Badge variant="secondary">Stock total : {totalStock}</Badge>
+                                                </div>
+                                                <div className="bg-muted p-4 rounded text-center">
+                                                    <p className="text-xs text-muted-foreground mb-2">
+                                                        1 étiquette sera générée lors de l'impression
+                                                    </p>
+                                                    <p className="font-mono text-sm">{barcodeValue}</p>
+                                                </div>
                                             </div>
-                                            <Badge variant="secondary">Stock total : {totalStock}</Badge>
-                                        </div>
-                                        <div className="bg-muted p-4 rounded text-center">
-                                            <p className="text-xs text-muted-foreground mb-2">
-                                                {totalStock} étiquette(s) sera(ont) générée(s) lors de l'impression
-                                            </p>
-                                            <p className="font-mono text-sm">{barcodeValue}</p>
                                         </div>
                                     </div>
                                 )
                             } else {
-                                // Show preview for products with sizes
-                                return selectedProduct?.sizes?.map((size: any) => {
-                                    const barcodeValue = `${selectedProduct.reference}-${size.size}`
+                                // Show preview for products with sizes - show ALL sizes (M, L, XL, XXL, XXXL)
+                                const allSizes = ['M', 'L', 'XL', 'XXL', 'XXXL']
+                                const imageUrl = selectedProduct?.images?.[0]?.url || selectedProduct?.images?.[0] || selectedProduct?.image || null
+                                return allSizes.map((sizeLabel) => {
+                                    const barcodeValue = `${selectedProduct.reference}-${sizeLabel}`
+                                    const sizeData = selectedProduct?.sizes?.find((s: any) => s.size === sizeLabel)
+                                    const stock = sizeData?.stock || 0
+                                    
                                     return (
-                                        <div key={size.id} className="border rounded-lg p-4">
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div>
-                                                    <p className="font-bold">{selectedProduct?.name || 'Produit sans nom'}</p>
-                                                    <p className="text-sm text-muted-foreground">Taille : {size.size}</p>
-                                                    <p className="text-xs text-muted-foreground font-mono">{barcodeValue}</p>
+                                        <div key={sizeLabel} className="border rounded-lg p-4">
+                                            <div className="flex items-center gap-4 mb-4">
+                                                {imageUrl && (
+                                                    <div className="relative w-20 h-20 rounded overflow-hidden bg-muted flex-shrink-0">
+                                                        <Image
+                                                            src={imageUrl}
+                                                            alt={`${selectedProduct?.name || 'Product'} - ${sizeLabel}`}
+                                                            fill
+                                                            className="object-cover"
+                                                            onError={(e) => {
+                                                                const target = e.target as HTMLImageElement
+                                                                target.src = '/placeholder.svg'
+                                                            }}
+                                                            unoptimized={imageUrl.startsWith('http')}
+                                                        />
+                                                    </div>
+                                                )}
+                                                <div className="flex-1">
+                                                    <div className="flex items-center justify-between mb-2">
+                                                        <div>
+                                                            <p className="font-bold">{selectedProduct?.name || 'Produit sans nom'}</p>
+                                                            <p className="text-sm text-muted-foreground">Taille : {sizeLabel}</p>
+                                                            <p className="text-xs text-muted-foreground font-mono">{barcodeValue}</p>
+                                                        </div>
+                                                        <Badge variant="secondary">Stock : {stock}</Badge>
+                                                    </div>
+                                                    <div className="bg-muted p-4 rounded text-center">
+                                                        <p className="text-xs text-muted-foreground mb-2">Le code QR sera généré lors de l'impression</p>
+                                                        <p className="font-mono text-sm">{barcodeValue}</p>
+                                                    </div>
                                                 </div>
-                                                <Badge variant="secondary">Stock : {size.stock || 0}</Badge>
-                                            </div>
-                                            <div className="bg-muted p-4 rounded text-center">
-                                                <p className="text-xs text-muted-foreground mb-2">Le code QR sera généré lors de l'impression</p>
-                                                <p className="font-mono text-sm">{barcodeValue}</p>
                                             </div>
                                         </div>
                                     )
