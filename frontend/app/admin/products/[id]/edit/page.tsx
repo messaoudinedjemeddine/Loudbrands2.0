@@ -104,6 +104,24 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   const fetchProduct = useCallback(async () => {
     try {
       const data = await api.admin.getProduct(unwrappedParams.id) as any
+      
+      // Transform images - handle different formats
+      let transformedImages: Array<{ url: string; alt?: string }> = []
+      if (data.images && Array.isArray(data.images) && data.images.length > 0) {
+        transformedImages = data.images
+          .filter((img: any) => img && (img.url || img))
+          .map((img: any) => {
+            // Handle both object format {url, alt} and string format
+            if (typeof img === 'string') {
+              return { url: img, alt: '' }
+            }
+            return {
+              url: img.url || img,
+              alt: img.alt || ''
+            }
+          })
+      }
+      
       // Transform the API response to match our Product interface
       const transformedData: Product = {
         id: data.id,
@@ -121,10 +139,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         isActive: data.isActive !== false,
         isLaunch: data.isLaunch || false,
         launchAt: data.launchAt ? new Date(data.launchAt).toISOString().slice(0, 16) : '',
-        images: data.images?.map((img: any) => ({ 
-          url: img.url, 
-          alt: img.alt || '' 
-        })) || [],
+        images: transformedImages,
         slug: data.slug || '',
         sizes: data.sizes?.map((s: any) => ({ size: s.size, stock: s.stock })) || []
       }
