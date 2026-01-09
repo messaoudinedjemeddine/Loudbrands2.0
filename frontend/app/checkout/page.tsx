@@ -50,7 +50,19 @@ export default function CheckoutPage() {
   const [shippingFees, setShippingFees] = useState<ShippingFees | null>(null)
   const [isLoadingShipping, setIsLoadingShipping] = useState(false)
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    customerName: string
+    customerPhone: string
+    deliveryType: 'HOME_DELIVERY' | 'PICKUP'
+    wilayaId: string
+    wilayaName: string
+    communeId: string
+    communeName: string
+    centerId: string
+    centerName: string
+    deliveryAddress: string
+    notes: string
+  }>({
     customerName: '',
     customerPhone: '',
     // customerEmail removed
