@@ -113,7 +113,7 @@ const statusColors = {
 }
 
 
-const SIZE_OPTIONS = ['M', 'L', 'XL', 'XXL']
+const SIZE_OPTIONS = ['M', 'L', 'XL', 'XXL', 'XXXL']
 
 export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   // Unwrap params for Next.js 15 compatibility
