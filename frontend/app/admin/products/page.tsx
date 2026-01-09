@@ -18,6 +18,8 @@ import {
   TrendingUp,
   TrendingDown
 } from 'lucide-react'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import Image from 'next/image'
 import Link from 'next/link'
 import { AdminLayout } from '@/components/admin/admin-layout'
@@ -63,9 +65,18 @@ export default function AdminProductsPage() {
   const [stockFilter, setStockFilter] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all')
   const [loading, setLoading] = useState(true)
+  const [inventoryEnabled, setInventoryEnabled] = useState(false)
 
   useEffect(() => {
     setMounted(true)
+    // Load inventory toggle state from localStorage
+    const savedState = localStorage.getItem('inventory-enabled')
+    if (savedState !== null) {
+      setInventoryEnabled(savedState === 'true')
+    } else {
+      // Default to false if not set
+      setInventoryEnabled(false)
+    }
     fetchProducts()
   }, [])
 
@@ -197,6 +208,12 @@ export default function AdminProductsPage() {
     }
   }
 
+  const handleToggleInventory = (enabled: boolean) => {
+    setInventoryEnabled(enabled)
+    localStorage.setItem('inventory-enabled', enabled.toString())
+    toast.success(`Inventaire ${enabled ? 'activé' : 'désactivé'}`)
+  }
+
   const categories = Array.from(new Set(products.map(product => getCategoryName(product.category))))
 
   if (loading) {
@@ -231,12 +248,24 @@ export default function AdminProductsPage() {
               Gérez votre catalogue de produits et inventaire
             </p>
           </div>
-          <Button className="elegant-gradient" asChild>
-            <Link href="/admin/products/new">
-              <Plus className="w-4 h-4 mr-2" />
-              Ajouter Produit
-            </Link>
-          </Button>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center space-x-2 bg-muted/50 px-4 py-2 rounded-lg border">
+              <Switch
+                id="inventory-toggle"
+                checked={inventoryEnabled}
+                onCheckedChange={handleToggleInventory}
+              />
+              <Label htmlFor="inventory-toggle" className="cursor-pointer font-medium">
+                Inventaire {inventoryEnabled ? 'ON' : 'OFF'}
+              </Label>
+            </div>
+            <Button className="elegant-gradient" asChild>
+              <Link href="/admin/products/new">
+                <Plus className="w-4 h-4 mr-2" />
+                Ajouter Produit
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Stats Cards */}

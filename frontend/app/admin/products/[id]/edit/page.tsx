@@ -66,6 +66,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   const [mounted, setMounted] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [categories, setCategories] = useState<Category[]>([])
+  const [inventoryEnabled, setInventoryEnabled] = useState(false)
   const [productData, setProductData] = useState<Product>({
     id: '',
     name: '',
@@ -136,6 +137,13 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
   useEffect(() => {
     setMounted(true)
+    // Load inventory toggle state from localStorage
+    const savedState = localStorage.getItem('inventory-enabled')
+    if (savedState !== null) {
+      setInventoryEnabled(savedState === 'true')
+    } else {
+      setInventoryEnabled(false)
+    }
     fetchCategories()
     fetchProduct()
   }, [fetchCategories, fetchProduct])
@@ -237,7 +245,16 @@ export default function EditProductPage({ params }: EditProductPageProps) {
               </Link>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">Edit Product</h1>
+              <div className="flex items-center gap-3">
+                <h1 className="text-3xl font-bold">Edit Product</h1>
+                <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                  inventoryEnabled 
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
+                }`}>
+                  Inventaire {inventoryEnabled ? 'ON' : 'OFF'}
+                </div>
+              </div>
               <p className="text-muted-foreground">
                 Update product information and settings
               </p>
@@ -367,8 +384,14 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                     value={productData.stock}
                     onChange={(e) => handleInputChange('stock', parseInt(e.target.value) || 0)}
                     className={stockMismatch ? 'border-red-500' : ''}
+                    disabled={!inventoryEnabled}
                   />
-                  {stockMismatch && (
+                  {!inventoryEnabled && (
+                    <p className="text-xs text-muted-foreground">
+                      Activer l'inventaire pour modifier le stock
+                    </p>
+                  )}
+                  {stockMismatch && inventoryEnabled && (
                     <p className="text-sm text-red-500 font-medium">
                       ⚠️ Total stock ({productData.stock}) does not match sum of sizes ({totalSizeStock})
                     </p>
@@ -428,6 +451,13 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                 <CardTitle>Available Sizes</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
+                {!inventoryEnabled && (
+                  <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                      ⚠️ L'inventaire est désactivé. Activez-le pour modifier les tailles et quantités.
+                    </p>
+                  </div>
+                )}
                 <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
                   {availableSizes.map((size) => {
                     const isSelected = productData.sizes.find(s => s.size === size)
@@ -438,6 +468,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                         variant={isSelected ? "default" : "outline"}
                         className="h-12"
                         onClick={() => isSelected ? handleRemoveSize(size) : handleAddSize(size)}
+                        disabled={!inventoryEnabled}
                       >
                         {size}
                       </Button>
@@ -468,6 +499,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                             onChange={(e) => handleSizeStockChange(sizeData.size, parseInt(e.target.value) || 0)}
                             min="0"
                             className="flex-1"
+                            disabled={!inventoryEnabled}
                           />
                         </div>
                       ))}
