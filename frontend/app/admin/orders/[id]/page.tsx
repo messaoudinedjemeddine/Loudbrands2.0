@@ -10,6 +10,15 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Separator } from '@/components/ui/separator'
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
+import {
   ArrowLeft,
   Phone,
   Mail,
@@ -26,7 +35,8 @@ import {
   Save,
   X,
   Plus,
-  MessageSquare
+  MessageSquare,
+  DollarSign
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -165,6 +175,8 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const [productSearch, setProductSearch] = useState('')
   const [loadingProducts, setLoadingProducts] = useState(false)
   const [noteInput, setNoteInput] = useState('')
+  const [showWholesalePriceDialog, setShowWholesalePriceDialog] = useState(false)
+  const [wholesalePrice, setWholesalePrice] = useState('')
 
   // Dirty state trackers
   const isDeliveryDirty = order ? (
@@ -756,13 +768,42 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     setOrderItems(prev => prev.map(item =>
       item.id === itemId
         ? {
-          ...item,
-          pieces: (item.pieces || []).map(piece =>
-            piece.id === pieceId ? { ...piece, size } : piece
-          )
-        }
+            ...item,
+            pieces: (item.pieces || []).map(piece =>
+              piece.id === pieceId ? { ...piece, size } : piece
+            )
+          }
         : item
     ))
+  }
+
+  // Update all items with wholesale price
+  const applyWholesalePrice = () => {
+    if (isReadOnly) {
+      toast.error('Impossible de modifier une commande confirmée')
+      return
+    }
+
+    const price = parseFloat(wholesalePrice)
+    if (isNaN(price) || price < 0) {
+      toast.error('Veuillez entrer un prix valide')
+      return
+    }
+
+    if (orderItems.length === 0) {
+      toast.error('Aucun article dans la commande')
+      return
+    }
+
+    // Update all items with the new wholesale price
+    setOrderItems(prev => prev.map(item => ({
+      ...item,
+      price: price
+    })))
+
+    toast.success(`Prix gros appliqué: ${price.toLocaleString()} DA pour tous les articles`)
+    setShowWholesalePriceDialog(false)
+    setWholesalePrice('')
   }
 
   // Add new item to order
@@ -1279,6 +1320,20 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                     </div>
                   ))}
 
+                  {/* Prix Gros Button */}
+                  {!isReadOnly && orderItems.length > 0 && (
+                    <div className="pt-4 border-t">
+                      <Button
+                        variant="outline"
+                        onClick={() => setShowWholesalePriceDialog(true)}
+                        className="w-full"
+                      >
+                        <DollarSign className="w-4 h-4 mr-2" />
+                        Prix Gros
+                      </Button>
+                    </div>
+                  )}
+
                   {/* Always show Add New Item Form unless ReadOnly */}
                   {!isReadOnly && (
                     <div className="p-4 border-2 border-dashed border-muted-foreground/30 rounded-lg hover:border-muted-foreground/50 transition-colors">
@@ -1754,7 +1809,60 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
           </div>
         </div>
-      </div >
+      </div>
+
+      {/* Wholesale Price Dialog */}
+      <Dialog open={showWholesalePriceDialog} onOpenChange={setShowWholesalePriceDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Prix Gros</DialogTitle>
+            <DialogDescription>
+              Entrez le prix gros qui sera appliqué à tous les articles de la commande (sans les frais de livraison).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="wholesale-price">Prix (DA)</Label>
+              <Input
+                id="wholesale-price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={wholesalePrice}
+                onChange={(e) => setWholesalePrice(e.target.value)}
+                placeholder="Entrez le prix gros"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    applyWholesalePrice()
+                  }
+                }}
+              />
+            </div>
+            {orderItems.length > 0 && (
+              <div className="text-sm text-muted-foreground">
+                <p>Nombre d'articles: {orderItems.length}</p>
+                {wholesalePrice && !isNaN(parseFloat(wholesalePrice)) && (
+                  <p className="mt-1">
+                    Nouveau sous-total: {(orderItems.reduce((sum, item) => sum + item.quantity, 0) * parseFloat(wholesalePrice)).toLocaleString()} DA
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setShowWholesalePriceDialog(false)
+              setWholesalePrice('')
+            }}>
+              Annuler
+            </Button>
+            <Button onClick={applyWholesalePrice} disabled={!wholesalePrice || isNaN(parseFloat(wholesalePrice)) || parseFloat(wholesalePrice) < 0}>
+              <Save className="w-4 h-4 mr-2" />
+              Appliquer
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AdminLayout >
   )
 }
