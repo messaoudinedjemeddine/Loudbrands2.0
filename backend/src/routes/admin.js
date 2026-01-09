@@ -787,10 +787,12 @@ router.patch('/orders/:id/status', async (req, res) => {
 
     // Handle delivery desk - for PICKUP orders, map Yalidine centerId to deliveryDeskId
     let finalDeliveryDeskId = deliveryDeskId;
-    if (deliveryType === 'PICKUP' && deliveryDetails && deliveryDetails.centerId && !finalDeliveryDeskId) {
+    const effectiveDeliveryType = deliveryType || currentOrder.deliveryType;
+    
+    if (effectiveDeliveryType === 'PICKUP' && deliveryDetails && typeof deliveryDetails === 'object' && deliveryDetails.centerId && !finalDeliveryDeskId) {
       // If we have a centerId in deliveryDetails but no deliveryDeskId, map it
       try {
-        const wilayaIdToUse = cityId || deliveryDetails.wilayaId;
+        const wilayaIdToUse = cityId || (deliveryDetails.wilayaId ? String(deliveryDetails.wilayaId) : null);
         if (wilayaIdToUse) {
           const wilaya = getWilayaById(parseInt(wilayaIdToUse));
           if (wilaya && wilaya.code) {
@@ -798,8 +800,8 @@ router.patch('/orders/:id/status', async (req, res) => {
             if (city) {
               const mappedDeskId = await DeliveryDeskMapper.findOrCreateDeliveryDesk(
                 city.id,
-                deliveryDetails.centerId,
-                deliveryDetails.centerName
+                String(deliveryDetails.centerId),
+                deliveryDetails.centerName || null
               );
               if (mappedDeskId) {
                 finalDeliveryDeskId = mappedDeskId;
@@ -810,6 +812,7 @@ router.patch('/orders/:id/status', async (req, res) => {
         }
       } catch (error) {
         console.error('Error mapping centerId to deliveryDeskId:', error);
+        // Don't throw - continue with update without mapping
       }
     }
 
@@ -820,7 +823,29 @@ router.patch('/orders/:id/status', async (req, res) => {
     } else if (finalDeliveryDeskId !== undefined || deliveryDeskId !== undefined) {
       const deskIdToUse = finalDeliveryDeskId !== undefined ? finalDeliveryDeskId : deliveryDeskId;
       if (deskIdToUse) {
-        updateData.deliveryDesk = { connect: { id: deskIdToUse } };
+        // Check if this looks like a Yalidine centerId (numeric) vs a deliveryDeskId (CUID string)
+        // CUIDs are typically 25 characters, while Yalidine IDs are numeric
+        const isNumericId = /^\d+$/.test(String(deskIdToUse));
+        if (isNumericId && deliveryDetails && deliveryDetails.centerId) {
+          // This is likely a Yalidine centerId, not a deliveryDeskId
+          // The mapping should have handled this, but if it didn't, skip connection
+          console.warn(`⚠️ Skipping connection: ${deskIdToUse} appears to be a Yalidine centerId, not a deliveryDeskId`);
+        } else {
+          // Verify the delivery desk exists before trying to connect
+          try {
+            const deskExists = await prisma.deliveryDesk.findUnique({
+              where: { id: String(deskIdToUse) }
+            });
+            if (deskExists) {
+              updateData.deliveryDesk = { connect: { id: String(deskIdToUse) } };
+            } else {
+              console.warn(`⚠️ Delivery desk ${deskIdToUse} not found, skipping connection`);
+            }
+          } catch (error) {
+            console.error('Error verifying delivery desk:', error);
+            // Skip delivery desk connection if there's an error
+          }
+        }
       } else if (deliveryDeskId === null || deliveryDeskId === '') {
         // Explicitly disconnecting
         updateData.deliveryDesk = { disconnect: true };
@@ -833,11 +858,27 @@ router.patch('/orders/:id/status', async (req, res) => {
     if (yalidineShipmentId !== undefined) updateData.yalidineShipmentId = yalidineShipmentId;
 
     // Handle detailed delivery info and city relation
-    if (deliveryDetails !== undefined) updateData.deliveryDetails = deliveryDetails;
+    if (deliveryDetails !== undefined) {
+      // Ensure deliveryDetails is a proper object (handle JSON strings)
+      if (typeof deliveryDetails === 'string') {
+        try {
+          updateData.deliveryDetails = JSON.parse(deliveryDetails);
+        } catch (e) {
+          updateData.deliveryDetails = deliveryDetails;
+        }
+      } else {
+        updateData.deliveryDetails = deliveryDetails;
+      }
+    }
     if (cityId) {
-      const wilaya = getWilayaById(parseInt(cityId));
-      if (wilaya && wilaya.code) {
-        updateData.city = { connect: { code: wilaya.code } };
+      try {
+        const wilaya = getWilayaById(parseInt(cityId));
+        if (wilaya && wilaya.code) {
+          updateData.city = { connect: { code: wilaya.code } };
+        }
+      } catch (error) {
+        console.error('Error connecting city:', error);
+        // Continue without city update if there's an error
       }
     }
 
@@ -874,6 +915,8 @@ router.patch('/orders/:id/status', async (req, res) => {
       }
     }
 
+    console.log('📝 Updating order with data:', JSON.stringify(updateData, null, 2));
+    
     const order = await prisma.order.update({
       where: { id },
       data: updateData,
@@ -910,7 +953,17 @@ router.patch('/orders/:id/status', async (req, res) => {
     res.json(formattedOrder);
   } catch (error) {
     console.error('Update order status error:', error);
-    res.status(500).json({ error: 'Failed to update order status' });
+    console.error('Error stack:', error.stack);
+    console.error('Error details:', {
+      message: error.message,
+      code: error.code,
+      meta: error.meta
+    });
+    res.status(500).json({ 
+      error: 'Failed to update order status',
+      details: error.message || 'Unknown error',
+      code: error.code || 'UNKNOWN_ERROR'
+    });
   }
 });
 
