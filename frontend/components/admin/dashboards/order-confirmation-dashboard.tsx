@@ -303,7 +303,7 @@ export function OrderConfirmationDashboard() {
         deliveryType: editForm.deliveryType,
         deliveryAddress: editForm.deliveryType === 'HOME_DELIVERY' ? editForm.deliveryAddress : null,
         cityId: editForm.cityId,
-        deliveryDeskId: editForm.deliveryType === 'PICKUP' ? editForm.deliveryDeskId : null,
+        deliveryDeskId: editForm.deliveryType === 'PICKUP' ? editForm.deliveryDeskId : undefined,
         deliveryFee,
         subtotal,
         total,
