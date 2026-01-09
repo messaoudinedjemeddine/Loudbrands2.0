@@ -95,7 +95,7 @@ export default function CheckoutPage() {
   }
 
   // Load communes when wilaya changes
-  const loadCommunes = async (wilayaId: string) => {
+  const loadCommunes = async (wilayaId: string, deliveryType: 'HOME_DELIVERY' | 'PICKUP' = formData.deliveryType) => {
     if (!wilayaId) {
       setCommunes([])
       setCenters([])
@@ -104,12 +104,36 @@ export default function CheckoutPage() {
 
     try {
       setIsLoadingShipping(true)
-      const communesData = await yalidineAPI.getCommunes(parseInt(wilayaId))
-      setCommunes(communesData.data)
-
-      // Load centers for this wilaya
+      
+      // Always load centers first - we need them for PICKUP
       const centersData = await yalidineAPI.getCenters(parseInt(wilayaId))
-      setCenters(centersData.data)
+      setCenters(centersData.data || [])
+
+      // For PICKUP: derive communes from centers (only communes with desks)
+      // For HOME_DELIVERY: load all communes from API
+      if (deliveryType === 'PICKUP') {
+        // Extract unique communes from centers
+        const communesFromCenters = new Map<number, Commune>()
+        centersData.data?.forEach((center) => {
+          if (center.commune_id && !communesFromCenters.has(center.commune_id)) {
+            communesFromCenters.set(center.commune_id, {
+              id: center.commune_id,
+              name: center.commune_name,
+              wilaya_id: center.wilaya_id,
+              wilaya_name: center.wilaya_name,
+              has_stop_desk: true, // All communes from centers have desks
+              is_deliverable: true,
+              delivery_time_parcel: 0,
+              delivery_time_payment: 0
+            })
+          }
+        })
+        setCommunes(Array.from(communesFromCenters.values()))
+      } else {
+        // For HOME_DELIVERY, load all communes from API
+        const communesData = await yalidineAPI.getCommunes(parseInt(wilayaId))
+        setCommunes(communesData.data || [])
+      }
 
       // Calculate shipping fees
       await calculateShippingFees(parseInt(wilayaId))
@@ -211,16 +235,11 @@ export default function CheckoutPage() {
         } else if (value === 'PICKUP') {
           // Reset address for pickup
           updates.deliveryAddress = '';
-          // Reset center if commune doesn't have desks
-          if (prev.communeId) {
-            const commune = communes.find(c => c.id.toString() === prev.communeId);
-            if (!commune || !commune.has_stop_desk) {
-              updates.communeId = '';
-              updates.communeName = '';
-              updates.centerId = '';
-              updates.centerName = '';
-            }
-          }
+          // Reset commune and center - will reload based on centers
+          updates.communeId = '';
+          updates.communeName = '';
+          updates.centerId = '';
+          updates.centerName = '';
         }
       }
 
@@ -261,7 +280,13 @@ export default function CheckoutPage() {
 
     // Handle wilaya change side effects (loading data)
     if (field === 'wilayaId') {
-      loadCommunes(value)
+      loadCommunes(value, formData.deliveryType)
+    }
+
+    // When delivery type changes, reload communes to get the right list
+    if (field === 'deliveryType' && formData.wilayaId) {
+      // Reload communes based on new delivery type
+      loadCommunes(formData.wilayaId, value as 'HOME_DELIVERY' | 'PICKUP')
     }
   }
 
@@ -540,13 +565,8 @@ export default function CheckoutPage() {
                               </div>
                             ) : (
                               communes
-                                // For PICKUP, only show communes that have desks
-                                .filter(commune => {
-                                  if (formData.deliveryType === 'PICKUP') {
-                                    return commune.has_stop_desk === true
-                                  }
-                                  return true // Show all communes for HOME_DELIVERY
-                                })
+                                // For PICKUP, communes are already filtered from centers
+                                // For HOME_DELIVERY, show all communes
                                 .map((commune) => (
                                   <SelectItem 
                                     key={commune.id} 
