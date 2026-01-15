@@ -1076,22 +1076,51 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
     const [yalidineBarcode, setYalidineBarcode] = useState('')
     const [scanLogs, setScanLogs] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(false)
+    const [scannedBarcodes, setScannedBarcodes] = useState<Set<string>>(new Set())
     const inputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         inputRef.current?.focus()
+        // Load scanned barcodes from localStorage
+        const saved = localStorage.getItem('scanned-yalidine-barcodes')
+        if (saved) {
+            try {
+                setScannedBarcodes(new Set(JSON.parse(saved)))
+            } catch (e) {
+                console.error('Failed to load scanned barcodes', e)
+            }
+        }
     }, [])
+
+    const isBarcodeAlreadyScanned = (barcode: string): boolean => {
+        return scannedBarcodes.has(barcode.trim())
+    }
+
+    const markBarcodeAsScanned = (barcode: string) => {
+        const newSet = new Set(scannedBarcodes)
+        newSet.add(barcode.trim())
+        setScannedBarcodes(newSet)
+        localStorage.setItem('scanned-yalidine-barcodes', JSON.stringify(Array.from(newSet)))
+    }
 
     const handleYalidineScan = async (e: React.FormEvent) => {
         e.preventDefault()
         if (!yalidineBarcode.trim()) return
 
+        const barcodeKey = yalidineBarcode.trim()
+        
+        // Check if barcode was already scanned
+        if (isBarcodeAlreadyScanned(barcodeKey)) {
+            toast.error('Ce code-barres Yalidine a déjà été scanné. Chaque code-barres ne peut être utilisé qu\'une seule fois.')
+            return
+        }
+
         setIsLoading(true)
         setScanLogs([]) // Clear previous logs
 
         try {
-            const shipment = await yalidineAPI.getShipment(yalidineBarcode.trim())
-            const tracking = shipment.tracking || shipment.tracking_number || shipment.tracking || yalidineBarcode.trim()
+            const shipment = await yalidineAPI.getShipment(barcodeKey)
+            const tracking = shipment.tracking || shipment.tracking_number || shipment.tracking || barcodeKey
             const productList = shipment.product_list || shipment.productList || ''
 
             if (!productList) {
@@ -1108,10 +1137,18 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                 return
             }
 
-            const logs = []
-            let successCount = 0
+            // STEP 1: Validate ALL items first before processing any
+            const validationErrors: Array<{ item: any; message: string; productName: string }> = []
+            const validatedItems: Array<{ 
+                item: any
+                product: any
+                barcode: string
+                size: string
+                oldStock: number
+                isAccessoire: boolean
+            }> = []
 
-            // Process each item immediately
+            // Validate all items first
             for (const item of parsedItems) {
                 try {
                     // 1. Find Product
@@ -1127,15 +1164,15 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                     )
 
                     if (!product) {
-                        logs.push({
-                            status: 'error',
+                        validationErrors.push({
+                            item,
                             message: `Produit "${item.productName}" introuvable`,
-                            item
+                            productName: item.productName
                         })
                         continue
                     }
 
-                    // Check if product is an accessory (no sizes or category is accessories)
+                    // Check if product is an accessory
                     const categorySlug = product.category?.slug?.toLowerCase() || ''
                     const isAccessoire = categorySlug.includes('accessoire') || 
                                         categorySlug.includes('accessories') ||
@@ -1144,7 +1181,6 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
 
                     let barcode: string
                     let oldStock: number
-                    let newStock: number
                     let size: string
 
                     if (isAccessoire) {
@@ -1152,99 +1188,133 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                         barcode = product.reference
                         oldStock = product.stock || 0
                         
-                        // 2. Check Stock for accessories
+                        // Check Stock for accessories
                         if (oldStock < item.quantity) {
-                            logs.push({
-                                status: 'error',
-                                message: `Stock insuffisant pour "${product.name}". Stock: ${oldStock}, Requis: ${item.quantity}`,
-                                item
+                            validationErrors.push({
+                                item,
+                                message: `Stock insuffisant. Stock: ${oldStock}, Requis: ${item.quantity}`,
+                                productName: product.name
                             })
                             continue
                         }
 
-                        // 3. Deduct Stock
-                        for (let i = 0; i < item.quantity; i++) {
-                            await api.products.scanProduct(barcode, 'remove')
-                        }
-
-                        newStock = Math.max(0, oldStock - item.quantity)
-                        size = '' // No size for accessories
+                        size = ''
                     } else {
                         // Handle products with sizes
-                        // 2. Check Size
+                        // Check Size
                         const sizeObj = product.sizes?.find((s: any) => s.size === item.size)
                         if (!sizeObj) {
-                            logs.push({
-                                status: 'error',
-                                message: `Taille "${item.size}" introuvable pour "${product.name}"`,
-                                item
+                            validationErrors.push({
+                                item,
+                                message: `Taille "${item.size}" introuvable`,
+                                productName: product.name
                             })
                             continue
                         }
 
-                        // 3. Check Stock
+                        // Check Stock
                         if ((sizeObj.stock || 0) < item.quantity) {
-                            logs.push({
-                                status: 'error',
-                                message: `Stock insuffisant pour "${product.name}" (${item.size}). Stock: ${sizeObj.stock}, Requis: ${item.quantity}`,
-                                item
+                            validationErrors.push({
+                                item,
+                                message: `Stock insuffisant pour taille ${item.size}. Stock: ${sizeObj.stock}, Requis: ${item.quantity}`,
+                                productName: product.name
                             })
                             continue
                         }
 
-                        // 4. Deduct Stock
                         barcode = `${product.reference}-${item.size}`
-                        for (let i = 0; i < item.quantity; i++) {
-                            await api.products.scanProduct(barcode, 'remove')
-                        }
-
                         oldStock = sizeObj.stock || 0
-                        newStock = Math.max(0, oldStock - item.quantity)
                         size = item.size
                     }
 
-                    // 5. Add History
+                    // Item is valid, add to validated items
+                    validatedItems.push({
+                        item,
+                        product,
+                        barcode,
+                        size,
+                        oldStock,
+                        isAccessoire
+                    })
+                } catch (err: any) {
+                    validationErrors.push({
+                        item,
+                        message: `Erreur système: ${err.message}`,
+                        productName: item.productName
+                    })
+                }
+            }
+
+            // STEP 2: If ANY validation errors, show error and DON'T process anything
+            if (validationErrors.length > 0) {
+                const errorProducts = validationErrors.map(e => 
+                    `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`
+                ).join('; ')
+                
+                const errorMessage = `Erreur avec vos produits: ${errorProducts}`
+                toast.error(errorMessage)
+                
+                setScanLogs(validationErrors.map(e => ({
+                    status: 'error',
+                    message: `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`,
+                    item: e.item
+                })))
+                setIsLoading(false)
+                return
+            }
+
+            // STEP 3: All items are valid, process them
+            const logs = []
+            for (const validated of validatedItems) {
+                try {
+                    // Deduct Stock
+                    for (let i = 0; i < validated.item.quantity; i++) {
+                        await api.products.scanProduct(validated.barcode, 'remove')
+                    }
+
+                    const newStock = Math.max(0, validated.oldStock - validated.item.quantity)
+
+                    // Add History
                     const movement: StockMovement = {
                         id: Date.now().toString() + Math.random(),
                         timestamp: new Date(),
                         type: 'out',
-                        barcode,
-                        productName: product.name,
-                        productReference: product.reference,
-                        size: size,
-                        quantity: item.quantity,
-                        oldStock,
+                        barcode: validated.barcode,
+                        productName: validated.product.name,
+                        productReference: validated.product.reference,
+                        size: validated.size,
+                        quantity: validated.item.quantity,
+                        oldStock: validated.oldStock,
                         newStock,
                         orderNumber: tracking,
                         trackingNumber: tracking,
-                        notes: `Auto-scan deduction: ${item.originalLine}`
+                        notes: `Auto-scan deduction: ${validated.item.originalLine}`
                     }
                     onStockRemoved(movement)
 
                     logs.push({
                         status: 'success',
-                        message: `Retiré ${item.quantity}x ${product.name}${size ? ` (${size})` : ''}`,
-                        item
+                        message: `Retiré ${validated.item.quantity}x ${validated.product.name}${validated.size ? ` (${validated.size})` : ''}`,
+                        item: validated.item
                     })
-                    successCount++
                 } catch (err: any) {
                     console.error(err)
                     logs.push({
                         status: 'error',
-                        message: `Erreur système pour "${item.productName}": ${err.message}`,
-                        item
+                        message: `Erreur système pour "${validated.product.name}": ${err.message}`,
+                        item: validated.item
                     })
                 }
             }
 
             setScanLogs(logs)
-            if (successCount === parsedItems.length) {
-                toast.success(`Succès ! ${successCount} articles traités.`)
-                setYalidineBarcode('') // Only clear if fully successful
-            } else if (successCount > 0) {
-                toast.warning(`Partiellement traité. ${successCount}/${parsedItems.length} succès.`)
+            if (logs.every(log => log.status === 'success')) {
+                // Mark barcode as scanned only if all items processed successfully
+                markBarcodeAsScanned(barcodeKey)
+                toast.success(`Succès ! ${logs.length} articles traités.`)
+                setYalidineBarcode('')
             } else {
-                toast.error('Aucun article n\'a pu être traité.')
+                toast.error('Erreur lors du traitement de certains articles.')
             }
 
         } catch (error: any) {
@@ -1672,11 +1742,32 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
     const [barcode, setBarcode] = useState('')
     const [scanLogs, setScanLogs] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(false)
+    const [scannedBarcodes, setScannedBarcodes] = useState<Set<string>>(new Set())
     const inputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         inputRef.current?.focus()
+        // Load scanned barcodes from localStorage
+        const saved = localStorage.getItem('scanned-yalidine-barcodes')
+        if (saved) {
+            try {
+                setScannedBarcodes(new Set(JSON.parse(saved)))
+            } catch (e) {
+                console.error('Failed to load scanned barcodes', e)
+            }
+        }
     }, [])
+
+    const isBarcodeAlreadyScanned = (barcode: string): boolean => {
+        return scannedBarcodes.has(barcode.trim())
+    }
+
+    const markBarcodeAsScanned = (barcode: string) => {
+        const newSet = new Set(scannedBarcodes)
+        newSet.add(barcode.trim())
+        setScannedBarcodes(newSet)
+        localStorage.setItem('scanned-yalidine-barcodes', JSON.stringify(Array.from(newSet)))
+    }
 
     const handleScan = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -1685,6 +1776,12 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
 
         if (!code.startsWith('ECH-')) {
             toast.error('Format Invalide. Doit commencer par "ECH-"')
+            return
+        }
+
+        // Check if barcode was already scanned
+        if (isBarcodeAlreadyScanned(code)) {
+            toast.error('Ce code-barres Yalidine a déjà été scanné. Chaque code-barres ne peut être utilisé qu\'une seule fois.')
             return
         }
 
@@ -1711,10 +1808,18 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                 return
             }
 
-            const logs = []
-            let successCount = 0
+            // STEP 1: Validate ALL items first before processing any
+            const validationErrors: Array<{ item: any; message: string; productName: string }> = []
+            const validatedItems: Array<{ 
+                item: any
+                product: any
+                barcode: string
+                size: string
+                oldStock: number
+                isAccessoire: boolean
+            }> = []
 
-            // 2. Process Stock OUT
+            // Validate all items first
             for (const item of parsedItems) {
                 try {
                     // Find Product
@@ -1726,11 +1831,15 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                     )
 
                     if (!product) {
-                        logs.push({ status: 'error', message: `Produit "${item.productName}" introuvable`, item })
+                        validationErrors.push({
+                            item,
+                            message: `Produit introuvable`,
+                            productName: item.productName
+                        })
                         continue
                     }
 
-                    // Check if product is an accessory (no sizes or category is accessories)
+                    // Check if product is an accessory
                     const categorySlug = product.category?.slug?.toLowerCase() || ''
                     const isAccessoire = categorySlug.includes('accessoire') || 
                                         categorySlug.includes('accessories') ||
@@ -1739,7 +1848,6 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
 
                     let barcode: string
                     let oldStock: number
-                    let newStock: number
                     let size: string
 
                     if (isAccessoire) {
@@ -1749,76 +1857,129 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                         
                         // Check Stock for accessories
                         if (oldStock < item.quantity) {
-                            logs.push({ status: 'error', message: `Stock insuffisant (${oldStock})`, item })
+                            validationErrors.push({
+                                item,
+                                message: `Stock insuffisant. Stock: ${oldStock}, Requis: ${item.quantity}`,
+                                productName: product.name
+                            })
                             continue
                         }
 
-                        // Deduct Stock
-                        for (let i = 0; i < item.quantity; i++) {
-                            await api.products.scanProduct(barcode, 'remove')
-                        }
-
-                        newStock = Math.max(0, oldStock - item.quantity)
-                        size = '' // No size for accessories
+                        size = ''
                     } else {
                         // Handle products with sizes
                         // Check Size
                         const sizeObj = product.sizes?.find((s: any) => s.size === item.size)
                         if (!sizeObj) {
-                            logs.push({ status: 'error', message: `Taille "${item.size}" introuvable`, item })
+                            validationErrors.push({
+                                item,
+                                message: `Taille "${item.size}" introuvable`,
+                                productName: product.name
+                            })
                             continue
                         }
 
                         // Check Stock
                         if ((sizeObj.stock || 0) < item.quantity) {
-                            logs.push({ status: 'error', message: `Stock insuffisant (${sizeObj.stock})`, item })
+                            validationErrors.push({
+                                item,
+                                message: `Stock insuffisant pour taille ${item.size}. Stock: ${sizeObj.stock}, Requis: ${item.quantity}`,
+                                productName: product.name
+                            })
                             continue
                         }
 
-                        // Deduct Stock
                         barcode = `${product.reference}-${item.size}`
-                        for (let i = 0; i < item.quantity; i++) {
-                            await api.products.scanProduct(barcode, 'remove')
-                        }
-
                         oldStock = sizeObj.stock || 0
-                        newStock = Math.max(0, oldStock - item.quantity)
                         size = item.size
                     }
+
+                    // Item is valid, add to validated items
+                    validatedItems.push({
+                        item,
+                        product,
+                        barcode,
+                        size,
+                        oldStock,
+                        isAccessoire
+                    })
+                } catch (err: any) {
+                    validationErrors.push({
+                        item,
+                        message: `Erreur système: ${err.message}`,
+                        productName: item.productName
+                    })
+                }
+            }
+
+            // STEP 2: If ANY validation errors, show error and DON'T process anything
+            if (validationErrors.length > 0) {
+                const errorProducts = validationErrors.map(e => 
+                    `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`
+                ).join('; ')
+                
+                const errorMessage = `Erreur avec vos produits: ${errorProducts}`
+                toast.error(errorMessage)
+                
+                setScanLogs(validationErrors.map(e => ({
+                    status: 'error',
+                    message: `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`,
+                    item: e.item
+                })))
+                setIsLoading(false)
+                return
+            }
+
+            // STEP 3: All items are valid, process them
+            const logs = []
+            for (const validated of validatedItems) {
+                try {
+                    // Deduct Stock
+                    for (let i = 0; i < validated.item.quantity; i++) {
+                        await api.products.scanProduct(validated.barcode, 'remove')
+                    }
+
+                    const newStock = Math.max(0, validated.oldStock - validated.item.quantity)
 
                     // Log History
                     const movement: StockMovement = {
                         id: Date.now().toString() + Math.random(),
                         timestamp: new Date(),
                         type: 'out',
-                        barcode,
-                        productName: product.name,
-                        productReference: product.reference,
-                        size: size,
-                        quantity: item.quantity,
-                        oldStock,
+                        barcode: validated.barcode,
+                        productName: validated.product.name,
+                        productReference: validated.product.reference,
+                        size: validated.size,
+                        quantity: validated.item.quantity,
+                        oldStock: validated.oldStock,
                         newStock,
                         trackingNumber: tracking,
                         notes: `Echange Yalidine: ${code}`
                     }
                     onStockRemoved(movement)
 
-                    logs.push({ status: 'success', message: `Échangé: ${item.quantity}x ${product.name}${size ? ` (${size})` : ''}`, item })
-                    successCount++
-
+                    logs.push({ 
+                        status: 'success', 
+                        message: `Échangé: ${validated.item.quantity}x ${validated.product.name}${validated.size ? ` (${validated.size})` : ''}`, 
+                        item: validated.item 
+                    })
                 } catch (err: any) {
-                    logs.push({ status: 'error', message: err.message, item })
+                    logs.push({ 
+                        status: 'error', 
+                        message: `Erreur système pour "${validated.product.name}": ${err.message}`, 
+                        item: validated.item 
+                    })
                 }
             }
 
             setScanLogs(logs)
-            if (successCount === parsedItems.length) {
+            if (logs.every(log => log.status === 'success')) {
+                // Mark barcode as scanned only if all items processed successfully
+                markBarcodeAsScanned(code)
                 toast.success('Échange traité avec succès !')
                 setBarcode('')
-            } else if (successCount > 0) {
-                toast.warning('Traitement partiel.')
             } else {
-                toast.error('Échec.')
+                toast.error('Erreur lors du traitement de certains articles.')
             }
 
         } catch (error: any) {
@@ -1872,21 +2033,49 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
     const [tracking, setTracking] = useState('')
     const [scanLogs, setScanLogs] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(false)
+    const [scannedBarcodes, setScannedBarcodes] = useState<Set<string>>(new Set())
     const inputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         inputRef.current?.focus()
+        // Load scanned barcodes from localStorage
+        const saved = localStorage.getItem('scanned-yalidine-barcodes')
+        if (saved) {
+            try {
+                setScannedBarcodes(new Set(JSON.parse(saved)))
+            } catch (e) {
+                console.error('Failed to load scanned barcodes', e)
+            }
+        }
     }, [])
+
+    const isBarcodeAlreadyScanned = (barcode: string): boolean => {
+        return scannedBarcodes.has(barcode.trim())
+    }
+
+    const markBarcodeAsScanned = (barcode: string) => {
+        const newSet = new Set(scannedBarcodes)
+        newSet.add(barcode.trim())
+        setScannedBarcodes(newSet)
+        localStorage.setItem('scanned-yalidine-barcodes', JSON.stringify(Array.from(newSet)))
+    }
 
     const handleScan = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!tracking.trim()) return
+        const trackingKey = tracking.trim()
+        if (!trackingKey) return
+
+        // Check if barcode was already scanned
+        if (isBarcodeAlreadyScanned(trackingKey)) {
+            toast.error('Ce code-barres Yalidine a déjà été scanné. Chaque code-barres ne peut être utilisé qu\'une seule fois.')
+            return
+        }
 
         setIsLoading(true)
         setScanLogs([])
 
         try {
-            const shipment = await yalidineAPI.getShipment(tracking.trim())
+            const shipment = await yalidineAPI.getShipment(trackingKey)
             const productList = shipment.product_list || shipment.productList || ''
 
             if (!productList) {
@@ -1902,62 +2091,100 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                 return
             }
 
-            const receptionItems = []
-            const logs = []
+            // STEP 1: Validate ALL items first before processing any
+            const validationErrors: Array<{ item: any; message: string; productName: string }> = []
+            const validatedItems: Array<{
+                productName: string
+                reference: string
+                size: string
+                quantity: number
+                barcode: string
+            }> = []
 
             for (const item of parsedItems) {
-                const productsResponse = await api.products.getAll({ search: item.productName, limit: 1 }) as any
-                const product = productsResponse.products?.[0]
+                const productsResponse = await api.products.getAll({ search: item.productName, limit: 10 }) as any
+                const products = productsResponse.products || []
+                const product = products.find((p: any) =>
+                    p.name.toLowerCase().includes(item.productName.toLowerCase()) ||
+                    item.productName.toLowerCase().includes(p.name.toLowerCase())
+                )
 
-                if (product) {
-                    // Check if product is an accessory (no sizes or category is accessories)
-                    const categorySlug = product.category?.slug?.toLowerCase() || ''
-                    const isAccessoire = categorySlug.includes('accessoire') || 
-                                        categorySlug.includes('accessories') ||
-                                        !product.sizes || 
-                                        product.sizes.length === 0
+                if (!product) {
+                    validationErrors.push({
+                        item,
+                        message: `Produit introuvable`,
+                        productName: item.productName
+                    })
+                    continue
+                }
 
-                    if (isAccessoire) {
-                        // Handle accessories - no size needed
-                        receptionItems.push({
-                            productName: product.name,
-                            reference: product.reference,
-                            size: '',
-                            quantity: item.quantity,
-                            barcode: product.reference
-                        })
-                        logs.push({ status: 'success', message: `Retour: ${item.quantity}x ${product.name} (Accessoire)`, item })
-                    } else {
-                        // Handle products with sizes
-                        const sizeObj = product.sizes?.find((s: any) => s.size === item.size)
-                        if (sizeObj) {
-                            receptionItems.push({
-                                productName: product.name,
-                                reference: product.reference,
-                                size: item.size,
-                                quantity: item.quantity,
-                                barcode: `${product.reference}-${item.size}`
-                            })
-                            logs.push({ status: 'success', message: `Retour: ${item.quantity}x ${product.name}`, item })
-                        } else {
-                            logs.push({ status: 'error', message: `Taille inconnue: ${item.size}`, item })
-                        }
-                    }
+                // Check if product is an accessory
+                const categorySlug = product.category?.slug?.toLowerCase() || ''
+                const isAccessoire = categorySlug.includes('accessoire') || 
+                                    categorySlug.includes('accessories') ||
+                                    !product.sizes || 
+                                    product.sizes.length === 0
+
+                if (isAccessoire) {
+                    // Handle accessories - no size needed
+                    validatedItems.push({
+                        productName: product.name,
+                        reference: product.reference,
+                        size: '',
+                        quantity: item.quantity,
+                        barcode: product.reference
+                    })
                 } else {
-                    logs.push({ status: 'error', message: `Produit inconnu: ${item.productName}`, item })
+                    // Handle products with sizes
+                    const sizeObj = product.sizes?.find((s: any) => s.size === item.size)
+                    if (!sizeObj) {
+                        validationErrors.push({
+                            item,
+                            message: `Taille "${item.size}" introuvable`,
+                            productName: product.name
+                        })
+                        continue
+                    }
+
+                    validatedItems.push({
+                        productName: product.name,
+                        reference: product.reference,
+                        size: item.size,
+                        quantity: item.quantity,
+                        barcode: `${product.reference}-${item.size}`
+                    })
                 }
             }
 
-            if (receptionItems.length > 0) {
+            // STEP 2: If ANY validation errors, show error and DON'T process anything
+            if (validationErrors.length > 0) {
+                const errorProducts = validationErrors.map(e => 
+                    `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`
+                ).join('; ')
+                
+                const errorMessage = `Erreur avec vos produits: ${errorProducts}`
+                toast.error(errorMessage)
+                
+                setScanLogs(validationErrors.map(e => ({
+                    status: 'error',
+                    message: `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`,
+                    item: e.item
+                })))
+                setIsLoading(false)
+                return
+            }
+
+            // STEP 3: All items are valid, process them
+            if (validatedItems.length > 0) {
                 await api.createReception({
                     atelier: `Retour Client`,
                     totalCost: 0,
                     date: new Date().toISOString(),
-                    notes: `Retour Tracking: ${tracking}`,
-                    items: receptionItems
+                    notes: `Retour Tracking: ${trackingKey}`,
+                    items: validatedItems
                 })
 
-                receptionItems.forEach(item => {
+                validatedItems.forEach(item => {
                     onStockAdded({
                         id: Date.now().toString() + Math.random(),
                         timestamp: new Date(),
@@ -1969,18 +2196,24 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                         quantity: item.quantity,
                         oldStock: 0,
                         newStock: 0,
-                        trackingNumber: tracking,
+                        trackingNumber: trackingKey,
                         notes: 'Retour Client'
                     })
                 })
 
+                // Mark barcode as scanned only if all items processed successfully
+                markBarcodeAsScanned(trackingKey)
                 toast.success('Retour stocké avec succès !')
                 setTracking('')
+                
+                setScanLogs(validatedItems.map(item => ({
+                    status: 'success',
+                    message: `Retour: ${item.quantity}x ${item.productName}${item.size ? ` (${item.size})` : ' (Accessoire)'}`,
+                    item: { originalLine: `${item.quantity}x ${item.productName}${item.size ? ` (${item.size})` : ''}` }
+                })))
             } else {
                 toast.error('Aucun produit valide à retourner.')
             }
-
-            setScanLogs(logs)
 
         } catch (error: any) {
             toast.error(error.message || 'Erreur lors du retour')
