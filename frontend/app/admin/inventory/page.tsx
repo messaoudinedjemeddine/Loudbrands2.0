@@ -107,8 +107,8 @@ export default function AdminInventoryPage() {
 
   // Check if user is stock manager or confirmatrice (hide purchase price and total value)
   const shouldHidePriceInfo = user?.role === 'STOCK_MANAGER' || user?.role === 'CONFIRMATRICE'
-  // Check if user is confirmatrice (hide action buttons)
-  const isConfirmatrice = user?.role === 'CONFIRMATRICE'
+  // Check if user is confirmatrice or stock manager (hide action buttons)
+  const shouldHideActions = user?.role === 'CONFIRMATRICE' || user?.role === 'STOCK_MANAGER'
 
   useEffect(() => {
     setMounted(true)
@@ -557,7 +557,7 @@ export default function AdminInventoryPage() {
                     <TableHead className="w-[200px]">Tailles & Quantités</TableHead>
                     <TableHead className="w-[100px]">Stock Total</TableHead>
                     <TableHead className="w-[100px]">Statut</TableHead>
-                    {!isConfirmatrice && (
+                    {!shouldHideActions && (
                       <TableHead className="w-[100px]">Actions</TableHead>
                     )}
                   </TableRow>
@@ -633,7 +633,7 @@ export default function AdminInventoryPage() {
                             {product.isActive ? 'Actif' : 'Inactif'}
                           </Badge>
                         </TableCell>
-                        {!isConfirmatrice && (
+                        {!shouldHideActions && (
                           <TableCell className="w-[100px]">
                             <div className="flex items-center space-x-2">
                               <Button variant="ghost" size="sm" asChild>
