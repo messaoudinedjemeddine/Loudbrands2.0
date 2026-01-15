@@ -107,6 +107,8 @@ export default function AdminInventoryPage() {
 
   // Check if user is stock manager or confirmatrice (hide purchase price and total value)
   const shouldHidePriceInfo = user?.role === 'STOCK_MANAGER' || user?.role === 'CONFIRMATRICE'
+  // Check if user is confirmatrice (hide action buttons)
+  const isConfirmatrice = user?.role === 'CONFIRMATRICE'
 
   useEffect(() => {
     setMounted(true)
@@ -555,7 +557,9 @@ export default function AdminInventoryPage() {
                     <TableHead className="w-[200px]">Tailles & Quantités</TableHead>
                     <TableHead className="w-[100px]">Stock Total</TableHead>
                     <TableHead className="w-[100px]">Statut</TableHead>
-                    <TableHead className="w-[100px]">Actions</TableHead>
+                    {!isConfirmatrice && (
+                      <TableHead className="w-[100px]">Actions</TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -629,20 +633,22 @@ export default function AdminInventoryPage() {
                             {product.isActive ? 'Actif' : 'Inactif'}
                           </Badge>
                         </TableCell>
-                        <TableCell className="w-[100px]">
-                          <div className="flex items-center space-x-2">
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link href={`/admin/products/${product.id}`}>
-                                <Eye className="w-4 h-4" />
-                              </Link>
-                            </Button>
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link href={`/admin/products/${product.id}/edit`}>
-                                <Edit className="w-4 h-4" />
-                              </Link>
-                            </Button>
-                          </div>
-                        </TableCell>
+                        {!isConfirmatrice && (
+                          <TableCell className="w-[100px]">
+                            <div className="flex items-center space-x-2">
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link href={`/admin/products/${product.id}`}>
+                                  <Eye className="w-4 h-4" />
+                                </Link>
+                              </Button>
+                              <Button variant="ghost" size="sm" asChild>
+                                <Link href={`/admin/products/${product.id}/edit`}>
+                                  <Edit className="w-4 h-4" />
+                                </Link>
+                              </Button>
+                            </div>
+                          </TableCell>
+                        )}
                       </TableRow>
                     )
                   })}
