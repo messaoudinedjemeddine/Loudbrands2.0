@@ -515,20 +515,70 @@ export function DeliveryAgentDashboard() {
       setAllConfirmedOrders(allConfirmedOrders)
       setConfirmedShipments(confirmedShipments)
 
-      // Calculate stats from filtered confirmed shipments (only for confirmed tab)
+      // Create a map of tracking numbers to shipments for quick lookup
+      const shipmentMap = new Map<string, any>()
+      confirmedShipments.forEach((shipment: any) => {
+        const tracking = shipment.tracking || shipment.tracking_number
+        if (tracking) {
+          shipmentMap.set(tracking, shipment)
+        }
+      })
+
+      // Calculate stats by counting confirmed orders with each Yalidine status
+      // This gives us the actual number of orders, not shipments
+      const confirmedOrdersWithTracking = allConfirmedOrders.filter((o: Order) => 
+        o.callCenterStatus === 'CONFIRMED' && !!o.trackingNumber
+      )
+
       const confirmedStats = {
-        enPreparation: confirmedShipments.filter((s: any) => s.last_status === 'En préparation').length,
-        centre: confirmedShipments.filter((s: any) => s.last_status === 'Centre').length,
-        versWilaya: confirmedShipments.filter((s: any) => s.last_status === 'Vers Wilaya').length,
-        sortiEnLivraison: confirmedShipments.filter((s: any) => s.last_status === 'Sorti en livraison').length,
-        livre: confirmedShipments.filter((s: any) => s.last_status === 'Livré').length,
-        echecLivraison: confirmedShipments.filter((s: any) => s.last_status === 'Echèc livraison' || s.last_status === 'Echec de livraison').length,
-        retourARetirer: confirmedShipments.filter((s: any) => s.last_status === 'Retour à retirer').length,
-        retourneAuVendeur: confirmedShipments.filter((s: any) => s.last_status === 'Retourné au vendeur').length,
-        echangeEchoue: confirmedShipments.filter((s: any) => s.last_status === 'Echange échoué').length,
-        tentativeEchouee: confirmedShipments.filter((s: any) => s.last_status === 'Tentative échouée').length,
-        enAlerte: confirmedShipments.filter((s: any) => s.last_status === 'En alerte').length,
-        enAttenteClient: confirmedShipments.filter((s: any) => s.last_status === 'En attente du client').length,
+        enPreparation: confirmedOrdersWithTracking.filter((o: Order) => {
+          const shipment = shipmentMap.get(o.trackingNumber!)
+          return shipment?.last_status === 'En préparation'
+        }).length,
+        centre: confirmedOrdersWithTracking.filter((o: Order) => {
+          const shipment = shipmentMap.get(o.trackingNumber!)
+          return shipment?.last_status === 'Centre'
+        }).length,
+        versWilaya: confirmedOrdersWithTracking.filter((o: Order) => {
+          const shipment = shipmentMap.get(o.trackingNumber!)
+          return shipment?.last_status === 'Vers Wilaya'
+        }).length,
+        sortiEnLivraison: confirmedOrdersWithTracking.filter((o: Order) => {
+          const shipment = shipmentMap.get(o.trackingNumber!)
+          return shipment?.last_status === 'Sorti en livraison'
+        }).length,
+        livre: confirmedOrdersWithTracking.filter((o: Order) => {
+          const shipment = shipmentMap.get(o.trackingNumber!)
+          return shipment?.last_status === 'Livré'
+        }).length,
+        echecLivraison: confirmedOrdersWithTracking.filter((o: Order) => {
+          const shipment = shipmentMap.get(o.trackingNumber!)
+          return shipment?.last_status === 'Echèc livraison' || shipment?.last_status === 'Echec de livraison'
+        }).length,
+        retourARetirer: confirmedOrdersWithTracking.filter((o: Order) => {
+          const shipment = shipmentMap.get(o.trackingNumber!)
+          return shipment?.last_status === 'Retour à retirer'
+        }).length,
+        retourneAuVendeur: confirmedOrdersWithTracking.filter((o: Order) => {
+          const shipment = shipmentMap.get(o.trackingNumber!)
+          return shipment?.last_status === 'Retourné au vendeur'
+        }).length,
+        echangeEchoue: confirmedOrdersWithTracking.filter((o: Order) => {
+          const shipment = shipmentMap.get(o.trackingNumber!)
+          return shipment?.last_status === 'Echange échoué'
+        }).length,
+        tentativeEchouee: confirmedOrdersWithTracking.filter((o: Order) => {
+          const shipment = shipmentMap.get(o.trackingNumber!)
+          return shipment?.last_status === 'Tentative échouée'
+        }).length,
+        enAlerte: confirmedOrdersWithTracking.filter((o: Order) => {
+          const shipment = shipmentMap.get(o.trackingNumber!)
+          return shipment?.last_status === 'En alerte'
+        }).length,
+        enAttenteClient: confirmedOrdersWithTracking.filter((o: Order) => {
+          const shipment = shipmentMap.get(o.trackingNumber!)
+          return shipment?.last_status === 'En attente du client'
+        }).length,
         totalShipments: confirmedShipments.length
       }
 
@@ -553,7 +603,7 @@ export function DeliveryAgentDashboard() {
       const confirmedOrders = ordersList.filter((o: Order) => o.callCenterStatus === 'CONFIRMED')
       const stats = {
         ...calculatedStats,
-        confirmedOrders: confirmedOrders.length,
+        confirmedOrders: confirmedOrdersWithTracking.length, // Total confirmed orders with tracking (414)
         // Store confirmed stats separately for the confirmed tab
         confirmedStats: confirmedStats
       }
