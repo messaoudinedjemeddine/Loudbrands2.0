@@ -65,18 +65,6 @@ interface DeliveryStats {
   echangeEchoue: number;
   confirmedOrders: number;
   totalShipments: number;
-  confirmedStats?: {
-    enPreparation: number;
-    centre: number;
-    versWilaya: number;
-    sortiEnLivraison: number;
-    livre: number;
-    echecLivraison: number;
-    retourARetirer: number;
-    retourneAuVendeur: number;
-    echangeEchoue: number;
-    totalShipments: number;
-  };
 }
 
 interface Order {
@@ -237,9 +225,7 @@ export function DeliveryAgentDashboard() {
     totalShipments: 0
   })
   const [orders, setOrders] = useState<Order[]>([])
-  const [allConfirmedOrders, setAllConfirmedOrders] = useState<Order[]>([])
   const [yalidineShipments, setYalidineShipments] = useState<YalidineShipment[]>([])
-  const [confirmedShipments, setConfirmedShipments] = useState<YalidineShipment[]>([])
 
   // Enhanced functionality state
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
@@ -299,51 +285,11 @@ export function DeliveryAgentDashboard() {
     fetchDeliveryData()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch Yalidine shipments for dashboard tabs - fetch all pages
+  // Fetch Yalidine shipments for dashboard tabs
   const fetchYalidineShipments = async () => {
     try {
-      let allShipments: any[] = []
-      let currentPage = 1
-      const maxPages = 50 // Reasonable limit
-      let hasMore = true
-
-      // Fetch all pages
-      while (hasMore && currentPage <= maxPages) {
-        try {
-          const response = await yalidineAPI.getAllShipments({ page: currentPage })
-          const shipments = response.data || []
-          
-          // If no shipments returned, stop
-          if (shipments.length === 0) {
-            hasMore = false
-            break
-          }
-          
-          allShipments = [...allShipments, ...shipments]
-          
-          // Check if there are more pages - stop if has_more is false or undefined
-          hasMore = response.has_more === true
-          currentPage++
-          
-          // Add a small delay to avoid overwhelming the API
-          if (hasMore && currentPage <= maxPages) {
-            await new Promise(resolve => setTimeout(resolve, 100))
-          }
-        } catch (pageError) {
-          console.error(`Error fetching page ${currentPage}:`, pageError)
-          // If we have some shipments, continue with what we have
-          if (allShipments.length > 0) {
-            break
-          }
-          throw pageError
-        }
-      }
-
-      if (currentPage > maxPages) {
-        console.warn(`Reached maximum page limit (${maxPages}) while fetching Yalidine shipments. Total shipments: ${allShipments.length}`)
-      }
-
-      setYalidineShipments(allShipments)
+      const response = await yalidineAPI.getAllShipments({ page: 1 })
+      setYalidineShipments(response.data || [])
     } catch (error) {
       console.error('Error fetching Yalidine shipments:', error)
       setYalidineShipments([])
@@ -357,10 +303,8 @@ export function DeliveryAgentDashboard() {
       setError(null)
 
       // Fetch delivery data, Yalidine shipments, and Yalidine stats
-      // For confirmed tab, we need ALL confirmed orders to match with Yalidine shipments
-      const [ordersData, confirmedOrdersData, yalidineStats] = await Promise.all([
-        api.admin.getOrders({ limit: 100 }), // Get orders for general display
-        api.admin.getOrders({ limit: 10000, confirmedOnly: 'true' }), // Get ALL confirmed orders for matching
+      const [ordersData, yalidineStats, yalidineShipmentsData] = await Promise.all([
+        api.admin.getOrders({ limit: 100 }), // Get more orders for delivery agent
         yalidineAPI.getShipmentStats().catch(err => {
           console.warn('Failed to fetch Yalidine stats:', err)
           return {
@@ -375,140 +319,22 @@ export function DeliveryAgentDashboard() {
             echangeEchoue: 0,
             totalShipments: 0
           }
+        }),
+        yalidineAPI.getAllShipments({ page: 1 }).catch(err => {
+          console.warn('Failed to fetch Yalidine shipments:', err)
+          return { data: [] }
         })
       ])
 
-      // Fetch all Yalidine shipments (all pages) with timeout and better error handling
-      const fetchShipmentsWithTimeout = async (): Promise<any[]> => {
-        return new Promise(async (resolve) => {
-          const timeout = setTimeout(() => {
-            console.warn('Timeout while fetching Yalidine shipments, using partial data')
-            resolve([])
-          }, 30000) // 30 second timeout
-
-          try {
-            let allShipments: any[] = []
-            let currentPage = 1
-            const maxPages = 50 // Reasonable limit
-            let hasMore = true
-
-            // Fetch all pages
-            while (hasMore && currentPage <= maxPages) {
-              try {
-                const response = await yalidineAPI.getAllShipments({ page: currentPage })
-                const shipments = response.data || []
-                
-                // If no shipments returned, stop
-                if (shipments.length === 0) {
-                  hasMore = false
-                  break
-                }
-                
-                allShipments = [...allShipments, ...shipments]
-                
-                // Check if there are more pages - stop if has_more is false or undefined
-                hasMore = response.has_more === true
-                currentPage++
-                
-                // Add a small delay to avoid overwhelming the API
-                if (hasMore && currentPage <= maxPages) {
-                  await new Promise(resolve => setTimeout(resolve, 100))
-                }
-              } catch (pageError) {
-                console.error(`Error fetching page ${currentPage}:`, pageError)
-                // If we have some shipments, continue with what we have
-                if (allShipments.length > 0) {
-                  break
-                }
-                throw pageError
-              }
-            }
-
-            if (currentPage > maxPages) {
-              console.warn(`Reached maximum page limit (${maxPages}) while fetching Yalidine shipments. Total shipments: ${allShipments.length}`)
-            }
-
-            clearTimeout(timeout)
-            resolve(allShipments)
-          } catch (err) {
-            console.warn('Failed to fetch Yalidine shipments:', err)
-            clearTimeout(timeout)
-            resolve([])
-          }
-        })
-      }
-
-      const allShipments = await fetchShipmentsWithTimeout()
-
       const ordersList = (ordersData as any).orders || ordersData as Order[]
-      const confirmedOrdersList = (confirmedOrdersData as any).orders || confirmedOrdersData as Order[]
       setOrders(ordersList)
-      setAllConfirmedOrders(confirmedOrdersList)
+      setYalidineShipments(yalidineShipmentsData.data || [])
 
-      // Filter shipments to only show those created from our website
-      // For confirmed tab stats, use ALL confirmed orders to match with Yalidine shipments
-      const confirmedOrderTrackingNumbers = new Set(
-        confirmedOrdersList
-          .map((o: Order) => o.trackingNumber)
-          .filter((t: string | undefined): t is string => !!t)
-      )
-
-      // For general display, use regular orders
-      const orderTrackingNumbers = new Set(
-        ordersList
-          .map((o: Order) => o.trackingNumber)
-          .filter((t: string | undefined): t is string => !!t)
-      )
-
-      // Only keep shipments that match our orders' tracking numbers (for general display)
-      const websiteShipments = allShipments.filter((shipment: any) => 
-        orderTrackingNumbers.has(shipment.tracking)
-      )
-
-      // For confirmed tab, filter shipments by confirmed orders only
-      const confirmedShipments = allShipments.filter((shipment: any) => 
-        confirmedOrderTrackingNumbers.has(shipment.tracking)
-      )
-
-      setYalidineShipments(websiteShipments)
-      setConfirmedShipments(confirmedShipments)
-
-      // Calculate stats from filtered confirmed shipments (only for confirmed tab)
-      // These stats will be used in the confirmed tab to show correct numbers
-      const confirmedStats = {
-        enPreparation: confirmedShipments.filter((s: any) => s.last_status === 'En préparation').length,
-        centre: confirmedShipments.filter((s: any) => s.last_status === 'Centre').length,
-        versWilaya: confirmedShipments.filter((s: any) => s.last_status === 'Vers Wilaya').length,
-        sortiEnLivraison: confirmedShipments.filter((s: any) => s.last_status === 'Sorti en livraison').length,
-        livre: confirmedShipments.filter((s: any) => s.last_status === 'Livré').length,
-        echecLivraison: confirmedShipments.filter((s: any) => s.last_status === 'Echèc livraison' || s.last_status === 'Echec de livraison').length,
-        retourARetirer: confirmedShipments.filter((s: any) => s.last_status === 'Retour à retirer').length,
-        retourneAuVendeur: confirmedShipments.filter((s: any) => s.last_status === 'Retourné au vendeur').length,
-        echangeEchoue: confirmedShipments.filter((s: any) => s.last_status === 'Echange échoué').length,
-        totalShipments: confirmedShipments.length
-      }
-
-      // Calculate stats from filtered website shipments (for general tabs)
-      const calculatedStats = {
-        enPreparation: websiteShipments.filter((s: any) => s.last_status === 'En préparation').length,
-        centre: websiteShipments.filter((s: any) => s.last_status === 'Centre').length,
-        versWilaya: websiteShipments.filter((s: any) => s.last_status === 'Vers Wilaya').length,
-        sortiEnLivraison: websiteShipments.filter((s: any) => s.last_status === 'Sorti en livraison').length,
-        livre: websiteShipments.filter((s: any) => s.last_status === 'Livré').length,
-        echecLivraison: websiteShipments.filter((s: any) => s.last_status === 'Echèc livraison' || s.last_status === 'Echec de livraison').length,
-        retourARetirer: websiteShipments.filter((s: any) => s.last_status === 'Retour à retirer').length,
-        retourneAuVendeur: websiteShipments.filter((s: any) => s.last_status === 'Retourné au vendeur').length,
-        echangeEchoue: websiteShipments.filter((s: any) => s.last_status === 'Echange échoué').length,
-        totalShipments: websiteShipments.length
-      }
-
-      // Calculate stats combining calculated Yalidine data with confirmed orders
+      // Calculate stats combining Yalidine data with confirmed orders
       const confirmedOrders = ordersList.filter((o: Order) => o.callCenterStatus === 'CONFIRMED')
       const stats = {
-        ...calculatedStats,
-        confirmedOrders: confirmedOrders.length,
-        // Store confirmed stats separately for the confirmed tab
-        confirmedStats: confirmedStats
+        ...yalidineStats,
+        confirmedOrders: confirmedOrders.length
       }
       setStats(stats)
 
@@ -664,14 +490,11 @@ https://loudbrandss.com/track-order?tracking=${trackingNumber}
     window.open(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`, '_blank')
   }
 
-  const getYalidineStatusForOrder = (order: Order, useConfirmedShipments = false) => {
+  const getYalidineStatusForOrder = (order: Order) => {
     if (!order.trackingNumber) return null
 
-    // Use confirmed shipments if requested (for confirmed tab), otherwise use regular shipments
-    const shipmentsToSearch = useConfirmedShipments ? confirmedShipments : yalidineShipments
-    
     // Find the corresponding Yalidine shipment
-    const yalidineShipment = shipmentsToSearch.find(shipment =>
+    const yalidineShipment = yalidineShipments.find(shipment =>
       shipment.tracking === order.trackingNumber
     )
 
@@ -1196,49 +1019,70 @@ Loudstyles`
                     value="all" 
                     className="flex-shrink-0"
                   >
-                    All ({stats.confirmedOrders})
+                    All ({orders.filter(order => order.callCenterStatus === 'CONFIRMED').length})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="En préparation" 
                     className="flex-shrink-0 bg-blue-600 text-white data-[state=active]:bg-blue-700"
                   >
-                    En préparation ({stats.confirmedStats?.enPreparation || 0})
+                    En préparation ({orders.filter(order => 
+                      order.callCenterStatus === 'CONFIRMED' && 
+                      getYalidineStatusForOrder(order) === 'En préparation'
+                    ).length})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="Sorti en livraison" 
                     className="flex-shrink-0 bg-indigo-600 text-white data-[state=active]:bg-indigo-700"
                   >
-                    Sorti en livraison ({stats.confirmedStats?.sortiEnLivraison || 0})
+                    Sorti en livraison ({orders.filter(order => 
+                      order.callCenterStatus === 'CONFIRMED' && 
+                      getYalidineStatusForOrder(order) === 'Sorti en livraison'
+                    ).length})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="En attente du client" 
                     className="flex-shrink-0 bg-amber-500 text-white data-[state=active]:bg-amber-600"
                   >
-                    En attente du client ({confirmedShipments.filter((s: YalidineShipment) => s.last_status === 'En attente du client').length})
+                    En attente du client ({orders.filter(order => 
+                      order.callCenterStatus === 'CONFIRMED' && 
+                      getYalidineStatusForOrder(order) === 'En attente du client'
+                    ).length})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="Tentative échouée" 
                     className="flex-shrink-0 bg-red-600 text-white animate-pulse-slow data-[state=active]:bg-red-700"
                   >
-                    Tentative échouée ({confirmedShipments.filter((s: YalidineShipment) => s.last_status === 'Tentative échouée').length})
+                    Tentative échouée ({orders.filter(order => 
+                      order.callCenterStatus === 'CONFIRMED' && 
+                      getYalidineStatusForOrder(order) === 'Tentative échouée'
+                    ).length})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="En alerte" 
                     className="flex-shrink-0 bg-orange-600 text-white animate-pulse-slow data-[state=active]:bg-orange-700"
                   >
-                    En alerte ({confirmedShipments.filter((s: YalidineShipment) => s.last_status === 'En alerte').length})
+                    En alerte ({orders.filter(order => 
+                      order.callCenterStatus === 'CONFIRMED' && 
+                      getYalidineStatusForOrder(order) === 'En alerte'
+                    ).length})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="Echèc livraison" 
                     className="flex-shrink-0 bg-red-700 text-white animate-pulse-slow data-[state=active]:bg-red-800"
                   >
-                    Echec livraison ({stats.confirmedStats?.echecLivraison || 0})
+                    Echec livraison ({orders.filter(order => 
+                      order.callCenterStatus === 'CONFIRMED' && 
+                      (getYalidineStatusForOrder(order) === 'Echèc livraison' || getYalidineStatusForOrder(order) === 'Echec de livraison')
+                    ).length})
                   </TabsTrigger>
                   <TabsTrigger 
                     value="Livré" 
                     className="flex-shrink-0 bg-green-600 text-white data-[state=active]:bg-green-700"
                   >
-                    Livré ({stats.confirmedStats?.livre || 0})
+                    Livré ({orders.filter(order => 
+                      order.callCenterStatus === 'CONFIRMED' && 
+                      getYalidineStatusForOrder(order) === 'Livré'
+                    ).length})
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
@@ -1283,21 +1127,20 @@ Loudstyles`
 
               {/* Orders List */}
               {(() => {
-                // For confirmed tab, use all confirmed orders (not just the 100 displayed)
                 // Filter orders based on both tab and dropdown filter
-                let filteredOrders = allConfirmedOrders.filter(order => order.callCenterStatus === 'CONFIRMED')
+                let filteredOrders = orders.filter(order => order.callCenterStatus === 'CONFIRMED')
                 
-                // Apply tab filter if not 'all' - use confirmedShipments for accurate matching
+                // Apply tab filter if not 'all'
                 if (confirmedTabFilter !== 'all') {
                   if (confirmedTabFilter === 'Echèc livraison') {
                     // Handle both "Echèc livraison" and "Echec de livraison" statuses
                     filteredOrders = filteredOrders.filter(order => {
-                      const status = getYalidineStatusForOrder(order, true) // Use confirmed shipments
+                      const status = getYalidineStatusForOrder(order)
                       return status === 'Echèc livraison' || status === 'Echec de livraison'
                     })
                   } else {
                     filteredOrders = filteredOrders.filter(order => 
-                      getYalidineStatusForOrder(order, true) === confirmedTabFilter // Use confirmed shipments
+                      getYalidineStatusForOrder(order) === confirmedTabFilter
                     )
                   }
                 }
@@ -1305,7 +1148,7 @@ Loudstyles`
                 // Apply dropdown filter if not 'all' and tab is 'all'
                 if (confirmedStatusFilter !== 'all' && confirmedTabFilter === 'all') {
                   filteredOrders = filteredOrders.filter(order => 
-                    getYalidineStatusForOrder(order, true) === confirmedStatusFilter // Use confirmed shipments
+                    getYalidineStatusForOrder(order) === confirmedStatusFilter
                   )
                 }
 
@@ -1340,10 +1183,10 @@ Loudstyles`
 
                     {/* Orders */}
                     {paginatedOrders.map((order) => {
-                    const status = getYalidineStatusForOrder(order, true) // Use confirmed shipments
+                    const status = getYalidineStatusForOrder(order)
                     const whatsappLink = getDeliveryAgentWhatsAppLink(order, status)
                     // Find Yalidine shipment for this order to get wilaya and commune names
-                    const shipment = confirmedShipments.find(s => s.tracking === order.trackingNumber)
+                    const shipment = yalidineShipments.find(s => s.tracking === order.trackingNumber)
                     const wilayaName = shipment?.to_wilaya_name || order.city?.name || ''
                     const communeName = shipment?.to_commune_name || ''
 
