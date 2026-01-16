@@ -61,7 +61,8 @@ const getNavigationByRole = (role: string) => {
     case 'AGENT_LIVRAISON':
       return [
         { name: 'Commandes Confirmées', href: '/admin/dashboard/agent_livraison?tab=confirmed', icon: CheckCircle },
-        { name: 'Expéditions Yalidine', href: '/admin/dashboard/agent_livraison?tab=all-parcels', icon: Package },
+        // Hidden: Expéditions Yalidine tab
+        // { name: 'Expéditions Yalidine', href: '/admin/dashboard/agent_livraison?tab=all-parcels', icon: Package },
       ]
     case 'STOCK_MANAGER':
       return [
