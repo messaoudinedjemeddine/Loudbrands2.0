@@ -65,6 +65,9 @@ interface DeliveryStats {
   echangeEchoue: number;
   confirmedOrders: number;
   totalShipments: number;
+  tentativeEchouee?: number;
+  enAlerte?: number;
+  enAttenteClient?: number;
   confirmedStats?: {
     enPreparation: number;
     centre: number;
@@ -237,7 +240,10 @@ export function DeliveryAgentDashboard() {
     retourneAuVendeur: 0,
     echangeEchoue: 0,
     confirmedOrders: 0,
-    totalShipments: 0
+    totalShipments: 0,
+    tentativeEchouee: 0,
+    enAlerte: 0,
+    enAttenteClient: 0
   })
   const [orders, setOrders] = useState<Order[]>([])
   const [allConfirmedOrders, setAllConfirmedOrders] = useState<Order[]>([])
@@ -356,9 +362,14 @@ export function DeliveryAgentDashboard() {
             let hasMore = true
 
             // Fetch limited pages for faster loading
+            // Filter by date: only get shipments created from December 25, 2024 onwards
+            const minDate = '2024-12-25' // December 25, 2024
             while (hasMore && currentPage <= maxPages) {
               try {
-                const response = await yalidineAPI.getAllShipments({ page: currentPage })
+                const response = await yalidineAPI.getAllShipments({ 
+                  page: currentPage,
+                  date_creation: minDate // Filter by creation date
+                })
                 const shipments = response.data || []
                 
                 // If no shipments returned, stop
@@ -403,6 +414,14 @@ export function DeliveryAgentDashboard() {
 
       const allShipments = await fetchShipmentsWithTimeout()
 
+      // Additional client-side filter: only keep shipments created from December 25, 2024 onwards
+      const minDate = new Date('2024-12-25')
+      const filteredByDate = allShipments.filter((shipment: any) => {
+        if (!shipment.date_creation) return false
+        const shipmentDate = new Date(shipment.date_creation)
+        return shipmentDate >= minDate
+      })
+
       const ordersList = (ordersData as any).orders || ordersData as Order[]
       const allConfirmedOrders = (confirmedOrdersData as any).orders || confirmedOrdersData as Order[]
       setOrders(ordersList)
@@ -423,12 +442,12 @@ export function DeliveryAgentDashboard() {
       )
 
       // Only keep shipments that match our orders' tracking numbers (for general display)
-      const websiteShipments = allShipments.filter((shipment: any) => 
+      const websiteShipments = filteredByDate.filter((shipment: any) => 
         orderTrackingNumbers.has(shipment.tracking)
       )
 
       // For confirmed tab, filter shipments by confirmed orders only
-      const confirmedShipments = allShipments.filter((shipment: any) => 
+      const confirmedShipments = filteredByDate.filter((shipment: any) => 
         confirmedOrderTrackingNumbers.has(shipment.tracking)
       )
 
@@ -464,6 +483,9 @@ export function DeliveryAgentDashboard() {
         retourARetirer: websiteShipments.filter((s: any) => s.last_status === 'Retour à retirer').length,
         retourneAuVendeur: websiteShipments.filter((s: any) => s.last_status === 'Retourné au vendeur').length,
         echangeEchoue: websiteShipments.filter((s: any) => s.last_status === 'Echange échoué').length,
+        tentativeEchouee: websiteShipments.filter((s: any) => s.last_status === 'Tentative échouée').length,
+        enAlerte: websiteShipments.filter((s: any) => s.last_status === 'En alerte').length,
+        enAttenteClient: websiteShipments.filter((s: any) => s.last_status === 'En attente du client').length,
         totalShipments: websiteShipments.length
       }
 
@@ -1008,9 +1030,9 @@ Loudstyles`
             <TabsTrigger value="confirmed" className="flex-shrink-0 bg-emerald-600 text-white data-[state=active]:bg-emerald-700">Confirmed Orders ({stats.confirmedOrders})</TabsTrigger>
             <TabsTrigger value="preparation" className="flex-shrink-0 bg-blue-600 text-white data-[state=active]:bg-blue-700">En préparation ({stats.enPreparation})</TabsTrigger>
             <TabsTrigger value="delivery" className="flex-shrink-0 bg-indigo-600 text-white data-[state=active]:bg-indigo-700">Sorti en livraison ({stats.sortiEnLivraison})</TabsTrigger>
-            <TabsTrigger value="waiting" className="flex-shrink-0 bg-amber-500 text-white data-[state=active]:bg-amber-600">En attente du client ({yalidineShipments.filter(s => s.last_status === 'En attente du client').length})</TabsTrigger>
-            <TabsTrigger value="failed" className="flex-shrink-0 bg-red-600 text-white animate-pulse-slow data-[state=active]:bg-red-700">Tentative échouée ({yalidineShipments.filter(s => s.last_status === 'Tentative échouée').length})</TabsTrigger>
-            <TabsTrigger value="alert" className="flex-shrink-0 bg-orange-600 text-white animate-pulse-slow data-[state=active]:bg-orange-700">En alerte ({yalidineShipments.filter(s => s.last_status === 'En alerte').length})</TabsTrigger>
+            <TabsTrigger value="waiting" className="flex-shrink-0 bg-amber-500 text-white data-[state=active]:bg-amber-600">En attente du client ({stats.enAttenteClient || 0})</TabsTrigger>
+            <TabsTrigger value="failed" className="flex-shrink-0 bg-red-600 text-white animate-pulse-slow data-[state=active]:bg-red-700">Tentative échouée ({stats.tentativeEchouee || 0})</TabsTrigger>
+            <TabsTrigger value="alert" className="flex-shrink-0 bg-orange-600 text-white animate-pulse-slow data-[state=active]:bg-orange-700">En alerte ({stats.enAlerte || 0})</TabsTrigger>
           </TabsList>
         )}
 
