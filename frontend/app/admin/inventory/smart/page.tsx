@@ -1481,6 +1481,7 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                 </div>
             </CardContent>
         </Card>
+        </>
     )
 }
 
