@@ -285,11 +285,31 @@ export function DeliveryAgentDashboard() {
     fetchDeliveryData()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch Yalidine shipments for dashboard tabs
+  // Fetch Yalidine shipments for dashboard tabs - fetch all pages
   const fetchYalidineShipments = async () => {
     try {
-      const response = await yalidineAPI.getAllShipments({ page: 1 })
-      setYalidineShipments(response.data || [])
+      let allShipments: any[] = []
+      let currentPage = 1
+      let hasMore = true
+
+      // Fetch all pages
+      while (hasMore) {
+        const response = await yalidineAPI.getAllShipments({ page: currentPage })
+        const shipments = response.data || []
+        allShipments = [...allShipments, ...shipments]
+        
+        // Check if there are more pages
+        hasMore = response.has_more === true && shipments.length > 0
+        currentPage++
+        
+        // Safety limit to prevent infinite loops
+        if (currentPage > 100) {
+          console.warn('Reached maximum page limit (100) while fetching Yalidine shipments')
+          break
+        }
+      }
+
+      setYalidineShipments(allShipments)
     } catch (error) {
       console.error('Error fetching Yalidine shipments:', error)
       setYalidineShipments([])
@@ -303,7 +323,7 @@ export function DeliveryAgentDashboard() {
       setError(null)
 
       // Fetch delivery data, Yalidine shipments, and Yalidine stats
-      const [ordersData, yalidineStats, yalidineShipmentsData] = await Promise.all([
+      const [ordersData, yalidineStats] = await Promise.all([
         api.admin.getOrders({ limit: 100 }), // Get more orders for delivery agent
         yalidineAPI.getShipmentStats().catch(err => {
           console.warn('Failed to fetch Yalidine stats:', err)
@@ -319,21 +339,57 @@ export function DeliveryAgentDashboard() {
             echangeEchoue: 0,
             totalShipments: 0
           }
-        }),
-        yalidineAPI.getAllShipments({ page: 1 }).catch(err => {
-          console.warn('Failed to fetch Yalidine shipments:', err)
-          return { data: [] }
         })
       ])
 
+      // Fetch all Yalidine shipments (all pages)
+      let allShipments: any[] = []
+      let currentPage = 1
+      let hasMore = true
+
+      try {
+        // Fetch all pages
+        while (hasMore) {
+          const response = await yalidineAPI.getAllShipments({ page: currentPage })
+          const shipments = response.data || []
+          allShipments = [...allShipments, ...shipments]
+          
+          // Check if there are more pages
+          hasMore = response.has_more === true && shipments.length > 0
+          currentPage++
+          
+          // Safety limit to prevent infinite loops
+          if (currentPage > 100) {
+            console.warn('Reached maximum page limit (100) while fetching Yalidine shipments')
+            break
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch Yalidine shipments:', err)
+      }
+
       const ordersList = (ordersData as any).orders || ordersData as Order[]
       setOrders(ordersList)
-      setYalidineShipments(yalidineShipmentsData.data || [])
+      setYalidineShipments(allShipments)
 
-      // Calculate stats combining Yalidine data with confirmed orders
+      // Calculate stats from all retrieved shipments (more accurate than API stats)
+      const calculatedStats = {
+        enPreparation: allShipments.filter(s => s.last_status === 'En préparation').length,
+        centre: allShipments.filter(s => s.last_status === 'Centre').length,
+        versWilaya: allShipments.filter(s => s.last_status === 'Vers Wilaya').length,
+        sortiEnLivraison: allShipments.filter(s => s.last_status === 'Sorti en livraison').length,
+        livre: allShipments.filter(s => s.last_status === 'Livré').length,
+        echecLivraison: allShipments.filter(s => s.last_status === 'Echèc livraison' || s.last_status === 'Echec de livraison').length,
+        retourARetirer: allShipments.filter(s => s.last_status === 'Retour à retirer').length,
+        retourneAuVendeur: allShipments.filter(s => s.last_status === 'Retourné au vendeur').length,
+        echangeEchoue: allShipments.filter(s => s.last_status === 'Echange échoué').length,
+        totalShipments: allShipments.length
+      }
+
+      // Calculate stats combining calculated Yalidine data with confirmed orders
       const confirmedOrders = ordersList.filter((o: Order) => o.callCenterStatus === 'CONFIRMED')
       const stats = {
-        ...yalidineStats,
+        ...calculatedStats,
         confirmedOrders: confirmedOrders.length
       }
       setStats(stats)
