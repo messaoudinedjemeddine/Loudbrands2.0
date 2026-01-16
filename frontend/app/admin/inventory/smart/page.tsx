@@ -2145,6 +2145,7 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                 </div>
             </CardContent>
         </Card>
+        </>
     )
 }
 
