@@ -447,9 +447,69 @@ export function DeliveryAgentDashboard() {
       )
 
       // For confirmed tab, filter shipments by confirmed orders only
-      const confirmedShipments = filteredByDate.filter((shipment: any) => 
+      let confirmedShipments = filteredByDate.filter((shipment: any) => 
         confirmedOrderTrackingNumbers.has(shipment.tracking)
       )
+
+      // For confirmed orders that don't have shipments in the fetched pages,
+      // fetch their status individually from Yalidine
+      const confirmedOrdersWithTracking = allConfirmedOrders.filter((o: Order) => 
+        o.callCenterStatus === 'CONFIRMED' && !!o.trackingNumber
+      )
+      
+      const foundTrackingNumbers = new Set(confirmedShipments.map((s: any) => s.tracking))
+      const missingTrackingNumbers = confirmedOrdersWithTracking
+        .map((o: Order) => o.trackingNumber!)
+        .filter((t: string) => !foundTrackingNumbers.has(t))
+
+      // Fetch missing shipments individually (in batches to avoid overwhelming the API)
+      if (missingTrackingNumbers.length > 0) {
+        console.log(`Fetching ${missingTrackingNumbers.length} missing shipments individually...`)
+        const batchSize = 10
+        for (let i = 0; i < missingTrackingNumbers.length; i += batchSize) {
+          const batch = missingTrackingNumbers.slice(i, i + batchSize)
+          try {
+            const batchPromises = batch.map(tracking => 
+              yalidineAPI.getShipment(tracking).catch(err => {
+                console.warn(`Failed to fetch shipment ${tracking}:`, err)
+                return null
+              })
+            )
+            const batchResults = await Promise.all(batchPromises)
+            const validShipments = batchResults
+              .filter((s: any) => s && (s.tracking || s.tracking_number))
+              .map((s: any) => {
+                // Normalize the shipment data to match our expected format
+                const tracking = s.tracking || s.tracking_number
+                return {
+                  ...s,
+                  tracking,
+                  last_status: s.last_status || s.status || s.state || 'Unknown',
+                  date_creation: s.date_creation || s.created_at || s.date || new Date().toISOString(),
+                  date_last_status: s.date_last_status || s.updated_at || s.date || new Date().toISOString(),
+                  customer_name: s.customer_name || `${s.firstname || ''} ${s.familyname || ''}`.trim() || 'N/A',
+                  customer_phone: s.customer_phone || s.contact_phone || s.phone || 'N/A',
+                  customer_address: s.customer_address || s.address || 'N/A',
+                  from_wilaya_name: s.from_wilaya_name || s.fromWilayaName || 'N/A',
+                  to_wilaya_name: s.to_wilaya_name || s.toWilayaName || 'N/A',
+                  to_commune_name: s.to_commune_name || s.toCommuneName || 'N/A',
+                  product_list: s.product_list || s.productList || 'N/A',
+                  price: s.price || 0,
+                  weight: s.weight || 1
+                }
+              })
+            confirmedShipments = [...confirmedShipments, ...validShipments]
+            
+            // Small delay between batches
+            if (i + batchSize < missingTrackingNumbers.length) {
+              await new Promise(resolve => setTimeout(resolve, 200))
+            }
+          } catch (err) {
+            console.error(`Error fetching batch ${i}-${i + batchSize}:`, err)
+          }
+        }
+        console.log(`Fetched ${confirmedShipments.length} total confirmed shipments`)
+      }
 
       setYalidineShipments(websiteShipments)
       setAllConfirmedOrders(allConfirmedOrders)
@@ -1270,9 +1330,11 @@ Loudstyles`
 
               {/* Orders List */}
               {(() => {
-                // For confirmed tab, use all confirmed orders (not just the 100 displayed)
+                // For confirmed tab, use all confirmed orders that have a tracking number
                 // Filter orders based on both tab and dropdown filter
-                let filteredOrders = allConfirmedOrders.filter(order => order.callCenterStatus === 'CONFIRMED')
+                let filteredOrders = allConfirmedOrders.filter(order => 
+                  order.callCenterStatus === 'CONFIRMED' && !!order.trackingNumber
+                )
                 
                 // Apply tab filter if not 'all' - use confirmedShipments for accurate matching
                 if (confirmedTabFilter !== 'all') {
