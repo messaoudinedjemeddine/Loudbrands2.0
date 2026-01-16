@@ -526,9 +526,7 @@ export function DeliveryAgentDashboard() {
 
       // Calculate stats by counting confirmed orders with each Yalidine status
       // This gives us the actual number of orders, not shipments
-      const confirmedOrdersWithTracking = allConfirmedOrders.filter((o: Order) => 
-        o.callCenterStatus === 'CONFIRMED' && !!o.trackingNumber
-      )
+      // confirmedOrdersWithTracking is already defined above, reuse it
 
       const confirmedStats = {
         enPreparation: confirmedOrdersWithTracking.filter((o: Order) => {
