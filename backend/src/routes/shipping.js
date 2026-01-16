@@ -596,7 +596,8 @@ router.get('/shipment/:tracking', async (req, res) => {
       return res.status(503).json({ error: 'Yalidine shipping not configured' });
     }
 
-    const { tracking } = req.params;
+    // Decode the tracking number to handle special characters like :
+    const tracking = decodeURIComponent(req.params.tracking);
     const yalidineResponse = await yalidineService.getParcel(tracking);
 
     // Yalidine API returns { data: [...] } even for single tracking
@@ -619,7 +620,8 @@ router.get('/tracking/:tracking', async (req, res) => {
       return res.status(503).json({ error: 'Yalidine shipping not configured' });
     }
 
-    const { tracking } = req.params;
+    // Decode the tracking number to handle special characters like :
+    const tracking = decodeURIComponent(req.params.tracking);
     const history = await yalidineService.getParcelHistory(tracking);
     res.json(history);
   } catch (error) {
@@ -635,7 +637,8 @@ router.patch('/shipment/:tracking', async (req, res) => {
       return res.status(503).json({ error: 'Yalidine shipping not configured' });
     }
 
-    const { tracking } = req.params;
+    // Decode the tracking number to handle special characters like :
+    const tracking = decodeURIComponent(req.params.tracking);
     const updateData = req.body;
 
     const result = await yalidineService.updateParcel(tracking, updateData);
@@ -653,7 +656,8 @@ router.delete('/shipment/:tracking', async (req, res) => {
       return res.status(503).json({ error: 'Yalidine shipping not configured' });
     }
 
-    const { tracking } = req.params;
+    // Decode the tracking number to handle special characters like :
+    const tracking = decodeURIComponent(req.params.tracking);
     const result = await yalidineService.deleteParcel(tracking);
     res.json(result);
   } catch (error) {

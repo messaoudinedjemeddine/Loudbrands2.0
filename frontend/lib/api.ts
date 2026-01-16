@@ -665,7 +665,7 @@ export const api = {
     getStatus: () => apiClient.request('/shipping/status'),
     shipOrder: (orderId: string) =>
       apiClient.request<{ success: boolean; tracking: string; import_id: string; error?: string; message?: string }>(`/shipping/ship-order/${orderId}`, { method: 'POST' }),
-    getParcel: (tracking: string) => apiClient.request<any>(`/shipping/shipment/${tracking}`),
+    getParcel: (tracking: string) => apiClient.request<any>(`/shipping/shipment/${encodeURIComponent(tracking)}`),
 
     getWilayas: () => apiClient.request('/shipping/wilayas'),
     getCommunes: (wilayaId?: number) => {
@@ -684,13 +684,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-    getShipment: (tracking: string) => apiClient.request(`/shipping/shipment/${tracking}`),
-    getTracking: (tracking: string) => apiClient.request(`/shipping/tracking/${tracking}`),
-    updateShipment: (tracking: string, data: any) => apiClient.request(`/shipping/shipment/${tracking}`, {
+    getShipment: (tracking: string) => apiClient.request(`/shipping/shipment/${encodeURIComponent(tracking)}`),
+    getTracking: (tracking: string) => apiClient.request(`/shipping/tracking/${encodeURIComponent(tracking)}`),
+    updateShipment: (tracking: string, data: any) => apiClient.request(`/shipping/shipment/${encodeURIComponent(tracking)}`, {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
-    deleteShipment: (tracking: string) => apiClient.request(`/shipping/shipment/${tracking}`, {
+    deleteShipment: (tracking: string) => apiClient.request(`/shipping/shipment/${encodeURIComponent(tracking)}`, {
       method: 'DELETE',
     }),
     getAllShipments: (filters?: {
