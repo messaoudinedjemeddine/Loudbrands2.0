@@ -154,11 +154,16 @@ class YalidineService {
   async getParcel(tracking) {
     try {
       console.log('🔍 Fetching parcel details for tracking:', tracking);
-      const response = await this.client.get(`/parcels/${tracking}`);
+      // Encode tracking number to handle special characters like :
+      const encodedTracking = encodeURIComponent(tracking);
+      const response = await this.client.get(`/parcels/${encodedTracking}`);
       console.log('✅ Successfully fetched parcel details');
       return response.data;
     } catch (error) {
       console.error('❌ Error fetching parcel:', error.message);
+      if (error.response) {
+        console.error('❌ Error response:', error.response.data);
+      }
       throw new Error('Failed to fetch parcel details');
     }
   }
@@ -167,11 +172,16 @@ class YalidineService {
   async getParcelHistory(tracking) {
     try {
       console.log('🔍 Fetching parcel history for tracking:', tracking);
-      const response = await this.client.get(`/histories/?tracking=${tracking}`);
+      // Encode tracking number to handle special characters like :
+      const encodedTracking = encodeURIComponent(tracking);
+      const response = await this.client.get(`/histories/?tracking=${encodedTracking}`);
       console.log('✅ Successfully fetched parcel history');
       return response.data;
     } catch (error) {
       console.error('❌ Error fetching parcel history:', error.message);
+      if (error.response) {
+        console.error('❌ Error response:', error.response.data);
+      }
       throw new Error('Failed to fetch tracking information');
     }
   }
@@ -180,11 +190,16 @@ class YalidineService {
   async updateParcel(tracking, updateData) {
     try {
       console.log('🔍 Updating parcel:', tracking);
-      const response = await this.client.patch(`/parcels/${tracking}`, updateData);
+      // Encode tracking number to handle special characters like :
+      const encodedTracking = encodeURIComponent(tracking);
+      const response = await this.client.patch(`/parcels/${encodedTracking}`, updateData);
       console.log('✅ Successfully updated parcel');
       return response.data;
     } catch (error) {
       console.error('❌ Error updating parcel:', error.message);
+      if (error.response) {
+        console.error('❌ Error response:', error.response.data);
+      }
       throw new Error('Failed to update shipment');
     }
   }
@@ -193,11 +208,16 @@ class YalidineService {
   async deleteParcel(tracking) {
     try {
       console.log('🔍 Deleting parcel:', tracking);
-      const response = await this.client.delete(`/parcels/${tracking}`);
+      // Encode tracking number to handle special characters like :
+      const encodedTracking = encodeURIComponent(tracking);
+      const response = await this.client.delete(`/parcels/${encodedTracking}`);
       console.log('✅ Successfully deleted parcel');
       return response.data;
     } catch (error) {
       console.error('❌ Error deleting parcel:', error.message);
+      if (error.response) {
+        console.error('❌ Error response:', error.response.data);
+      }
       throw new Error('Failed to delete shipment');
     }
   }
