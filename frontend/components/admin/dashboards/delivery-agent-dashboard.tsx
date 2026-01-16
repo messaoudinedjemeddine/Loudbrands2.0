@@ -290,23 +290,43 @@ export function DeliveryAgentDashboard() {
     try {
       let allShipments: any[] = []
       let currentPage = 1
+      const maxPages = 50 // Reasonable limit
       let hasMore = true
 
       // Fetch all pages
-      while (hasMore) {
-        const response = await yalidineAPI.getAllShipments({ page: currentPage })
-        const shipments = response.data || []
-        allShipments = [...allShipments, ...shipments]
-        
-        // Check if there are more pages
-        hasMore = response.has_more === true && shipments.length > 0
-        currentPage++
-        
-        // Safety limit to prevent infinite loops
-        if (currentPage > 100) {
-          console.warn('Reached maximum page limit (100) while fetching Yalidine shipments')
-          break
+      while (hasMore && currentPage <= maxPages) {
+        try {
+          const response = await yalidineAPI.getAllShipments({ page: currentPage })
+          const shipments = response.data || []
+          
+          // If no shipments returned, stop
+          if (shipments.length === 0) {
+            hasMore = false
+            break
+          }
+          
+          allShipments = [...allShipments, ...shipments]
+          
+          // Check if there are more pages - stop if has_more is false or undefined
+          hasMore = response.has_more === true
+          currentPage++
+          
+          // Add a small delay to avoid overwhelming the API
+          if (hasMore && currentPage <= maxPages) {
+            await new Promise(resolve => setTimeout(resolve, 100))
+          }
+        } catch (pageError) {
+          console.error(`Error fetching page ${currentPage}:`, pageError)
+          // If we have some shipments, continue with what we have
+          if (allShipments.length > 0) {
+            break
+          }
+          throw pageError
         }
+      }
+
+      if (currentPage > maxPages) {
+        console.warn(`Reached maximum page limit (${maxPages}) while fetching Yalidine shipments. Total shipments: ${allShipments.length}`)
       }
 
       setYalidineShipments(allShipments)
@@ -342,31 +362,67 @@ export function DeliveryAgentDashboard() {
         })
       ])
 
-      // Fetch all Yalidine shipments (all pages)
-      let allShipments: any[] = []
-      let currentPage = 1
-      let hasMore = true
+      // Fetch all Yalidine shipments (all pages) with timeout and better error handling
+      const fetchShipmentsWithTimeout = async (): Promise<any[]> => {
+        return new Promise(async (resolve) => {
+          const timeout = setTimeout(() => {
+            console.warn('Timeout while fetching Yalidine shipments, using partial data')
+            resolve([])
+          }, 30000) // 30 second timeout
 
-      try {
-        // Fetch all pages
-        while (hasMore) {
-          const response = await yalidineAPI.getAllShipments({ page: currentPage })
-          const shipments = response.data || []
-          allShipments = [...allShipments, ...shipments]
-          
-          // Check if there are more pages
-          hasMore = response.has_more === true && shipments.length > 0
-          currentPage++
-          
-          // Safety limit to prevent infinite loops
-          if (currentPage > 100) {
-            console.warn('Reached maximum page limit (100) while fetching Yalidine shipments')
-            break
+          try {
+            let allShipments: any[] = []
+            let currentPage = 1
+            const maxPages = 50 // Reasonable limit
+            let hasMore = true
+
+            // Fetch all pages
+            while (hasMore && currentPage <= maxPages) {
+              try {
+                const response = await yalidineAPI.getAllShipments({ page: currentPage })
+                const shipments = response.data || []
+                
+                // If no shipments returned, stop
+                if (shipments.length === 0) {
+                  hasMore = false
+                  break
+                }
+                
+                allShipments = [...allShipments, ...shipments]
+                
+                // Check if there are more pages - stop if has_more is false or undefined
+                hasMore = response.has_more === true
+                currentPage++
+                
+                // Add a small delay to avoid overwhelming the API
+                if (hasMore && currentPage <= maxPages) {
+                  await new Promise(resolve => setTimeout(resolve, 100))
+                }
+              } catch (pageError) {
+                console.error(`Error fetching page ${currentPage}:`, pageError)
+                // If we have some shipments, continue with what we have
+                if (allShipments.length > 0) {
+                  break
+                }
+                throw pageError
+              }
+            }
+
+            if (currentPage > maxPages) {
+              console.warn(`Reached maximum page limit (${maxPages}) while fetching Yalidine shipments. Total shipments: ${allShipments.length}`)
+            }
+
+            clearTimeout(timeout)
+            resolve(allShipments)
+          } catch (err) {
+            console.warn('Failed to fetch Yalidine shipments:', err)
+            clearTimeout(timeout)
+            resolve([])
           }
-        }
-      } catch (err) {
-        console.warn('Failed to fetch Yalidine shipments:', err)
+        })
       }
+
+      const allShipments = await fetchShipmentsWithTimeout()
 
       const ordersList = (ordersData as any).orders || ordersData as Order[]
       setOrders(ordersList)
