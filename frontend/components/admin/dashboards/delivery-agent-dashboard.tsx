@@ -426,20 +426,34 @@ export function DeliveryAgentDashboard() {
 
       const ordersList = (ordersData as any).orders || ordersData as Order[]
       setOrders(ordersList)
-      setYalidineShipments(allShipments)
 
-      // Calculate stats from all retrieved shipments (more accurate than API stats)
+      // Filter shipments to only show those created from our website
+      // Match by tracking number from orders
+      const orderTrackingNumbers = new Set(
+        ordersList
+          .map((o: Order) => o.trackingNumber)
+          .filter((t: string | undefined): t is string => !!t)
+      )
+
+      // Only keep shipments that match our orders' tracking numbers
+      const websiteShipments = allShipments.filter((shipment: any) => 
+        orderTrackingNumbers.has(shipment.tracking)
+      )
+
+      setYalidineShipments(websiteShipments)
+
+      // Calculate stats from filtered website shipments (only parcels created from our site)
       const calculatedStats = {
-        enPreparation: allShipments.filter(s => s.last_status === 'En préparation').length,
-        centre: allShipments.filter(s => s.last_status === 'Centre').length,
-        versWilaya: allShipments.filter(s => s.last_status === 'Vers Wilaya').length,
-        sortiEnLivraison: allShipments.filter(s => s.last_status === 'Sorti en livraison').length,
-        livre: allShipments.filter(s => s.last_status === 'Livré').length,
-        echecLivraison: allShipments.filter(s => s.last_status === 'Echèc livraison' || s.last_status === 'Echec de livraison').length,
-        retourARetirer: allShipments.filter(s => s.last_status === 'Retour à retirer').length,
-        retourneAuVendeur: allShipments.filter(s => s.last_status === 'Retourné au vendeur').length,
-        echangeEchoue: allShipments.filter(s => s.last_status === 'Echange échoué').length,
-        totalShipments: allShipments.length
+        enPreparation: websiteShipments.filter((s: any) => s.last_status === 'En préparation').length,
+        centre: websiteShipments.filter((s: any) => s.last_status === 'Centre').length,
+        versWilaya: websiteShipments.filter((s: any) => s.last_status === 'Vers Wilaya').length,
+        sortiEnLivraison: websiteShipments.filter((s: any) => s.last_status === 'Sorti en livraison').length,
+        livre: websiteShipments.filter((s: any) => s.last_status === 'Livré').length,
+        echecLivraison: websiteShipments.filter((s: any) => s.last_status === 'Echèc livraison' || s.last_status === 'Echec de livraison').length,
+        retourARetirer: websiteShipments.filter((s: any) => s.last_status === 'Retour à retirer').length,
+        retourneAuVendeur: websiteShipments.filter((s: any) => s.last_status === 'Retourné au vendeur').length,
+        echangeEchoue: websiteShipments.filter((s: any) => s.last_status === 'Echange échoué').length,
+        totalShipments: websiteShipments.length
       }
 
       // Calculate stats combining calculated Yalidine data with confirmed orders
