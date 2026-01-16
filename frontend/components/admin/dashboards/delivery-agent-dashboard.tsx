@@ -469,7 +469,7 @@ export function DeliveryAgentDashboard() {
         for (let i = 0; i < missingTrackingNumbers.length; i += batchSize) {
           const batch = missingTrackingNumbers.slice(i, i + batchSize)
           try {
-            const batchPromises = batch.map(tracking => 
+            const batchPromises = batch.map((tracking: string) => 
               yalidineAPI.getShipment(tracking).catch(err => {
                 console.warn(`Failed to fetch shipment ${tracking}:`, err)
                 return null
