@@ -387,12 +387,12 @@ export default function NewProductPage() {
           {/* Pricing */}
           <Card>
             <CardHeader>
-              <CardTitle>Pricing</CardTitle>
+              <CardTitle>Tarification</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="costPrice">Buying Price (DA) *</Label>
+                  <Label htmlFor="costPrice">Prix d'Achat (DA) *</Label>
                   <Input
                     id="costPrice"
                     type="number"
@@ -402,10 +402,10 @@ export default function NewProductPage() {
                     min="0"
                     required
                   />
-                  <p className="text-xs text-muted-foreground">The price you paid for this product</p>
+                  <p className="text-xs text-muted-foreground">Le prix que vous avez payé pour ce produit</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="price">Selling Price (DA) *</Label>
+                  <Label htmlFor="price">Prix de Vente (DA) *</Label>
                   <Input
                     id="price"
                     type="number"
@@ -415,10 +415,10 @@ export default function NewProductPage() {
                     min="0"
                     required
                   />
-                  <p className="text-xs text-muted-foreground">The price customers will pay</p>
+                  <p className="text-xs text-muted-foreground">Le prix que les clients paieront</p>
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="oldPrice">Old Price (DA)</Label>
+                  <Label htmlFor="oldPrice">Ancien Prix (DA)</Label>
                   <Input
                     id="oldPrice"
                     type="number"
@@ -427,7 +427,7 @@ export default function NewProductPage() {
                     placeholder="0"
                     min="0"
                   />
-                  <p className="text-xs text-muted-foreground">Previous selling price (for discounts)</p>
+                  <p className="text-xs text-muted-foreground">Prix de vente précédent (pour les réductions)</p>
                 </div>
               </div>
 
@@ -437,7 +437,7 @@ export default function NewProductPage() {
                   checked={productData.isOnSale}
                   onCheckedChange={(checked) => handleInputChange('isOnSale', checked)}
                 />
-                <Label htmlFor="isOnSale">Mark as on sale</Label>
+                <Label htmlFor="isOnSale">Marquer en solde</Label>
               </div>
             </CardContent>
           </Card>
