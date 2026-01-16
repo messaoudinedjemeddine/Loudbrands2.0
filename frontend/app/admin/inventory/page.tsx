@@ -272,7 +272,20 @@ export default function AdminInventoryPage() {
 
   const formatSizes = (sizes: Product['sizes']) => {
     if (!sizes || sizes.length === 0) return 'No sizes'
-    return sizes.map(size => `${size.size}: ${size.stock}`).join(', ')
+    // Sort sizes: M, L, XL, XXL, XXXL first, then others
+    const sizeOrder: Record<string, number> = {
+      'M': 1,
+      'L': 2,
+      'XL': 3,
+      'XXL': 4,
+      'XXXL': 5
+    }
+    const sortedSizes = [...sizes].sort((a, b) => {
+      const orderA = sizeOrder[a.size] ?? 999
+      const orderB = sizeOrder[b.size] ?? 999
+      return orderA - orderB
+    })
+    return sortedSizes.map(size => `${size.size}: ${size.stock}`).join(', ')
   }
 
   if (!mounted) return null

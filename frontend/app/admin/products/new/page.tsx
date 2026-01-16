@@ -28,6 +28,22 @@ import { useLocaleStore } from '@/lib/locale-store'
 
 const availableSizes = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL']
 
+// Sort sizes: M, L, XL, XXL, XXXL first, then others
+const sortSizes = (sizes: string[]): string[] => {
+  const sizeOrder: Record<string, number> = {
+    'M': 1,
+    'L': 2,
+    'XL': 3,
+    'XXL': 4,
+    'XXXL': 5
+  }
+  return [...sizes].sort((a, b) => {
+    const orderA = sizeOrder[a] ?? 999
+    const orderB = sizeOrder[b] ?? 999
+    return orderA - orderB
+  })
+}
+
 interface Category {
   id: string;
   name: string;
@@ -450,7 +466,7 @@ export default function NewProductPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
-                  {availableSizes.map((size) => {
+                  {sortSizes(availableSizes).map((size) => {
                     const isSelected = productData.sizes.find(s => s.size === size)
                     return (
                       <Button
@@ -486,7 +502,18 @@ export default function NewProductPage() {
                       })()}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {productData.sizes.map((sizeData) => (
+                      {[...productData.sizes].sort((a, b) => {
+                        const sizeOrder: Record<string, number> = {
+                          'M': 1,
+                          'L': 2,
+                          'XL': 3,
+                          'XXL': 4,
+                          'XXXL': 5
+                        }
+                        const orderA = sizeOrder[a.size] ?? 999
+                        const orderB = sizeOrder[b.size] ?? 999
+                        return orderA - orderB
+                      }).map((sizeData) => (
                         <div key={sizeData.size} className="flex items-center space-x-2">
                           <Label className="w-8">{sizeData.size}:</Label>
                           <Input
