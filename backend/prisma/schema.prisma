@@ -302,3 +302,25 @@ model StockReceptionItem {
 
   @@map("stock_reception_items")
 }
+
+model StockMovement {
+  id              String   @id @default(cuid())
+  type            String   // 'in' or 'out'
+  barcode         String?
+  productName     String
+  productReference String?
+  size            String?
+  quantity        Int
+  oldStock        Int?
+  newStock        Int?
+  orderNumber     String?
+  trackingNumber  String?
+  notes           String?
+  operationType   String?  // 'entree', 'sortie', 'echange', 'retour'
+  createdAt       DateTime @default(now())
+
+  @@map("stock_movements")
+  @@index([createdAt])
+  @@index([type])
+  @@index([operationType])
+}

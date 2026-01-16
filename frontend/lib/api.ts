@@ -524,7 +524,40 @@ export const api = {
       body: JSON.stringify(data),
     }),
     getReceptions: () => apiClient.request('/inventory/receptions'),
-
+    // Stock Movements
+    createStockMovement: (data: {
+      type: 'in' | 'out';
+      barcode?: string | null;
+      productName: string;
+      productReference?: string | null;
+      size?: string | null;
+      quantity: number;
+      oldStock?: number | null;
+      newStock?: number | null;
+      orderNumber?: string | null;
+      trackingNumber?: string | null;
+      notes?: string | null;
+      operationType?: 'entree' | 'sortie' | 'echange' | 'retour' | null;
+    }) => apiClient.request('/inventory/movements', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+    getStockMovements: (params?: {
+      type?: 'in' | 'out';
+      operationType?: 'entree' | 'sortie' | 'echange' | 'retour';
+      limit?: number;
+    }) => {
+      const searchParams = new URLSearchParams();
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          if (value !== undefined && value !== null) {
+            searchParams.append(key, value.toString());
+          }
+        });
+      }
+      const query = searchParams.toString();
+      return apiClient.request(`/inventory/movements${query ? `?${query}` : ''}`);
+    },
     // Brand-specific inventory management
     getInventoryByBrand: (brandSlug: string, params?: {
       page?: number;

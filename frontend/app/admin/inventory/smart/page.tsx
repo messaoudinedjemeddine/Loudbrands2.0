@@ -76,6 +76,7 @@ interface StockMovement {
     orderNumber?: string
     trackingNumber?: string
     notes?: string
+    operationType?: 'entree' | 'sortie' | 'echange' | 'retour'
 }
 
 // Shared Helper for Yalidine Product Lists
@@ -108,32 +109,68 @@ const parseYalidineProductList = (productList: string) => {
 export default function InventorySmartPage() {
     const [activeTab, setActiveTab] = useState('labels')
     const [history, setHistory] = useState<StockMovement[]>([])
+    const [isLoadingHistory, setIsLoadingHistory] = useState(true)
 
-    // Load history from localStorage on mount
+    // Load history from backend on mount
     useEffect(() => {
-        const savedHistory = localStorage.getItem('inventory-history')
-        if (savedHistory) {
+        const loadHistory = async () => {
             try {
-                const parsed = JSON.parse(savedHistory)
-                setHistory(parsed.map((item: any) => ({
+                setIsLoadingHistory(true)
+                const response = await api.admin.getStockMovements({ limit: 1000 })
+                const movements = response.movements || []
+                setHistory(movements.map((item: any) => ({
                     ...item,
-                    timestamp: new Date(item.timestamp)
+                    timestamp: new Date(item.createdAt),
+                    id: item.id
                 })))
-            } catch (e) {
-                console.error('Failed to load history', e)
+            } catch (error) {
+                console.error('Failed to load history from backend:', error)
+                // Fallback to localStorage if backend fails
+                const savedHistory = localStorage.getItem('inventory-history')
+                if (savedHistory) {
+                    try {
+                        const parsed = JSON.parse(savedHistory)
+                        setHistory(parsed.map((item: any) => ({
+                            ...item,
+                            timestamp: new Date(item.timestamp)
+                        })))
+                    } catch (e) {
+                        console.error('Failed to load history from localStorage', e)
+                    }
+                }
+            } finally {
+                setIsLoadingHistory(false)
             }
         }
+        loadHistory()
     }, [])
 
-    // Save history to localStorage whenever it changes
-    useEffect(() => {
-        if (history.length > 0) {
-            localStorage.setItem('inventory-history', JSON.stringify(history))
+    const addToHistory = async (movement: StockMovement) => {
+        // Add to local state immediately for UI responsiveness
+        setHistory(prev => [movement, ...prev].slice(0, 1000))
+        
+        // Save to backend
+        try {
+            await api.admin.createStockMovement({
+                type: movement.type,
+                barcode: movement.barcode || null,
+                productName: movement.productName,
+                productReference: movement.productReference || null,
+                size: movement.size || null,
+                quantity: movement.quantity,
+                oldStock: movement.oldStock || null,
+                newStock: movement.newStock || null,
+                orderNumber: movement.orderNumber || null,
+                trackingNumber: movement.trackingNumber || null,
+                notes: movement.notes || null,
+                operationType: movement.operationType || null
+            })
+        } catch (error) {
+            console.error('Failed to save movement to backend:', error)
+            // Keep in localStorage as backup
+            const currentHistory = [movement, ...history].slice(0, 1000)
+            localStorage.setItem('inventory-history', JSON.stringify(currentHistory))
         }
-    }, [history])
-
-    const addToHistory = (movement: StockMovement) => {
-        setHistory(prev => [movement, ...prev].slice(0, 1000)) // Keep last 1000 entries
     }
 
     return (
@@ -929,7 +966,8 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                     quantity: item.quantity,
                     oldStock: 0,
                     newStock: 0,
-                    notes: `Reception: ${targetAtelier}`
+                    notes: `Reception: ${targetAtelier}`,
+                    operationType: 'entree'
                 })
             })
 
@@ -1068,6 +1106,53 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                 </div>
             </CardContent>
         </Card>
+        </>
+    )
+}
+
+// Error Modal Component
+function ErrorModal({ 
+    isOpen, 
+    onClose, 
+    title, 
+    errors 
+}: { 
+    isOpen: boolean
+    onClose: () => void
+    title: string
+    errors: Array<{ productName: string; item: any; message: string }>
+}) {
+    return (
+        <Dialog open={isOpen} onOpenChange={onClose}>
+            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle className="text-red-600 flex items-center gap-2">
+                        <XCircle className="h-5 w-5" />
+                        {title}
+                    </DialogTitle>
+                    <DialogDescription>
+                        Les erreurs suivantes ont été détectées lors du scan :
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-3 mt-4">
+                    {errors.map((error, index) => (
+                        <div key={index} className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+                            <div className="font-semibold text-red-800 dark:text-red-200">
+                                {error.productName}{error.item.size ? ` (${error.item.size})` : ''}
+                            </div>
+                            <div className="text-sm text-red-700 dark:text-red-300 mt-1">
+                                {error.message}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className="flex justify-end mt-6">
+                    <Button onClick={onClose} variant="destructive">
+                        Fermer
+                    </Button>
+                </div>
+            </DialogContent>
+        </Dialog>
     )
 }
 
@@ -1077,6 +1162,10 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
     const [scanLogs, setScanLogs] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [scannedBarcodes, setScannedBarcodes] = useState<Set<string>>(new Set())
+    const [errorModal, setErrorModal] = useState<{ isOpen: boolean; errors: Array<{ productName: string; item: any; message: string }> }>({
+        isOpen: false,
+        errors: []
+    })
     const inputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
@@ -1245,14 +1334,12 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                 }
             }
 
-            // STEP 2: If ANY validation errors, show error and DON'T process anything
+            // STEP 2: If ANY validation errors, show error modal and DON'T process anything
             if (validationErrors.length > 0) {
-                const errorProducts = validationErrors.map(e => 
-                    `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`
-                ).join('; ')
-                
-                const errorMessage = `Erreur avec vos produits: ${errorProducts}`
-                toast.error(errorMessage)
+                setErrorModal({
+                    isOpen: true,
+                    errors: validationErrors
+                })
                 
                 setScanLogs(validationErrors.map(e => ({
                     status: 'error',
@@ -1288,7 +1375,8 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                         newStock,
                         orderNumber: tracking,
                         trackingNumber: tracking,
-                        notes: `Auto-scan deduction: ${validated.item.originalLine}`
+                        notes: `Auto-scan deduction: ${validated.item.originalLine}`,
+                        operationType: 'sortie'
                     }
                     onStockRemoved(movement)
 
@@ -1318,7 +1406,14 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
             }
 
         } catch (error: any) {
-            toast.error(error.message || 'Erreur lors de la récupération du ticket')
+            setErrorModal({
+                isOpen: true,
+                errors: [{
+                    productName: 'Erreur de scan',
+                    item: { size: '' },
+                    message: error.message || 'Erreur lors de la récupération du ticket Yalidine. Veuillez vérifier le code-barres et réessayer.'
+                }]
+            })
         } finally {
             setIsLoading(false)
             inputRef.current?.focus()
@@ -1326,13 +1421,20 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
     }
 
     return (
-        <Card className="h-full flex flex-col">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <ArrowDown className="h-5 w-5 text-red-500" />
-                    Sortie Stock - Scan Automatique
-                </CardTitle>
-            </CardHeader>
+        <>
+            <ErrorModal
+                isOpen={errorModal.isOpen}
+                onClose={() => setErrorModal({ isOpen: false, errors: [] })}
+                title="Erreur lors du scan"
+                errors={errorModal.errors}
+            />
+            <Card className="h-full flex flex-col">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <ArrowDown className="h-5 w-5 text-red-500" />
+                        Sortie Stock - Scan Automatique
+                    </CardTitle>
+                </CardHeader>
             <CardContent className="flex-1 flex flex-col overflow-hidden">
                 <div className="w-full max-w-2xl mx-auto space-y-6">
                     {/* Yalidine Barcode Input */}
@@ -1743,6 +1845,10 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
     const [scanLogs, setScanLogs] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [scannedBarcodes, setScannedBarcodes] = useState<Set<string>>(new Set())
+    const [errorModal, setErrorModal] = useState<{ isOpen: boolean; errors: Array<{ productName: string; item: any; message: string }> }>({
+        isOpen: false,
+        errors: []
+    })
     const inputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
@@ -1912,14 +2018,12 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                 }
             }
 
-            // STEP 2: If ANY validation errors, show error and DON'T process anything
+            // STEP 2: If ANY validation errors, show error modal and DON'T process anything
             if (validationErrors.length > 0) {
-                const errorProducts = validationErrors.map(e => 
-                    `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`
-                ).join('; ')
-                
-                const errorMessage = `Erreur avec vos produits: ${errorProducts}`
-                toast.error(errorMessage)
+                setErrorModal({
+                    isOpen: true,
+                    errors: validationErrors
+                })
                 
                 setScanLogs(validationErrors.map(e => ({
                     status: 'error',
@@ -1954,7 +2058,8 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                         oldStock: validated.oldStock,
                         newStock,
                         trackingNumber: tracking,
-                        notes: `Echange Yalidine: ${code}`
+                        notes: `Echange Yalidine: ${code}`,
+                        operationType: 'echange'
                     }
                     onStockRemoved(movement)
 
@@ -1983,7 +2088,14 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
             }
 
         } catch (error: any) {
-            toast.error(error.message || 'Erreur lors de la récupération')
+            setErrorModal({
+                isOpen: true,
+                errors: [{
+                    productName: 'Erreur de scan',
+                    item: { size: '' },
+                    message: error.message || 'Erreur lors de la récupération du ticket Yalidine. Veuillez vérifier le code-barres et réessayer.'
+                }]
+            })
         } finally {
             setIsLoading(false)
             inputRef.current?.focus()
@@ -1991,13 +2103,20 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
     }
 
     return (
-        <Card className="h-full flex flex-col border-orange-200 bg-orange-50/30">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-orange-700">
-                    <ArrowDown className="h-5 w-5" />
-                    Échange (Sortie Stock)
-                </CardTitle>
-            </CardHeader>
+        <>
+            <ErrorModal
+                isOpen={errorModal.isOpen}
+                onClose={() => setErrorModal({ isOpen: false, errors: [] })}
+                title="Erreur lors du scan d'échange"
+                errors={errorModal.errors}
+            />
+            <Card className="h-full flex flex-col border-orange-200 bg-orange-50/30">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-orange-700">
+                        <ArrowDown className="h-5 w-5" />
+                        Échange (Sortie Stock)
+                    </CardTitle>
+                </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-4">
                 <form onSubmit={handleScan} className="space-y-4">
                     <Label>Scanner Ticket Échange (ECH-XXXXXX)</Label>
@@ -2034,6 +2153,10 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
     const [scanLogs, setScanLogs] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [scannedBarcodes, setScannedBarcodes] = useState<Set<string>>(new Set())
+    const [errorModal, setErrorModal] = useState<{ isOpen: boolean; errors: Array<{ productName: string; item: any; message: string }> }>({
+        isOpen: false,
+        errors: []
+    })
     const inputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
@@ -2156,14 +2279,12 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                 }
             }
 
-            // STEP 2: If ANY validation errors, show error and DON'T process anything
+            // STEP 2: If ANY validation errors, show error modal and DON'T process anything
             if (validationErrors.length > 0) {
-                const errorProducts = validationErrors.map(e => 
-                    `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`
-                ).join('; ')
-                
-                const errorMessage = `Erreur avec vos produits: ${errorProducts}`
-                toast.error(errorMessage)
+                setErrorModal({
+                    isOpen: true,
+                    errors: validationErrors
+                })
                 
                 setScanLogs(validationErrors.map(e => ({
                     status: 'error',
@@ -2197,7 +2318,8 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                         oldStock: 0,
                         newStock: 0,
                         trackingNumber: trackingKey,
-                        notes: 'Retour Client'
+                        notes: 'Retour Client',
+                        operationType: 'retour'
                     })
                 })
 
@@ -2216,7 +2338,14 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
             }
 
         } catch (error: any) {
-            toast.error(error.message || 'Erreur lors du retour')
+            setErrorModal({
+                isOpen: true,
+                errors: [{
+                    productName: 'Erreur de scan',
+                    item: { size: '' },
+                    message: error.message || 'Erreur lors de la récupération du ticket Yalidine. Veuillez vérifier le code de suivi et réessayer.'
+                }]
+            })
         } finally {
             setIsLoading(false)
             inputRef.current?.focus()
@@ -2224,13 +2353,20 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
     }
 
     return (
-        <Card className="h-full flex flex-col border-blue-200 bg-blue-50/30">
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-blue-700">
-                    <ArrowUp className="h-5 w-5" />
-                    Retour (Entrée Stock)
-                </CardTitle>
-            </CardHeader>
+        <>
+            <ErrorModal
+                isOpen={errorModal.isOpen}
+                onClose={() => setErrorModal({ isOpen: false, errors: [] })}
+                title="Erreur lors du scan de retour"
+                errors={errorModal.errors}
+            />
+            <Card className="h-full flex flex-col border-blue-200 bg-blue-50/30">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-blue-700">
+                        <ArrowUp className="h-5 w-5" />
+                        Retour (Entrée Stock)
+                    </CardTitle>
+                </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-4">
                 <form onSubmit={handleScan} className="space-y-4">
                     <Label>Scanner Tracking Retour</Label>
@@ -2259,5 +2395,6 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                 </div>
             </CardContent>
         </Card>
+        </>
     )
 }

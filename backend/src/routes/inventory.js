@@ -195,4 +195,74 @@ router.get('/receptions', async (req, res) => {
     }
 });
 
+// Schema for creating a stock movement
+const stockMovementSchema = z.object({
+    type: z.enum(['in', 'out']),
+    barcode: z.string().optional().nullable(),
+    productName: z.string(),
+    productReference: z.string().optional().nullable(),
+    size: z.string().optional().nullable(),
+    quantity: z.number().int().positive(),
+    oldStock: z.number().int().optional().nullable(),
+    newStock: z.number().int().optional().nullable(),
+    orderNumber: z.string().optional().nullable(),
+    trackingNumber: z.string().optional().nullable(),
+    notes: z.string().optional().nullable(),
+    operationType: z.enum(['entree', 'sortie', 'echange', 'retour']).optional().nullable()
+});
+
+// Create a stock movement
+router.post('/movements', async (req, res) => {
+    try {
+        const data = stockMovementSchema.parse(req.body);
+
+        const movement = await prisma.stockMovement.create({
+            data: {
+                type: data.type,
+                barcode: data.barcode,
+                productName: data.productName,
+                productReference: data.productReference,
+                size: data.size,
+                quantity: data.quantity,
+                oldStock: data.oldStock,
+                newStock: data.newStock,
+                orderNumber: data.orderNumber,
+                trackingNumber: data.trackingNumber,
+                notes: data.notes,
+                operationType: data.operationType
+            }
+        });
+
+        res.json({ success: true, movement });
+    } catch (error) {
+        if (error instanceof z.ZodError) {
+            return res.status(400).json({ error: error.errors });
+        }
+        console.error('Create stock movement error:', error);
+        res.status(500).json({ error: 'Failed to create stock movement' });
+    }
+});
+
+// Get stock movements
+router.get('/movements', async (req, res) => {
+    try {
+        const { type, operationType, limit = 1000 } = req.query;
+
+        const where = {};
+        if (type) where.type = type;
+        if (operationType) where.operationType = operationType;
+
+        const movements = await prisma.stockMovement.findMany({
+            where,
+            orderBy: { createdAt: 'desc' },
+            take: parseInt(limit)
+        });
+
+        res.json({ movements });
+    } catch (error) {
+        console.error('Fetch stock movements error:', error);
+        res.status(500).json({ error: 'Failed to fetch stock movements' });
+    }
+});
+
 module.exports = router;
