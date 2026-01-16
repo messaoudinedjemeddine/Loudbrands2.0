@@ -116,8 +116,8 @@ export default function InventorySmartPage() {
         const loadHistory = async () => {
             try {
                 setIsLoadingHistory(true)
-                const response = await api.admin.getStockMovements({ limit: 1000 })
-                const movements = response.movements || []
+                const response = await api.admin.getStockMovements({ limit: 1000 }) as any
+                const movements = response?.movements || []
                 setHistory(movements.map((item: any) => ({
                     ...item,
                     timestamp: new Date(item.createdAt),
