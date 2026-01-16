@@ -1106,7 +1106,6 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                 </div>
             </CardContent>
         </Card>
-        </>
     )
 }
 
