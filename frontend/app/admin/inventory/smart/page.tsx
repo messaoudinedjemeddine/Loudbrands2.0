@@ -1130,7 +1130,7 @@ function ErrorModal({
                         {title}
                     </DialogTitle>
                     <DialogDescription>
-                        Les erreurs suivantes ont été détectées lors du scan :
+                        تم اكتشاف الأخطاء التالية أثناء المسح:
                     </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-3 mt-4">
@@ -1147,7 +1147,7 @@ function ErrorModal({
                 </div>
                 <div className="flex justify-end mt-6">
                     <Button onClick={onClose} variant="destructive">
-                        Fermer
+                        إغلاق
                     </Button>
                 </div>
             </DialogContent>
@@ -1199,7 +1199,14 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
         
         // Check if barcode was already scanned
         if (isBarcodeAlreadyScanned(barcodeKey)) {
-            toast.error('Ce code-barres Yalidine a déjà été scanné. Chaque code-barres ne peut être utilisé qu\'une seule fois.')
+            setErrorModal({
+                isOpen: true,
+                errors: [{
+                    productName: 'خطأ في المسح',
+                    item: { size: '' },
+                    message: 'تم مسح هذا الرمز الشريطي Yalidine مسبقاً. يمكن استخدام كل رمز شريطي مرة واحدة فقط.'
+                }]
+            })
             return
         }
 
@@ -1254,7 +1261,7 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                     if (!product) {
                         validationErrors.push({
                             item,
-                            message: `Produit "${item.productName}" introuvable`,
+                            message: `المنتج "${item.productName}" غير موجود`,
                             productName: item.productName
                         })
                         continue
@@ -1280,7 +1287,7 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                         if (oldStock < item.quantity) {
                             validationErrors.push({
                                 item,
-                                message: `Stock insuffisant. Stock: ${oldStock}, Requis: ${item.quantity}`,
+                                message: `المخزون غير كافٍ. المخزون: ${oldStock}، المطلوب: ${item.quantity}`,
                                 productName: product.name
                             })
                             continue
@@ -1294,7 +1301,7 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                         if (!sizeObj) {
                             validationErrors.push({
                                 item,
-                                message: `Taille "${item.size}" introuvable`,
+                                message: `المقاس "${item.size}" غير موجود`,
                                 productName: product.name
                             })
                             continue
@@ -1304,7 +1311,7 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                         if ((sizeObj.stock || 0) < item.quantity) {
                             validationErrors.push({
                                 item,
-                                message: `Stock insuffisant pour taille ${item.size}. Stock: ${sizeObj.stock}, Requis: ${item.quantity}`,
+                                message: `المخزون غير كافٍ للمقاس ${item.size}. المخزون: ${sizeObj.stock}، المطلوب: ${item.quantity}`,
                                 productName: product.name
                             })
                             continue
@@ -1327,7 +1334,7 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                 } catch (err: any) {
                     validationErrors.push({
                         item,
-                        message: `Erreur système: ${err.message}`,
+                        message: `خطأ في النظام: ${err.message}`,
                         productName: item.productName
                     })
                 }
@@ -1388,7 +1395,7 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                     console.error(err)
                     logs.push({
                         status: 'error',
-                        message: `Erreur système pour "${validated.product.name}": ${err.message}`,
+                        message: `خطأ في النظام للمنتج "${validated.product.name}": ${err.message}`,
                         item: validated.item
                     })
                 }
@@ -1408,9 +1415,9 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
             setErrorModal({
                 isOpen: true,
                 errors: [{
-                    productName: 'Erreur de scan',
+                    productName: 'خطأ في المسح',
                     item: { size: '' },
-                    message: error.message || 'Erreur lors de la récupération du ticket Yalidine. Veuillez vérifier le code-barres et réessayer.'
+                    message: error.message || 'خطأ في استرجاع تذكرة Yalidine. يرجى التحقق من الرمز الشريطي والمحاولة مرة أخرى.'
                 }]
             })
         } finally {
@@ -1424,7 +1431,7 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
             <ErrorModal
                 isOpen={errorModal.isOpen}
                 onClose={() => setErrorModal({ isOpen: false, errors: [] })}
-                title="Erreur lors du scan"
+                title="خطأ في المسح"
                 errors={errorModal.errors}
             />
             <Card className="h-full flex flex-col">
@@ -1887,7 +1894,14 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
 
         // Check if barcode was already scanned
         if (isBarcodeAlreadyScanned(code)) {
-            toast.error('Ce code-barres Yalidine a déjà été scanné. Chaque code-barres ne peut être utilisé qu\'une seule fois.')
+            setErrorModal({
+                isOpen: true,
+                errors: [{
+                    productName: 'خطأ في المسح',
+                    item: { size: '' },
+                    message: 'تم مسح هذا الرمز الشريطي Yalidine مسبقاً. يمكن استخدام كل رمز شريطي مرة واحدة فقط.'
+                }]
+            })
             return
         }
 
@@ -1939,7 +1953,7 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                     if (!product) {
                         validationErrors.push({
                             item,
-                            message: `Produit introuvable`,
+                            message: `المنتج غير موجود`,
                             productName: item.productName
                         })
                         continue
@@ -1965,7 +1979,7 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                         if (oldStock < item.quantity) {
                             validationErrors.push({
                                 item,
-                                message: `Stock insuffisant. Stock: ${oldStock}, Requis: ${item.quantity}`,
+                                message: `المخزون غير كافٍ. المخزون: ${oldStock}، المطلوب: ${item.quantity}`,
                                 productName: product.name
                             })
                             continue
@@ -1979,7 +1993,7 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                         if (!sizeObj) {
                             validationErrors.push({
                                 item,
-                                message: `Taille "${item.size}" introuvable`,
+                                message: `المقاس "${item.size}" غير موجود`,
                                 productName: product.name
                             })
                             continue
@@ -1989,7 +2003,7 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                         if ((sizeObj.stock || 0) < item.quantity) {
                             validationErrors.push({
                                 item,
-                                message: `Stock insuffisant pour taille ${item.size}. Stock: ${sizeObj.stock}, Requis: ${item.quantity}`,
+                                message: `المخزون غير كافٍ للمقاس ${item.size}. المخزون: ${sizeObj.stock}، المطلوب: ${item.quantity}`,
                                 productName: product.name
                             })
                             continue
@@ -2012,7 +2026,7 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                 } catch (err: any) {
                     validationErrors.push({
                         item,
-                        message: `Erreur système: ${err.message}`,
+                        message: `خطأ في النظام: ${err.message}`,
                         productName: item.productName
                     })
                 }
@@ -2071,7 +2085,7 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                 } catch (err: any) {
                     logs.push({ 
                         status: 'error', 
-                        message: `Erreur système pour "${validated.product.name}": ${err.message}`, 
+                        message: `خطأ في النظام للمنتج "${validated.product.name}": ${err.message}`, 
                         item: validated.item 
                     })
                 }
@@ -2091,9 +2105,9 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
             setErrorModal({
                 isOpen: true,
                 errors: [{
-                    productName: 'Erreur de scan',
+                    productName: 'خطأ في المسح',
                     item: { size: '' },
-                    message: error.message || 'Erreur lors de la récupération du ticket Yalidine. Veuillez vérifier le code-barres et réessayer.'
+                    message: error.message || 'خطأ في استرجاع تذكرة Yalidine. يرجى التحقق من الرمز الشريطي والمحاولة مرة أخرى.'
                 }]
             })
         } finally {
@@ -2107,7 +2121,7 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
             <ErrorModal
                 isOpen={errorModal.isOpen}
                 onClose={() => setErrorModal({ isOpen: false, errors: [] })}
-                title="Erreur lors du scan d'échange"
+                title="خطأ في مسح التبادل"
                 errors={errorModal.errors}
             />
             <Card className="h-full flex flex-col border-orange-200 bg-orange-50/30">
@@ -2191,7 +2205,14 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
 
         // Check if barcode was already scanned
         if (isBarcodeAlreadyScanned(trackingKey)) {
-            toast.error('Ce code-barres Yalidine a déjà été scanné. Chaque code-barres ne peut être utilisé qu\'une seule fois.')
+            setErrorModal({
+                isOpen: true,
+                errors: [{
+                    productName: 'خطأ في المسح',
+                    item: { size: '' },
+                    message: 'تم مسح هذا الرمز الشريطي Yalidine مسبقاً. يمكن استخدام كل رمز شريطي مرة واحدة فقط.'
+                }]
+            })
             return
         }
 
@@ -2236,7 +2257,7 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                 if (!product) {
                     validationErrors.push({
                         item,
-                        message: `Produit introuvable`,
+                        message: `المنتج غير موجود`,
                         productName: item.productName
                     })
                     continue
@@ -2264,7 +2285,7 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                     if (!sizeObj) {
                         validationErrors.push({
                             item,
-                            message: `Taille "${item.size}" introuvable`,
+                            message: `المقاس "${item.size}" غير موجود`,
                             productName: product.name
                         })
                         continue
@@ -2342,9 +2363,9 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
             setErrorModal({
                 isOpen: true,
                 errors: [{
-                    productName: 'Erreur de scan',
+                    productName: 'خطأ في المسح',
                     item: { size: '' },
-                    message: error.message || 'Erreur lors de la récupération du ticket Yalidine. Veuillez vérifier le code de suivi et réessayer.'
+                    message: error.message || 'خطأ في استرجاع تذكرة Yalidine. يرجى التحقق من رمز التتبع والمحاولة مرة أخرى.'
                 }]
             })
         } finally {
@@ -2358,7 +2379,7 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
             <ErrorModal
                 isOpen={errorModal.isOpen}
                 onClose={() => setErrorModal({ isOpen: false, errors: [] })}
-                title="Erreur lors du scan de retour"
+                title="خطأ في مسح الإرجاع"
                 errors={errorModal.errors}
             />
             <Card className="h-full flex flex-col border-blue-200 bg-blue-50/30">

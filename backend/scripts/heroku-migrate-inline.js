@@ -1,10 +1,10 @@
-// Script simple pour exécuter la migration sur Heroku
-// Utilise le chemin correct sur Heroku
+// Script inline pour exécuter directement dans la console Heroku
+// Copiez-collez ce code dans la console Heroku (More → Run console)
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-async function migrate() {
+(async () => {
     try {
         console.log('🔄 Démarrage de la migration...');
         
@@ -48,6 +48,4 @@ async function migrate() {
     } finally {
         await prisma.$disconnect();
     }
-}
-
-migrate().catch(console.error);
+})();
