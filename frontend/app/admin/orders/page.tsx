@@ -326,7 +326,7 @@ function OrdersContent() {
   const startIndex = hasCityFilter ? (page - 1) * itemsPerPage : 0
   const endIndex = hasCityFilter ? startIndex + itemsPerPage : filteredOrders.length
   const paginatedFilteredOrders = hasCityFilter ? filteredOrders.slice(startIndex, endIndex) : filteredOrders
-  const filteredTotalPages = hasActiveFilters ? Math.ceil(filteredOrders.length / itemsPerPage) : 1
+  const filteredTotalPages = hasCityFilter ? Math.ceil(filteredOrders.length / itemsPerPage) : totalPages
 
   if (!mounted) return null
 
@@ -1022,8 +1022,8 @@ function OrdersContent() {
               )}
 
               {/* Pagination Controls */}
-              {hasActiveFilters ? (
-                // Client-side pagination when filtering
+              {hasCityFilter ? (
+                // Client-side pagination when city filtering
                 <div className="flex items-center justify-between border-t p-4 mt-4">
                   <div className="text-sm text-muted-foreground">
                     Affichage {startIndex + 1}-{Math.min(endIndex, filteredOrders.length)} sur {filteredOrders.length} commandes
