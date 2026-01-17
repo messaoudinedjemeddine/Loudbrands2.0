@@ -61,6 +61,9 @@ class YalidineService {
 
   // Get all wilayas (provinces)
   async getWilayas() {
+    if (!this.isConfigured()) {
+      throw new Error('Yalidine API credentials not configured');
+    }
     try {
       console.log('🔍 Fetching wilayas from Yalidine API...');
       const response = await this.client.get('/wilayas/');
@@ -68,7 +71,21 @@ class YalidineService {
       return response.data;
     } catch (error) {
       console.error('❌ Error fetching wilayas:', error.message);
-      throw new Error('Failed to fetch wilayas');
+      if (error.response) {
+        console.error('❌ Response status:', error.response.status);
+        console.error('❌ Response data:', JSON.stringify(error.response.data));
+        console.error('❌ Response headers:', JSON.stringify(error.response.headers));
+      }
+      if (error.request) {
+        console.error('❌ Request made but no response received');
+        console.error('❌ Request config:', JSON.stringify({
+          url: error.config?.url,
+          method: error.config?.method,
+          baseURL: error.config?.baseURL
+        }));
+      }
+      const errorMessage = error.response?.data?.message || error.message || 'Unknown error';
+      throw new Error(`Failed to fetch wilayas: ${errorMessage}`);
     }
   }
 

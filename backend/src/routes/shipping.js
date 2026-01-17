@@ -341,11 +341,21 @@ router.get('/wilayas', async (req, res) => {
     res.json(wilayas);
   } catch (error) {
     console.error('❌ Error fetching wilayas:', error.message);
+    console.error('❌ Error stack:', error.stack);
     if (error.response) {
       console.error('Response status:', error.response.status);
       console.error('Response data:', error.response.data);
     }
-    res.status(500).json({ error: 'Failed to fetch wilayas' });
+    if (error.request) {
+      console.error('Request made but no response received');
+    }
+    // Return a more informative error message
+    const errorMessage = error.message || 'Failed to fetch wilayas';
+    res.status(500).json({ 
+      error: 'Failed to fetch wilayas',
+      message: errorMessage,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
