@@ -1132,17 +1132,17 @@ Loudstyles`
 
       {/* Delivery Management */}
       <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-        <TabsList className="flex w-full overflow-x-auto pb-2 justify-start h-auto gap-2">
-          {activeTab !== 'confirmed' && (
+        {activeTab !== 'confirmed' && (
+          <TabsList className="flex w-full overflow-x-auto pb-2 justify-start h-auto gap-2">
             <TabsTrigger value="all-parcels" className="flex-shrink-0">All Parcels ({yalidineShipments.length})</TabsTrigger>
-          )}
-          <TabsTrigger value="confirmed" className="flex-shrink-0 bg-emerald-600 text-white data-[state=active]:bg-emerald-700">Confirmed Orders ({stats.confirmedOrders})</TabsTrigger>
-          <TabsTrigger value="preparation" className="flex-shrink-0 bg-blue-600 text-white data-[state=active]:bg-blue-700">En préparation ({stats.enPreparation})</TabsTrigger>
-          <TabsTrigger value="delivery" className="flex-shrink-0 bg-indigo-600 text-white data-[state=active]:bg-indigo-700">Sorti en livraison ({stats.sortiEnLivraison})</TabsTrigger>
-          <TabsTrigger value="waiting" className="flex-shrink-0 bg-amber-500 text-white data-[state=active]:bg-amber-600">En attente du client ({stats.enAttenteClient || 0})</TabsTrigger>
-          <TabsTrigger value="failed" className="flex-shrink-0 bg-red-600 text-white animate-pulse-slow data-[state=active]:bg-red-700">Tentative échouée ({stats.tentativeEchouee || 0})</TabsTrigger>
-          <TabsTrigger value="alert" className="flex-shrink-0 bg-orange-600 text-white animate-pulse-slow data-[state=active]:bg-orange-700">En alerte ({stats.enAlerte || 0})</TabsTrigger>
-        </TabsList>
+            <TabsTrigger value="confirmed" className="flex-shrink-0 bg-emerald-600 text-white data-[state=active]:bg-emerald-700">Confirmed Orders ({stats.confirmedOrders})</TabsTrigger>
+            <TabsTrigger value="preparation" className="flex-shrink-0 bg-blue-600 text-white data-[state=active]:bg-blue-700">En préparation ({stats.enPreparation})</TabsTrigger>
+            <TabsTrigger value="delivery" className="flex-shrink-0 bg-indigo-600 text-white data-[state=active]:bg-indigo-700">Sorti en livraison ({stats.sortiEnLivraison})</TabsTrigger>
+            <TabsTrigger value="waiting" className="flex-shrink-0 bg-amber-500 text-white data-[state=active]:bg-amber-600">En attente du client ({stats.enAttenteClient || 0})</TabsTrigger>
+            <TabsTrigger value="failed" className="flex-shrink-0 bg-red-600 text-white animate-pulse-slow data-[state=active]:bg-red-700">Tentative échouée ({stats.tentativeEchouee || 0})</TabsTrigger>
+            <TabsTrigger value="alert" className="flex-shrink-0 bg-orange-600 text-white animate-pulse-slow data-[state=active]:bg-orange-700">En alerte ({stats.enAlerte || 0})</TabsTrigger>
+          </TabsList>
+        )}
 
         <TabsContent value="all-parcels" className="space-y-4">
           {/* ... all parcels content ... */}
