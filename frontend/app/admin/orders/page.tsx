@@ -263,11 +263,32 @@ function OrdersContent() {
   const fetchOrders = async () => {
     try {
       setLoading(true)
-      // If searching or filtering, fetch more orders to search through (200 orders), otherwise use backend pagination
-      const hasActiveFilters = searchQuery.trim() || statusFilter !== 'all' || cityFilter !== 'all'
-      const limit = hasActiveFilters ? 200 : itemsPerPage
-      const fetchPage = hasActiveFilters ? 1 : page
-      const response = await api.admin.getOrders({ page: fetchPage, limit }) as any
+      // Build API parameters - use backend filtering for status and search
+      const apiParams: any = {
+        page: page,
+        limit: itemsPerPage
+      }
+      
+      // Pass status filter to API if not 'all'
+      if (statusFilter !== 'all') {
+        apiParams.status = statusFilter
+      }
+      
+      // Pass search query to API if present
+      if (searchQuery.trim()) {
+        apiParams.search = searchQuery.trim()
+      }
+      
+      // For city filter, we still need client-side filtering since API doesn't support it
+      // But we can fetch more orders to filter through
+      const hasCityFilter = cityFilter !== 'all'
+      if (hasCityFilter) {
+        // Fetch more orders when city filter is active to ensure we get all matching orders
+        apiParams.limit = 1000
+        apiParams.page = 1
+      }
+      
+      const response = await api.admin.getOrders(apiParams) as any
       setOrders(response.orders || [])
       setTotalPages(response.pagination?.pages || 1)
       // Update stats if available
@@ -288,35 +309,23 @@ function OrdersContent() {
   useEffect(() => {
     let filtered = [...orders]
 
-    // Search filter - only by name or phone number
-    if (searchQuery) {
-      const searchLower = searchQuery.toLowerCase().trim()
-      filtered = filtered.filter(order =>
-        order.customerName.toLowerCase().includes(searchLower) ||
-        order.customerPhone.includes(searchQuery)
-      )
-    }
-
-    // Status filter
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(order => order.callCenterStatus === statusFilter)
-    }
-
-    // City filter
+    // Search and status filters are now handled by the API
+    // Only apply city filter client-side since API doesn't support it
     if (cityFilter !== 'all') {
       filtered = filtered.filter(order => order.city.name === cityFilter)
     }
 
     setFilteredOrders(filtered)
-  }, [orders, searchQuery, statusFilter, cityFilter])
+  }, [orders, cityFilter])
 
-  // Determine if we should use client-side pagination (when searching/filtering)
-  const hasActiveFilters = searchQuery.trim() || statusFilter !== 'all' || cityFilter !== 'all'
+  // Determine if we should use client-side pagination (only for city filter)
+  // Status and search are now handled by backend pagination
+  const hasCityFilter = cityFilter !== 'all'
   
-  // Calculate pagination for filtered orders (only when filtering)
-  const startIndex = hasActiveFilters ? (page - 1) * itemsPerPage : 0
-  const endIndex = hasActiveFilters ? startIndex + itemsPerPage : filteredOrders.length
-  const paginatedFilteredOrders = hasActiveFilters ? filteredOrders.slice(startIndex, endIndex) : filteredOrders
+  // Calculate pagination for filtered orders (only when city filter is active)
+  const startIndex = hasCityFilter ? (page - 1) * itemsPerPage : 0
+  const endIndex = hasCityFilter ? startIndex + itemsPerPage : filteredOrders.length
+  const paginatedFilteredOrders = hasCityFilter ? filteredOrders.slice(startIndex, endIndex) : filteredOrders
   const filteredTotalPages = hasActiveFilters ? Math.ceil(filteredOrders.length / itemsPerPage) : 1
 
   if (!mounted) return null
@@ -690,7 +699,7 @@ function OrdersContent() {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                 <Input
-                  placeholder="Rechercher par nom ou téléphone... (Appuyez sur Entrée)"
+                  placeholder="Rechercher par numéro, nom, téléphone ou email... (Appuyez sur Entrée)"
                   value={searchInput}
                   onChange={(e) => {
                     setSearchInput(e.target.value)
