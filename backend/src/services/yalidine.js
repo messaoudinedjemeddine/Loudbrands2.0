@@ -22,7 +22,11 @@ class YalidineService {
         'X-API-TOKEN': this.apiToken,
         'Content-Type': 'application/json'
       },
-      timeout: 30000 // Increased timeout for better reliability
+      timeout: 30000, // Increased timeout for better reliability
+      validateStatus: function (status) {
+        // Don't throw error for 4xx and 5xx status codes, handle them manually
+        return status < 600;
+      }
     });
 
     // Add response interceptor to log rate limit headers

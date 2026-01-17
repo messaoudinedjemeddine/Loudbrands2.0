@@ -113,17 +113,33 @@ class YalidineAPI {
 
   // Get all wilayas
   async getWilayas(): Promise<{ data: Wilaya[]; has_more: boolean; total_data: number }> {
-    return api.shipping.getWilayas() as Promise<{ data: Wilaya[]; has_more: boolean; total_data: number }>;
+    try {
+      return await api.shipping.getWilayas() as Promise<{ data: Wilaya[]; has_more: boolean; total_data: number }>;
+    } catch (error: any) {
+      console.error('Failed to fetch wilayas:', error);
+      // Return empty data structure instead of throwing to prevent app crash
+      return { data: [], has_more: false, total_data: 0 };
+    }
   }
 
   // Get communes by wilaya
   async getCommunes(wilayaId?: number): Promise<{ data: Commune[]; has_more: boolean; total_data: number }> {
-    return api.shipping.getCommunes(wilayaId) as Promise<{ data: Commune[]; has_more: boolean; total_data: number }>;
+    try {
+      return await api.shipping.getCommunes(wilayaId) as Promise<{ data: Commune[]; has_more: boolean; total_data: number }>;
+    } catch (error: any) {
+      console.error('Failed to fetch communes:', error);
+      return { data: [], has_more: false, total_data: 0 };
+    }
   }
 
   // Get pickup centers
   async getCenters(wilayaId?: number): Promise<{ data: Center[]; has_more: boolean; total_data: number }> {
-    return api.shipping.getCenters(wilayaId) as Promise<{ data: Center[]; has_more: boolean; total_data: number }>;
+    try {
+      return await api.shipping.getCenters(wilayaId) as Promise<{ data: Center[]; has_more: boolean; total_data: number }>;
+    } catch (error: any) {
+      console.error('Failed to fetch centers:', error);
+      return { data: [], has_more: false, total_data: 0 };
+    }
   }
 
   // Calculate shipping fees

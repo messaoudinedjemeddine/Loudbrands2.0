@@ -221,7 +221,12 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       if (status.configured) {
         // Load wilayas
         const wilayasData = await yalidineAPI.getWilayas()
-        setWilayas(wilayasData.data)
+        if (wilayasData.data && wilayasData.data.length > 0) {
+          setWilayas(wilayasData.data)
+        } else {
+          console.warn('No wilayas data received')
+          toast.warning('Shipping fees not available, using default fees')
+        }
       } else {
         console.warn('Yalidine is not configured:', status.message)
         toast.warning('L\'expédition Yalidine n\'est pas configurée. Utilisation des frais de livraison par défaut.')

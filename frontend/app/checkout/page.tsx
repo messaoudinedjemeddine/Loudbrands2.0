@@ -98,11 +98,16 @@ export default function CheckoutPage() {
       if (status.configured) {
         // Load wilayas
         const wilayasData = await yalidineAPI.getWilayas()
-        setWilayas(wilayasData.data)
+        if (wilayasData.data && wilayasData.data.length > 0) {
+          setWilayas(wilayasData.data)
+        } else {
+          console.warn('No wilayas data received')
+          toast.warning('Shipping fees not available, using default fees')
+        }
       }
     } catch (error) {
       console.error('Failed to load Yalidine data:', error)
-      toast.error('فشل تحميل بيانات الشحن')
+      toast.warning('Shipping fees not available, using default fees')
     }
   }
 
