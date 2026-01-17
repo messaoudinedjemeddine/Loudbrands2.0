@@ -243,7 +243,22 @@ export function DeliveryAgentDashboard() {
     totalShipments: 0,
     tentativeEchouee: 0,
     enAlerte: 0,
-    enAttenteClient: 0
+    enAttenteClient: 0,
+    confirmedStats: {
+      enPreparation: 0,
+      centre: 0,
+      versWilaya: 0,
+      sortiEnLivraison: 0,
+      livre: 0,
+      echecLivraison: 0,
+      retourARetirer: 0,
+      retourneAuVendeur: 0,
+      echangeEchoue: 0,
+      tentativeEchouee: 0,
+      enAlerte: 0,
+      enAttenteClient: 0,
+      totalShipments: 0
+    }
   })
   const [orders, setOrders] = useState<Order[]>([])
   const [allConfirmedOrders, setAllConfirmedOrders] = useState<Order[]>([])
@@ -605,6 +620,10 @@ export function DeliveryAgentDashboard() {
         // Store confirmed stats separately for the confirmed tab
         confirmedStats: confirmedStats
       }
+      console.log('📊 Stats calculated:', {
+        confirmedOrders: stats.confirmedOrders,
+        confirmedStats: stats.confirmedStats
+      })
       setStats(stats)
 
     } catch (err) {
