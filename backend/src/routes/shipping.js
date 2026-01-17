@@ -367,7 +367,8 @@ router.get('/communes', async (req, res) => {
 
     if (!yalidineService.isConfigured()) {
       console.log('❌ Yalidine service not configured');
-      return res.status(503).json({ error: 'Yalidine shipping not configured' });
+      // Return empty data structure instead of error to prevent frontend crashes
+      return res.json({ data: [], has_more: false, total_data: 0 });
     }
 
     const { wilayaId } = req.query;
