@@ -864,14 +864,16 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       <text x="85" y="185" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
-                                          const sizeData = {
+                                          // For shoes, don't show body measurements (not applicable)
+                                          if (isShoes) return 'N/A'
+                                          const sizeData: Record<string, string> = {
                                             'M': '86-94',
                                             'L': '95-101',
                                             'XL': '101-107',
                                             'XXL': '107-113',
                                             'XXXL': '113-119'
-                                          }[currentSize] || '86-94'
-                                          return sizeData
+                                          }
+                                          return sizeData[currentSize] || '86-94'
                                         })()}
                                       </text>
                                       
@@ -880,14 +882,16 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       <text x="85" y="232" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
-                                          const sizeData = {
+                                          // For shoes, don't show body measurements (not applicable)
+                                          if (isShoes) return 'N/A'
+                                          const sizeData: Record<string, string> = {
                                             'M': '66-74',
                                             'L': '75-81',
                                             'XL': '81-87',
                                             'XXL': '87-93',
                                             'XXXL': '93-99'
-                                          }[currentSize] || '66-74'
-                                          return sizeData
+                                          }
+                                          return sizeData[currentSize] || '66-74'
                                         })()}
                                       </text>
                                       
@@ -896,14 +900,16 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       <text x="85" y="292" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
-                                          const sizeData = {
+                                          // For shoes, don't show body measurements (not applicable)
+                                          if (isShoes) return 'N/A'
+                                          const sizeData: Record<string, string> = {
                                             'M': '91-99',
                                             'L': '100-106',
                                             'XL': '106-112',
                                             'XXL': '112-118',
                                             'XXXL': '118-124'
-                                          }[currentSize] || '91-99'
-                                          return sizeData
+                                          }
+                                          return sizeData[currentSize] || '91-99'
                                         })()}
                                       </text>
                                       
@@ -912,14 +918,16 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       <text x="208" y="284" textAnchor="middle" fill="white" fontSize="9" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
                                           const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
-                                          const sizeData = {
+                                          // For shoes, don't show body measurements (not applicable)
+                                          if (isShoes) return 'N/A'
+                                          const sizeData: Record<string, string> = {
                                             'M': '165-175',
                                             'L': '175-180',
                                             'XL': '175-180',
                                             'XXL': '180-185',
                                             'XXXL': '180-185'
-                                          }[currentSize] || '165-175'
-                                          return sizeData
+                                          }
+                                          return sizeData[currentSize] || '165-175'
                                         })()}
                                       </text>
                                     </svg>
