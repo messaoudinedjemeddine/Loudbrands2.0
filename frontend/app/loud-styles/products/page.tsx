@@ -305,6 +305,10 @@ function LoudStylesProductsContent() {
                     target.src = '/placeholder.svg';
                   }}
                 />
+                {/* Launch Countdown Overlay on Image */}
+                {product.isLaunch && product.launchAt && product.isLaunchActive && (
+                  <LaunchCountdownEnhanced launchAt={product.launchAt} variant="overlay" />
+                )}
               </motion.div>
             </div>
 
@@ -452,12 +456,6 @@ function LoudStylesProductsContent() {
                   </div>
                 </div>
 
-                {/* Launch Countdown - Enhanced Design */}
-                {product.isLaunch && product.launchAt && product.isLaunchActive && (
-                  <div className="mt-2 sm:mt-3">
-                    <LaunchCountdownEnhanced launchAt={product.launchAt} variant="card" />
-                  </div>
-                )}
 
                 {/* Add to Cart Button */}
                 <Button

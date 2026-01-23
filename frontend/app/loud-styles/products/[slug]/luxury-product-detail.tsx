@@ -42,7 +42,7 @@ import { useLocaleStore } from '@/lib/locale-store'
 import { toast } from 'sonner'
 import { LoudStylesNavbar } from '@/components/loud-styles-navbar'
 // Lazy load non-critical components
-const LaunchCountdown = dynamic(() => import('@/components/launch-countdown').then(mod => ({ default: mod.LaunchCountdown })), {
+const LaunchCountdownEnhanced = dynamic(() => import('@/components/launch-countdown-enhanced').then(mod => ({ default: mod.LaunchCountdownEnhanced })), {
   ssr: false
 })
 
@@ -622,9 +622,10 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     </Badge>
                   )}
                   {product.isLaunch && product.launchAt && (
-                    <LaunchCountdown
+                    <LaunchCountdownEnhanced
                       launchAt={product.launchAt}
                       onComplete={() => setTimerCompleted(true)}
+                      variant="card"
                       className="mt-2"
                     />
                   )}

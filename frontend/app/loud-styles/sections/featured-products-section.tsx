@@ -163,6 +163,10 @@ export default function FeaturedProductsSection({ products, loading, error }: Fe
                             priority={index < 2}
                             sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
                           />
+                          {/* Launch Countdown Overlay on Image */}
+                          {product.isLaunch && product.launchAt && product.isLaunchActive && (
+                            <LaunchCountdownEnhanced launchAt={product.launchAt} variant="overlay" />
+                          )}
                         </motion.div>
                         {product.isOnSale && (
                           <motion.div
@@ -236,17 +240,6 @@ export default function FeaturedProductsSection({ products, loading, error }: Fe
                           </motion.div>
                         )}
 
-                        {/* Launch Countdown - Enhanced Design */}
-                        {product.isLaunch && product.launchAt && product.isLaunchActive && (
-                          <motion.div
-                            className="mb-4"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: 0.65 + index * 0.1, duration: 0.4 }}
-                          >
-                            <LaunchCountdownEnhanced launchAt={product.launchAt} variant="card" />
-                          </motion.div>
-                        )}
 
                         <motion.div
                           className="flex items-center justify-center gap-2 mt-auto"

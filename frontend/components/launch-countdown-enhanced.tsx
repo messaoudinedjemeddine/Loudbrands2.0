@@ -9,7 +9,7 @@ interface LaunchCountdownEnhancedProps {
   launchAt: string
   className?: string
   onComplete?: () => void
-  variant?: 'card' | 'badge' // card for product cards, badge for smaller display
+  variant?: 'card' | 'badge' | 'overlay' // card for product detail, badge for smaller display, overlay for image overlay
 }
 
 export function LaunchCountdownEnhanced({ 
@@ -60,6 +60,57 @@ export function LaunchCountdownEnhanced({
       <Badge className="bg-gradient-to-r from-green-500 to-emerald-500 text-white border-0 shadow-lg">
         {t?.product?.launch?.availableNow || 'Available Now!'}
       </Badge>
+    )
+  }
+
+  // Overlay variant - compact design for image overlays
+  if (variant === 'overlay') {
+    return (
+      <div className={`absolute bottom-2 left-1/2 transform -translate-x-1/2 z-10 ${className}`}>
+        <div className="bg-gradient-to-br from-[#bfa36a]/95 via-[#bfa36a]/90 to-[#d4af37]/95 backdrop-blur-md border border-[#bfa36a]/50 rounded-lg px-2 py-1.5 shadow-xl">
+          <div className="flex items-center justify-center gap-1">
+            {timeLeft.days > 0 && (
+              <>
+                <div className="flex flex-col items-center bg-white/90 rounded px-1.5 py-0.5 min-w-[32px] shadow-sm">
+                  <span className="text-xs font-bold text-[#bfa36a] leading-none">
+                    {String(timeLeft.days).padStart(2, '0')}
+                  </span>
+                  <span className="text-[8px] text-gray-700 uppercase mt-0.5 leading-tight">
+                    {isRTL ? 'يوم' : 'D'}
+                  </span>
+                </div>
+                <span className="text-[#bfa36a] font-bold text-xs">:</span>
+              </>
+            )}
+            <div className="flex flex-col items-center bg-white/90 rounded px-1.5 py-0.5 min-w-[32px] shadow-sm">
+              <span className="text-xs font-bold text-[#bfa36a] leading-none">
+                {String(timeLeft.hours).padStart(2, '0')}
+              </span>
+              <span className="text-[8px] text-gray-700 uppercase mt-0.5 leading-tight">
+                {isRTL ? 'س' : 'H'}
+              </span>
+            </div>
+            <span className="text-[#bfa36a] font-bold text-xs">:</span>
+            <div className="flex flex-col items-center bg-white/90 rounded px-1.5 py-0.5 min-w-[32px] shadow-sm">
+              <span className="text-xs font-bold text-[#bfa36a] leading-none">
+                {String(timeLeft.minutes).padStart(2, '0')}
+              </span>
+              <span className="text-[8px] text-gray-700 uppercase mt-0.5 leading-tight">
+                {isRTL ? 'د' : 'M'}
+              </span>
+            </div>
+            <span className="text-[#bfa36a] font-bold text-xs">:</span>
+            <div className="flex flex-col items-center bg-white/90 rounded px-1.5 py-0.5 min-w-[32px] shadow-sm">
+              <span className="text-xs font-bold text-[#bfa36a] leading-none">
+                {String(timeLeft.seconds).padStart(2, '0')}
+              </span>
+              <span className="text-[8px] text-gray-700 uppercase mt-0.5 leading-tight">
+                {isRTL ? 'ث' : 'S'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
     )
   }
 
