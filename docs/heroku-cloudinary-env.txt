@@ -1,0 +1,13 @@
+# Heroku Environment Variables for Cloudinary
+# Run these commands in your terminal to set up Cloudinary on Heroku
+
+# Set Cloudinary credentials
+heroku config:set CLOUDINARY_CLOUD_NAME=ddtetstxq -a your-heroku-app-name
+heroku config:set CLOUDINARY_API_KEY=248835256494799 -a your-heroku-app-name
+heroku config:set CLOUDINARY_API_SECRET=pQpG5r6QfXzbIeUdPmZbYhQcp0I -a your-heroku-app-name
+
+# Optional: Set max file size (default is 10MB)
+heroku config:set MAX_FILE_SIZE=10485760 -a your-heroku-app-name
+
+# Verify the environment variables are set
+heroku config -a your-heroku-app-name
