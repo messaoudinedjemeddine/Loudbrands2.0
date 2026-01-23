@@ -684,8 +684,8 @@ function LabelsSection() {
                                 )
                             } else {
                                 // Show preview for products with sizes - show ALL sizes
-                                const categorySlug = product.category?.slug?.toLowerCase() || ''
-                                const isShoes = categorySlug.includes('shoe') || categorySlug.includes('chaussure') || product.category?.name?.toLowerCase().includes('shoe') || product.category?.name?.toLowerCase().includes('chaussure')
+                                const categorySlug = selectedProduct?.category?.slug?.toLowerCase() || ''
+                                const isShoes = categorySlug.includes('shoe') || categorySlug.includes('chaussure') || selectedProduct?.category?.name?.toLowerCase().includes('shoe') || selectedProduct?.category?.name?.toLowerCase().includes('chaussure')
                                 const allSizes = isShoes ? ['36', '37', '38', '39', '40', '41'] : ['M', 'L', 'XL', 'XXL', 'XXXL']
                                 const imageUrl = selectedProduct?.images?.[0]?.url || selectedProduct?.images?.[0] || selectedProduct?.image || null
                                 return allSizes.map((sizeLabel) => {
