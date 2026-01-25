@@ -6,6 +6,20 @@ class YalidineService {
     this.apiId = process.env.YALIDINE_API_ID;
     this.apiToken = process.env.YALIDINE_API_TOKEN;
 
+    // Quota tracking
+    this.quotaInfo = {
+      second: { left: null, lastUpdate: null },
+      minute: { left: null, lastUpdate: null },
+      hour: { left: null, lastUpdate: null },
+      day: { left: null, lastUpdate: null }
+    };
+
+    // Request queue and throttling
+    this.requestQueue = [];
+    this.processingQueue = false;
+    this.lastRequestTime = 0;
+    this.minRequestInterval = 200; // Minimum 200ms between requests (5 requests/second max)
+
     console.log('🔍 Yalidine API Debug Info:');
     console.log('API ID:', this.apiId ? `${this.apiId.substring(0, 10)}...` : 'NOT SET');
     console.log('API Token:', this.apiToken ? `${this.apiToken.substring(0, 10)}...` : 'NOT SET');
@@ -29,19 +43,58 @@ class YalidineService {
       }
     });
 
-    // Add response interceptor to log rate limit headers
+    // Add response interceptor to track quota and handle errors
     this.client.interceptors.response.use(
       (response) => {
-        console.log('📊 Rate Limits:', {
-          'Second-Quota-Left': response.headers['second-quota-left'],
-          'Minute-Quota-Left': response.headers['minute-quota-left'],
-          'Hour-Quota-Left': response.headers['hour-quota-left'],
-          'Day-Quota-Left': response.headers['day-quota-left']
-        });
+        // Update quota info from headers
+        this.updateQuotaInfo(response.headers);
+        
+        const quotaLeft = {
+          second: response.headers['second-quota-left'],
+          minute: response.headers['minute-quota-left'],
+          hour: response.headers['hour-quota-left'],
+          day: response.headers['day-quota-left']
+        };
+
+        // Log warning if quota is getting low
+        if (quotaLeft.day !== null && parseInt(quotaLeft.day) < 100) {
+          console.warn(`⚠️ Low daily quota remaining: ${quotaLeft.day}`);
+        }
+        if (quotaLeft.hour !== null && parseInt(quotaLeft.hour) < 20) {
+          console.warn(`⚠️ Low hourly quota remaining: ${quotaLeft.hour}`);
+        }
+        if (quotaLeft.minute !== null && parseInt(quotaLeft.minute) < 5) {
+          console.warn(`⚠️ Low minute quota remaining: ${quotaLeft.minute}`);
+        }
+
         return response;
       },
       (error) => {
         if (error.response) {
+          // Check for quota exceeded error
+          if (error.response.status === 429 || 
+              (error.response.data && 
+               (error.response.data.message?.toLowerCase().includes('quota') ||
+                error.response.data.message?.toLowerCase().includes('dépassé')))) {
+            console.error('❌ QUOTA EXCEEDED - API access blocked');
+            console.error('Response data:', error.response.data);
+            
+            // Update quota info even on error
+            this.updateQuotaInfo(error.response.headers);
+            
+            // Create a more informative error
+            const quotaError = new Error('Quota API dépassé. Votre accès à l\'API est temporairement désactivé.');
+            quotaError.status = 429;
+            quotaError.quotaExceeded = true;
+            quotaError.quotaInfo = {
+              second: error.response.headers['second-quota-left'],
+              minute: error.response.headers['minute-quota-left'],
+              hour: error.response.headers['hour-quota-left'],
+              day: error.response.headers['day-quota-left']
+            };
+            return Promise.reject(quotaError);
+          }
+
           console.error('❌ API Error:', {
             status: error.response.status,
             data: error.response.data,
@@ -52,10 +105,85 @@ class YalidineService {
               'Day-Quota-Left': error.response.headers['day-quota-left']
             }
           });
+
+          // Update quota info even on error
+          this.updateQuotaInfo(error.response.headers);
         }
         return Promise.reject(error);
       }
     );
+  }
+
+  // Update quota information from response headers
+  updateQuotaInfo(headers) {
+    const now = Date.now();
+    if (headers['second-quota-left']) {
+      this.quotaInfo.second = { left: parseInt(headers['second-quota-left']), lastUpdate: now };
+    }
+    if (headers['minute-quota-left']) {
+      this.quotaInfo.minute = { left: parseInt(headers['minute-quota-left']), lastUpdate: now };
+    }
+    if (headers['hour-quota-left']) {
+      this.quotaInfo.hour = { left: parseInt(headers['hour-quota-left']), lastUpdate: now };
+    }
+    if (headers['day-quota-left']) {
+      this.quotaInfo.day = { left: parseInt(headers['day-quota-left']), lastUpdate: now };
+    }
+  }
+
+  // Check if we can make a request based on quota
+  canMakeRequest() {
+    // Check if quota info is recent (within last 5 minutes)
+    const now = Date.now();
+    const quotaAge = Math.min(
+      this.quotaInfo.second.lastUpdate ? now - this.quotaInfo.second.lastUpdate : Infinity,
+      this.quotaInfo.minute.lastUpdate ? now - this.quotaInfo.minute.lastUpdate : Infinity,
+      this.quotaInfo.hour.lastUpdate ? now - this.quotaInfo.hour.lastUpdate : Infinity,
+      this.quotaInfo.day.lastUpdate ? now - this.quotaInfo.day.lastUpdate : Infinity
+    );
+
+    // If quota info is too old (> 5 minutes), allow request to get fresh info
+    if (quotaAge > 5 * 60 * 1000) {
+      return { allowed: true, reason: 'No recent quota info' };
+    }
+
+    // Check quotas (be conservative - require at least 2 remaining)
+    if (this.quotaInfo.second.left !== null && this.quotaInfo.second.left < 2) {
+      return { allowed: false, reason: 'Second quota too low', quota: this.quotaInfo.second.left };
+    }
+    if (this.quotaInfo.minute.left !== null && this.quotaInfo.minute.left < 2) {
+      return { allowed: false, reason: 'Minute quota too low', quota: this.quotaInfo.minute.left };
+    }
+    if (this.quotaInfo.hour.left !== null && this.quotaInfo.hour.left < 5) {
+      return { allowed: false, reason: 'Hour quota too low', quota: this.quotaInfo.hour.left };
+    }
+    if (this.quotaInfo.day.left !== null && this.quotaInfo.day.left < 10) {
+      return { allowed: false, reason: 'Day quota too low', quota: this.quotaInfo.day.left };
+    }
+
+    return { allowed: true };
+  }
+
+  // Throttled request wrapper
+  async throttledRequest(requestFn) {
+    // Check quota before making request
+    const quotaCheck = this.canMakeRequest();
+    if (!quotaCheck.allowed) {
+      const error = new Error(`Quota limit reached: ${quotaCheck.reason} (${quotaCheck.quota} remaining)`);
+      error.quotaExceeded = true;
+      error.quotaInfo = this.quotaInfo;
+      throw error;
+    }
+
+    // Enforce minimum interval between requests
+    const now = Date.now();
+    const timeSinceLastRequest = now - this.lastRequestTime;
+    if (timeSinceLastRequest < this.minRequestInterval) {
+      await new Promise(resolve => setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest));
+    }
+
+    this.lastRequestTime = Date.now();
+    return requestFn();
   }
 
   // Check if API is configured
@@ -70,10 +198,21 @@ class YalidineService {
     }
     try {
       console.log('🔍 Fetching wilayas from Yalidine API...');
-      const response = await this.client.get('/wilayas/');
+      const response = await this.throttledRequest(() => this.client.get('/wilayas/'));
+      
+      // Check for quota exceeded in response
+      if (response.status === 429 || (response.data && response.data.message?.toLowerCase().includes('quota'))) {
+        const error = new Error('Quota API dépassé');
+        error.quotaExceeded = true;
+        throw error;
+      }
+      
       console.log('✅ Successfully fetched wilayas');
       return response.data;
     } catch (error) {
+      if (error.quotaExceeded) {
+        throw error;
+      }
       console.error('❌ Error fetching wilayas:', error.message);
       if (error.response) {
         console.error('❌ Response status:', error.response.status);
@@ -98,10 +237,20 @@ class YalidineService {
     try {
       const url = wilayaId ? `/communes/?wilaya_id=${wilayaId}` : '/communes/';
       console.log('🔍 Fetching communes from Yalidine API...', wilayaId ? `for wilaya ${wilayaId}` : '');
-      const response = await this.client.get(url);
+      const response = await this.throttledRequest(() => this.client.get(url));
+      
+      if (response.status === 429 || (response.data && response.data.message?.toLowerCase().includes('quota'))) {
+        const error = new Error('Quota API dépassé');
+        error.quotaExceeded = true;
+        throw error;
+      }
+      
       console.log('✅ Successfully fetched communes');
       return response.data;
     } catch (error) {
+      if (error.quotaExceeded) {
+        throw error;
+      }
       console.error('❌ Error fetching communes:', error.message);
       throw new Error('Failed to fetch communes');
     }
@@ -112,10 +261,20 @@ class YalidineService {
     try {
       const url = wilayaId ? `/centers/?wilaya_id=${wilayaId}` : '/centers/';
       console.log('🔍 Fetching centers from Yalidine API...', wilayaId ? `for wilaya ${wilayaId}` : '');
-      const response = await this.client.get(url);
+      const response = await this.throttledRequest(() => this.client.get(url));
+      
+      if (response.status === 429 || (response.data && response.data.message?.toLowerCase().includes('quota'))) {
+        const error = new Error('Quota API dépassé');
+        error.quotaExceeded = true;
+        throw error;
+      }
+      
       console.log('✅ Successfully fetched centers');
       return response.data;
     } catch (error) {
+      if (error.quotaExceeded) {
+        throw error;
+      }
       console.error('❌ Error fetching centers:', error.message);
       throw new Error('Failed to fetch pickup centers');
     }
@@ -125,10 +284,22 @@ class YalidineService {
   async calculateFees(fromWilayaId, toWilayaId) {
     try {
       console.log('🔍 Calculating fees from wilaya', fromWilayaId, 'to wilaya', toWilayaId);
-      const response = await this.client.get(`/fees/?from_wilaya_id=${fromWilayaId}&to_wilaya_id=${toWilayaId}`);
+      const response = await this.throttledRequest(() => 
+        this.client.get(`/fees/?from_wilaya_id=${fromWilayaId}&to_wilaya_id=${toWilayaId}`)
+      );
+      
+      if (response.status === 429 || (response.data && response.data.message?.toLowerCase().includes('quota'))) {
+        const error = new Error('Quota API dépassé');
+        error.quotaExceeded = true;
+        throw error;
+      }
+      
       console.log('✅ Successfully calculated fees');
       return response.data;
     } catch (error) {
+      if (error.quotaExceeded) {
+        throw error;
+      }
       console.error('❌ Error calculating fees:', error.message);
       throw new Error('Failed to calculate shipping fees');
     }
@@ -146,10 +317,20 @@ class YalidineService {
         to_commune_name: parcelData.to_commune_name
       });
 
-      const response = await this.client.post('/parcels/', [parcelData]);
+      const response = await this.throttledRequest(() => this.client.post('/parcels/', [parcelData]));
+      
+      if (response.status === 429 || (response.data && response.data.message?.toLowerCase().includes('quota'))) {
+        const error = new Error('Quota API dépassé');
+        error.quotaExceeded = true;
+        throw error;
+      }
+      
       console.log('✅ Successfully created parcel');
       return response.data;
     } catch (error) {
+      if (error.quotaExceeded) {
+        throw error;
+      }
       console.error('❌ Error creating parcel:', error.message);
       if (error.response && error.response.data) {
         console.error('API Error details:', error.response.data);
@@ -162,10 +343,20 @@ class YalidineService {
   async createParcels(parcelsData) {
     try {
       console.log('🔍 Creating multiple parcels:', parcelsData.length);
-      const response = await this.client.post('/parcels/', parcelsData);
+      const response = await this.throttledRequest(() => this.client.post('/parcels/', parcelsData));
+      
+      if (response.status === 429 || (response.data && response.data.message?.toLowerCase().includes('quota'))) {
+        const error = new Error('Quota API dépassé');
+        error.quotaExceeded = true;
+        throw error;
+      }
+      
       console.log('✅ Successfully created parcels');
       return response.data;
     } catch (error) {
+      if (error.quotaExceeded) {
+        throw error;
+      }
       console.error('❌ Error creating parcels:', error.message);
       throw new Error('Failed to create shipments');
     }
@@ -177,10 +368,20 @@ class YalidineService {
       console.log('🔍 Fetching parcel details for tracking:', tracking);
       // Encode tracking number to handle special characters like :
       const encodedTracking = encodeURIComponent(tracking);
-      const response = await this.client.get(`/parcels/${encodedTracking}`);
+      const response = await this.throttledRequest(() => this.client.get(`/parcels/${encodedTracking}`));
+      
+      if (response.status === 429 || (response.data && response.data.message?.toLowerCase().includes('quota'))) {
+        const error = new Error('Quota API dépassé');
+        error.quotaExceeded = true;
+        throw error;
+      }
+      
       console.log('✅ Successfully fetched parcel details');
       return response.data;
     } catch (error) {
+      if (error.quotaExceeded) {
+        throw error;
+      }
       console.error('❌ Error fetching parcel:', error.message);
       if (error.response) {
         console.error('❌ Error response:', error.response.data);
@@ -195,10 +396,20 @@ class YalidineService {
       console.log('🔍 Fetching parcel history for tracking:', tracking);
       // Encode tracking number to handle special characters like :
       const encodedTracking = encodeURIComponent(tracking);
-      const response = await this.client.get(`/histories/?tracking=${encodedTracking}`);
+      const response = await this.throttledRequest(() => this.client.get(`/histories/?tracking=${encodedTracking}`));
+      
+      if (response.status === 429 || (response.data && response.data.message?.toLowerCase().includes('quota'))) {
+        const error = new Error('Quota API dépassé');
+        error.quotaExceeded = true;
+        throw error;
+      }
+      
       console.log('✅ Successfully fetched parcel history');
       return response.data;
     } catch (error) {
+      if (error.quotaExceeded) {
+        throw error;
+      }
       console.error('❌ Error fetching parcel history:', error.message);
       if (error.response) {
         console.error('❌ Error response:', error.response.data);
@@ -213,10 +424,20 @@ class YalidineService {
       console.log('🔍 Updating parcel:', tracking);
       // Encode tracking number to handle special characters like :
       const encodedTracking = encodeURIComponent(tracking);
-      const response = await this.client.patch(`/parcels/${encodedTracking}`, updateData);
+      const response = await this.throttledRequest(() => this.client.patch(`/parcels/${encodedTracking}`, updateData));
+      
+      if (response.status === 429 || (response.data && response.data.message?.toLowerCase().includes('quota'))) {
+        const error = new Error('Quota API dépassé');
+        error.quotaExceeded = true;
+        throw error;
+      }
+      
       console.log('✅ Successfully updated parcel');
       return response.data;
     } catch (error) {
+      if (error.quotaExceeded) {
+        throw error;
+      }
       console.error('❌ Error updating parcel:', error.message);
       if (error.response) {
         console.error('❌ Error response:', error.response.data);
@@ -231,10 +452,20 @@ class YalidineService {
       console.log('🔍 Deleting parcel:', tracking);
       // Encode tracking number to handle special characters like :
       const encodedTracking = encodeURIComponent(tracking);
-      const response = await this.client.delete(`/parcels/${encodedTracking}`);
+      const response = await this.throttledRequest(() => this.client.delete(`/parcels/${encodedTracking}`));
+      
+      if (response.status === 429 || (response.data && response.data.message?.toLowerCase().includes('quota'))) {
+        const error = new Error('Quota API dépassé');
+        error.quotaExceeded = true;
+        throw error;
+      }
+      
       console.log('✅ Successfully deleted parcel');
       return response.data;
     } catch (error) {
+      if (error.quotaExceeded) {
+        throw error;
+      }
       console.error('❌ Error deleting parcel:', error.message);
       if (error.response) {
         console.error('❌ Error response:', error.response.data);
@@ -313,7 +544,14 @@ class YalidineService {
       const url = `/parcels/${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
       console.log('🔍 Fetching parcels from Yalidine API:', url);
 
-      const response = await this.client.get(url);
+      const response = await this.throttledRequest(() => this.client.get(url));
+      
+      if (response.status === 429 || (response.data && response.data.message?.toLowerCase().includes('quota'))) {
+        const error = new Error('Quota API dépassé');
+        error.quotaExceeded = true;
+        throw error;
+      }
+      
       console.log('✅ Successfully fetched parcels, count:', response.data.data?.length || 0);
       console.log('📊 Total data available:', response.data.total_data || 0);
       console.log('🔄 Has more pages:', response.data.has_more || false);
@@ -325,6 +563,9 @@ class YalidineService {
 
       return response.data;
     } catch (error) {
+      if (error.quotaExceeded) {
+        throw error;
+      }
       console.error('❌ Error fetching parcels:', error.message);
       if (error.response) {
         console.error('Response status:', error.response.status);

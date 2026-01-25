@@ -189,21 +189,26 @@ module.exports = router;
 
 // Simple in-memory cache for API responses
 const cache = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for dynamic data
+const STATIC_CACHE_DURATION = 60 * 60 * 1000; // 1 hour for static data (wilayas, communes, centers)
 
 // Cache helper function
-function getCachedData(key) {
+function getCachedData(key, isStatic = false) {
   const cached = cache.get(key);
-  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-    return cached.data;
+  if (cached) {
+    const cacheDuration = isStatic ? STATIC_CACHE_DURATION : CACHE_DURATION;
+    if (Date.now() - cached.timestamp < cacheDuration) {
+      return cached.data;
+    }
   }
   return null;
 }
 
-function setCachedData(key, data) {
+function setCachedData(key, data, isStatic = false) {
   cache.set(key, {
     data,
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    isStatic
   });
 }
 
@@ -303,9 +308,9 @@ router.get('/wilayas', async (req, res) => {
       return res.json({ data: [], has_more: false, total_data: 0 });
     }
 
-    // Check cache first
+    // Check cache first (wilayas are static data - cache for 1 hour)
     const cacheKey = 'wilayas';
-    const cachedWilayas = getCachedData(cacheKey);
+    const cachedWilayas = getCachedData(cacheKey, true);
     if (cachedWilayas) {
       console.log('✅ Returning cached wilayas data');
       return res.json(cachedWilayas);
@@ -313,10 +318,10 @@ router.get('/wilayas', async (req, res) => {
 
     console.log('🔍 Calling Yalidine service for wilayas');
 
-    // Add retry logic for intermittent failures
+    // Add retry logic for intermittent failures (but not for quota errors)
     let wilayas;
     let retryCount = 0;
-    const maxRetries = 3;
+    const maxRetries = 2; // Reduced retries to avoid quota issues
 
     while (retryCount < maxRetries) {
       try {
@@ -324,6 +329,15 @@ router.get('/wilayas', async (req, res) => {
         console.log('✅ Wilayas fetched successfully, count:', wilayas.data ? wilayas.data.length : 'unknown');
         break;
       } catch (retryError) {
+        // Don't retry if quota is exceeded
+        if (retryError.quotaExceeded) {
+          console.error('❌ Quota exceeded - not retrying');
+          return res.status(429).json({ 
+            error: 'Quota API dépassé',
+            message: retryError.message || 'Votre accès à l\'API est temporairement désactivé. Veuillez réessayer plus tard.'
+          });
+        }
+        
         retryCount++;
         console.log(`⚠️ Retry ${retryCount}/${maxRetries} for wilayas request`);
 
@@ -336,8 +350,8 @@ router.get('/wilayas', async (req, res) => {
       }
     }
 
-    // Cache the result
-    setCachedData(cacheKey, wilayas);
+    // Cache the result (static data - 1 hour)
+    setCachedData(cacheKey, wilayas, true);
 
     res.json(wilayas);
   } catch (error) {
@@ -373,9 +387,9 @@ router.get('/communes', async (req, res) => {
 
     const { wilayaId } = req.query;
 
-    // Check cache first
+    // Check cache first (communes are static data - cache for 1 hour)
     const cacheKey = `communes_${wilayaId || 'all'}`;
-    const cachedCommunes = getCachedData(cacheKey);
+    const cachedCommunes = getCachedData(cacheKey, true);
     if (cachedCommunes) {
       console.log('✅ Returning cached communes data');
       return res.json(cachedCommunes);
@@ -383,10 +397,10 @@ router.get('/communes', async (req, res) => {
 
     console.log('🔍 Calling Yalidine service with wilayaId:', wilayaId);
 
-    // Add retry logic for intermittent failures
+    // Add retry logic for intermittent failures (but not for quota errors)
     let communes;
     let retryCount = 0;
-    const maxRetries = 3;
+    const maxRetries = 2; // Reduced retries
 
     while (retryCount < maxRetries) {
       try {
@@ -394,6 +408,15 @@ router.get('/communes', async (req, res) => {
         console.log('✅ Communes fetched successfully, count:', communes.data ? communes.data.length : 'unknown');
         break;
       } catch (retryError) {
+        // Don't retry if quota is exceeded
+        if (retryError.quotaExceeded) {
+          console.error('❌ Quota exceeded - not retrying');
+          return res.status(429).json({ 
+            error: 'Quota API dépassé',
+            message: retryError.message || 'Votre accès à l\'API est temporairement désactivé. Veuillez réessayer plus tard.'
+          });
+        }
+        
         retryCount++;
         console.log(`⚠️ Retry ${retryCount}/${maxRetries} for communes request`);
 
@@ -406,8 +429,8 @@ router.get('/communes', async (req, res) => {
       }
     }
 
-    // Cache the result
-    setCachedData(cacheKey, communes);
+    // Cache the result (static data - 1 hour)
+    setCachedData(cacheKey, communes, true);
 
     res.json(communes);
   } catch (error) {
@@ -433,9 +456,9 @@ router.get('/centers', async (req, res) => {
 
     const { wilayaId } = req.query;
 
-    // Check cache first
+    // Check cache first (centers are static data - cache for 1 hour)
     const cacheKey = `centers_${wilayaId || 'all'}`;
-    const cachedCenters = getCachedData(cacheKey);
+    const cachedCenters = getCachedData(cacheKey, true);
     if (cachedCenters) {
       console.log('✅ Returning cached centers data');
       return res.json(cachedCenters);
@@ -443,10 +466,10 @@ router.get('/centers', async (req, res) => {
 
     console.log('🔍 Calling Yalidine service with wilayaId:', wilayaId);
 
-    // Add retry logic for intermittent failures
+    // Add retry logic for intermittent failures (but not for quota errors)
     let centers;
     let retryCount = 0;
-    const maxRetries = 3;
+    const maxRetries = 2; // Reduced retries
 
     while (retryCount < maxRetries) {
       try {
@@ -454,6 +477,15 @@ router.get('/centers', async (req, res) => {
         console.log('✅ Centers fetched successfully, count:', centers.data ? centers.data.length : 'unknown');
         break;
       } catch (retryError) {
+        // Don't retry if quota is exceeded
+        if (retryError.quotaExceeded) {
+          console.error('❌ Quota exceeded - not retrying');
+          return res.status(429).json({ 
+            error: 'Quota API dépassé',
+            message: retryError.message || 'Votre accès à l\'API est temporairement désactivé. Veuillez réessayer plus tard.'
+          });
+        }
+        
         retryCount++;
         console.log(`⚠️ Retry ${retryCount}/${maxRetries} for centers request`);
 
@@ -466,8 +498,8 @@ router.get('/centers', async (req, res) => {
       }
     }
 
-    // Cache the result
-    setCachedData(cacheKey, centers);
+    // Cache the result (static data - 1 hour)
+    setCachedData(cacheKey, centers, true);
 
     res.json(centers);
   } catch (error) {
@@ -850,10 +882,10 @@ router.get('/shipments', async (req, res) => {
 
     console.log('🔍 Calling Yalidine service for shipments with filters');
 
-    // Add retry logic for intermittent failures
+    // Add retry logic for intermittent failures (but not for quota errors)
     let shipments;
     let retryCount = 0;
-    const maxRetries = 3;
+    const maxRetries = 2; // Reduced retries
 
     while (retryCount < maxRetries) {
       try {
@@ -861,6 +893,15 @@ router.get('/shipments', async (req, res) => {
         console.log('✅ Shipments fetched successfully');
         break;
       } catch (retryError) {
+        // Don't retry if quota is exceeded
+        if (retryError.quotaExceeded) {
+          console.error('❌ Quota exceeded - not retrying');
+          return res.status(429).json({ 
+            error: 'Quota API dépassé',
+            message: retryError.message || 'Votre accès à l\'API est temporairement désactivé. Veuillez réessayer plus tard.'
+          });
+        }
+        
         retryCount++;
         console.log(`⚠️ Retry ${retryCount}/${maxRetries} for shipments request`);
 
