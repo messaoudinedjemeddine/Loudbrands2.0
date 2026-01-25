@@ -364,7 +364,19 @@ router.get('/djabadour-el-hemma', async (req, res) => {
       OR: [
         { name: { contains: 'djabadour', mode: 'insensitive' } },
         { nameAr: { contains: 'djabadour', mode: 'insensitive' } }
-      ]
+      ],
+      NOT: {
+        OR: [
+          { category: { slug: { contains: 'accessoire', mode: 'insensitive' } } },
+          { category: { slug: { contains: 'accessories', mode: 'insensitive' } } },
+          { category: { slug: { contains: 'shoe', mode: 'insensitive' } } },
+          { category: { slug: { contains: 'chaussure', mode: 'insensitive' } } },
+          { category: { name: { contains: 'accessoire', mode: 'insensitive' } } },
+          { category: { name: { contains: 'accessories', mode: 'insensitive' } } },
+          { category: { name: { contains: 'shoe', mode: 'insensitive' } } },
+          { category: { name: { contains: 'chaussure', mode: 'insensitive' } } }
+        ]
+      }
     };
 
     if (brand) {
