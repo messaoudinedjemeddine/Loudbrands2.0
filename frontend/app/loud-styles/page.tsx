@@ -65,6 +65,9 @@ interface Product {
   slug: string
   rating?: number
   isOnSale?: boolean
+  isLaunch?: boolean
+  isLaunchActive?: boolean
+  launchAt?: string
   stock: number
   sizes: any[]
   category: {
