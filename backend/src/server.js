@@ -35,20 +35,6 @@ app.use('/uploads', (req, res, next) => {
   lastModified: true
 }));
 
-// Security middleware (with exceptions for uploads)
-app.use(helmet({
-  crossOriginResourcePolicy: false,
-  crossOriginEmbedderPolicy: false
-}));
-
-// Rate limiting (temporarily increased for development)
-const limiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000, // increased to 1000 for development
-  message: 'Too many requests from this IP, please try again later.'
-});
-app.use(limiter);
-
 // CORS configuration for production and development
 const allowedOrigins = [
   process.env.FRONTEND_URL, // Production Vercel URL
@@ -58,7 +44,8 @@ const allowedOrigins = [
   'http://127.0.0.1:3000' // Development
 ].filter(Boolean); // Remove undefined values
 
-app.use(cors({
+// CORS configuration
+const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl)
     if (!origin) return callback(null, true);
@@ -76,21 +63,41 @@ app.use(cors({
       return callback(new Error(msg), false);
     }
 
-    return callback(null, true);
+    // Return the origin to ensure proper Access-Control-Allow-Origin header is set
+    return callback(null, origin);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'Cache-Control'],
   exposedHeaders: ['Content-Type', 'Cache-Control'],
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200,
+  preflightContinue: false
+};
+
+// Apply CORS middleware BEFORE other middleware
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly for all routes BEFORE rate limiting
+app.options('*', cors(corsOptions));
+
+// Security middleware (with exceptions for uploads)
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+  crossOriginEmbedderPolicy: false
 }));
+
+// Rate limiting (temporarily increased for development) - Skip for OPTIONS requests
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 1000, // increased to 1000 for development
+  message: 'Too many requests from this IP, please try again later.',
+  skip: (req) => req.method === 'OPTIONS' // Skip rate limiting for preflight requests
+});
+app.use(limiter);
 
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Handle preflight requests
-app.options('*', cors());
 
 // Health check endpoint
 app.get('/health', (req, res) => {

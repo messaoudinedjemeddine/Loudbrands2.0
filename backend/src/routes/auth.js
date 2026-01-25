@@ -8,6 +8,30 @@ const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret';
 
+// CORS middleware for auth routes
+router.use((req, res, next) => {
+  const origin = req.headers.origin;
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    'https://loudbrandss.com',
+    'https://www.loudbrandss.com',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000'
+  ].filter(Boolean);
+
+  if (origin && (allowedOrigins.includes(origin) || origin.includes('loudbrandss.com') || origin.includes('vercel.app') || origin.includes('localhost'))) {
+    res.header('Access-Control-Allow-Origin', origin);
+  }
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control');
+  
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(6)
