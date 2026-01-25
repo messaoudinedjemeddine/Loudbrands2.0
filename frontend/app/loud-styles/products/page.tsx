@@ -255,7 +255,7 @@ function LoudStylesProductsContent() {
     // Check if product is in accessoires or shoes category
     const categorySlug = typeof product.category === 'string' 
       ? product.category.toLowerCase() 
-      : product.category?.slug?.toLowerCase() || '';
+      : (product.category as { slug?: string })?.slug?.toLowerCase() || '';
     const categoryName = typeof product.category === 'string'
       ? product.category.toLowerCase()
       : product.category?.name?.toLowerCase() || '';
@@ -664,7 +664,7 @@ function LoudStylesProductsContent() {
                 {djabadourProducts.map((product, index) => {
                   const categorySlug = typeof product.category === 'string' 
                     ? product.category.toLowerCase() 
-                    : product.category?.slug?.toLowerCase() || '';
+                    : (product.category as { slug?: string })?.slug?.toLowerCase() || '';
                   const isAccessoires = categorySlug.includes('accessoire') || categorySlug.includes('accessories');
                   const sizeStrings = isAccessoires ? [] : ['M', 'L', 'XL', 'XXL'];
 
