@@ -354,6 +354,66 @@ router.get('/featured/list', async (req, res) => {
   }
 });
 
+// Get djabadour el hemma products (recently added djabadour products)
+router.get('/djabadour-el-hemma', async (req, res) => {
+  try {
+    const { brand } = req.query;
+
+    const where = {
+      isActive: true,
+      OR: [
+        { name: { contains: 'djabadour', mode: 'insensitive' } },
+        { nameAr: { contains: 'djabadour', mode: 'insensitive' } }
+      ]
+    };
+
+    if (brand) {
+      where.brand = {
+        slug: brand
+      };
+    }
+
+    const products = await prisma.product.findMany({
+      where,
+      include: {
+        category: true,
+        brand: true,
+        images: {
+          where: { isPrimary: true },
+          take: 1
+        },
+        sizes: true
+      },
+      orderBy: {
+        createdAt: 'desc' // Most recently added first
+      },
+      take: 20 // Get up to 20 products
+    });
+
+    // Add launch status and orderability to products
+    const now = new Date();
+    const productsWithLaunchStatus = products.map(product => {
+      const isLaunchActive = product.isLaunch && product.launchAt && product.launchAt > now;
+      const isOrderable = !isLaunchActive;
+
+      return {
+        ...product,
+        image: product.images[0]?.url || '/placeholder-product.jpg',
+        isLaunchActive,
+        isOrderable,
+        timeUntilLaunch: isLaunchActive ? product.launchAt.getTime() - now.getTime() : null
+      };
+    });
+
+    res.json({
+      products: productsWithLaunchStatus
+    });
+  } catch (error) {
+    console.error('Djabadour el hemma products error:', error);
+    res.status(500).json({ error: 'Failed to fetch djabadour el hemma products' });
+  }
+});
+
 // Get single product by ID
 router.get('/:id', async (req, res) => {
   try {
