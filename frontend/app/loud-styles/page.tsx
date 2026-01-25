@@ -180,8 +180,8 @@ export default function LoudStylesPage() {
 
         // Combine djabadour products with featured products, putting djabadour first
         // Filter out djabadour products from featured to avoid duplicates
-        const djabadourIds = new Set(djabadour.map(p => p.id))
-        const otherFeatured = featured.filter(p => !djabadourIds.has(p.id))
+        const djabadourIds = new Set(djabadour.map((p: Product) => p.id))
+        const otherFeatured = featured.filter((p: Product) => !djabadourIds.has(p.id))
         const combinedProducts = [...djabadour, ...otherFeatured].slice(0, 4)
         setFeaturedProducts(combinedProducts)
 
