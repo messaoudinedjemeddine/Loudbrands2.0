@@ -123,6 +123,98 @@ const isValidShoeSize = (size: string): boolean => {
     return shoeSizes.includes(size)
 }
 
+// Helper function to check if a size is a regular product size (not shoe)
+const isRegularSize = (size: string): boolean => {
+    const regularSizes = ['M', 'L', 'XL', 'XXL', 'XXXL']
+    return regularSizes.includes(size.toUpperCase())
+}
+
+// Helper function to filter products based on size type
+// If size is provided, filter products to match the size type (shoes vs regular products)
+const filterProductsBySizeType = (products: any[], size: string): any[] => {
+    if (!size) return products // No size provided, return all products
+    
+    const isShoeSize = isValidShoeSize(size)
+    const isRegularProductSize = isRegularSize(size)
+    
+    if (isShoeSize) {
+        // Size is a shoe size (36-41), only return shoes
+        return products.filter((p: any) => isShoeProduct(p))
+    } else if (isRegularProductSize) {
+        // Size is a regular product size (M, L, XL, XXL, XXXL), exclude shoes
+        return products.filter((p: any) => !isShoeProduct(p))
+    }
+    
+    // Unknown size type, return all products
+    return products
+}
+
+// Helper function to find the best matching product
+// Prioritizes products that:
+// 1. Have the exact size required
+// 2. Have exact name match
+// 3. Have the shortest name (to avoid matching "Chassures X" when searching for "X")
+const findBestMatchingProduct = (products: any[], searchName: string, requiredSize?: string): any | null => {
+    if (products.length === 0) return null
+    
+    const searchLower = searchName.toLowerCase().trim()
+    
+    // Score products based on match quality
+    const scoredProducts = products.map((product: any) => {
+        const productNameLower = product.name.toLowerCase()
+        let score = 0
+        
+        // Check if product has the required size
+        if (requiredSize) {
+            const hasSize = product.sizes?.some((s: any) => s.size === requiredSize)
+            if (hasSize) {
+                score += 1000 // Big bonus for having the required size
+            } else {
+                // If size is required but product doesn't have it, heavily penalize
+                return { product, score: -1000 }
+            }
+        }
+        
+        // Exact name match gets highest priority
+        if (productNameLower === searchLower) {
+            score += 500
+        }
+        // Product name starts with search term
+        else if (productNameLower.startsWith(searchLower)) {
+            score += 300
+        }
+        // Product name contains search term (but not at start)
+        else if (productNameLower.includes(searchLower)) {
+            score += 100
+        }
+        // Search term contains product name (less ideal)
+        else if (searchLower.includes(productNameLower)) {
+            score += 50
+        }
+        
+        // Prefer shorter product names (to avoid matching "Chassures X" when searching for "X")
+        // This helps when "Djabadour El Hemma Bordeau" matches both:
+        // - "Djabadour El Hemma Bordeau" (shorter, better)
+        // - "Chassures Djabadour El Hemma Bordeau" (longer, less ideal)
+        const nameLength = productNameLower.length
+        const searchLength = searchLower.length
+        if (nameLength <= searchLength + 5) { // Product name is close to search length
+            score += 20
+        }
+        
+        return { product, score }
+    })
+    
+    // Filter out products with negative scores (missing required size)
+    const validProducts = scoredProducts.filter((item: any) => item.score >= 0)
+    
+    if (validProducts.length === 0) return null
+    
+    // Sort by score (highest first) and return the best match
+    validProducts.sort((a: any, b: any) => b.score - a.score)
+    return validProducts[0].product
+}
+
 export default function InventorySmartPage() {
     const [activeTab, setActiveTab] = useState('labels')
     const [history, setHistory] = useState<StockMovement[]>([])
@@ -1277,14 +1369,18 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                     // 1. Find Product
                     const productsResponse = await api.products.getAll({
                         search: item.productName,
-                        limit: 10
+                        limit: 20 // Increased limit to get more results for filtering
                     }) as any
-                    const products = productsResponse.products || []
+                    let products = productsResponse.products || []
 
-                    const product = products.find((p: any) =>
-                        p.name.toLowerCase().includes(item.productName.toLowerCase()) ||
-                        item.productName.toLowerCase().includes(p.name.toLowerCase())
-                    )
+                    // Filter products by size type if size is provided
+                    // This prevents mixing shoes with regular products
+                    if (item.size) {
+                        products = filterProductsBySizeType(products, item.size)
+                    }
+
+                    // Use improved matching that prioritizes products with the required size
+                    const product = findBestMatchingProduct(products, item.productName, item.size)
 
                     if (!product) {
                         validationErrors.push({
@@ -1980,12 +2076,17 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
             for (const item of parsedItems) {
                 try {
                     // Find Product
-                    const productsResponse = await api.products.getAll({ search: item.productName, limit: 10 }) as any
-                    const products = productsResponse.products || []
-                    const product = products.find((p: any) =>
-                        p.name.toLowerCase().includes(item.productName.toLowerCase()) ||
-                        item.productName.toLowerCase().includes(p.name.toLowerCase())
-                    )
+                    const productsResponse = await api.products.getAll({ search: item.productName, limit: 20 }) as any
+                    let products = productsResponse.products || []
+
+                    // Filter products by size type if size is provided
+                    // This prevents mixing shoes with regular products
+                    if (item.size) {
+                        products = filterProductsBySizeType(products, item.size)
+                    }
+
+                    // Use improved matching that prioritizes products with the required size
+                    const product = findBestMatchingProduct(products, item.productName, item.size)
 
                     if (!product) {
                         validationErrors.push({
@@ -2293,12 +2394,17 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
             }> = []
 
             for (const item of parsedItems) {
-                const productsResponse = await api.products.getAll({ search: item.productName, limit: 10 }) as any
-                const products = productsResponse.products || []
-                const product = products.find((p: any) =>
-                    p.name.toLowerCase().includes(item.productName.toLowerCase()) ||
-                    item.productName.toLowerCase().includes(p.name.toLowerCase())
-                )
+                const productsResponse = await api.products.getAll({ search: item.productName, limit: 20 }) as any
+                let products = productsResponse.products || []
+
+                // Filter products by size type if size is provided
+                // This prevents mixing shoes with regular products
+                if (item.size) {
+                    products = filterProductsBySizeType(products, item.size)
+                }
+
+                // Use improved matching that prioritizes products with the required size
+                const product = findBestMatchingProduct(products, item.productName, item.size)
 
                 if (!product) {
                     validationErrors.push({
