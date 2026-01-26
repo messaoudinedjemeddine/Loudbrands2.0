@@ -7,9 +7,10 @@ import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent } from '@/components/ui/card'
-import { ShoppingCart, Heart } from 'lucide-react'
+import { ShoppingCart, Heart, Sparkles } from 'lucide-react'
 import { useCartStore, useWishlistStore } from '@/lib/store'
 import { useLocaleStore } from '@/lib/locale-store'
+import { LaunchCountdownEnhanced } from '@/components/launch-countdown-enhanced'
 
 interface Product {
   id: string
@@ -20,6 +21,9 @@ interface Product {
   image: string
   slug: string
   isOnSale?: boolean
+  isLaunch?: boolean
+  isLaunchActive?: boolean
+  launchAt?: string
   rating?: number
   stock: number
   sizes: any[]
@@ -132,7 +136,11 @@ export default function FeaturedProductsSection({ products, loading, error }: Fe
                 className="h-full"
               >
                 <Link href={`/loud-styles/products/${product.slug}?brand=loud-styles`} className="block h-full">
-                  <Card className="group cursor-pointer overflow-hidden border-0 bg-gradient-to-br from-beige-100 via-beige-200 to-beige-300 dark:from-gray-800 dark:to-gray-900 relative h-full flex flex-col">
+                  <Card className={`group cursor-pointer overflow-hidden relative h-full flex flex-col transition-all duration-500 ${
+                    product.isLaunch && product.isLaunchActive
+                      ? 'border-2 border-[#bfa36a] bg-gradient-to-br from-[#bfa36a]/10 via-[#bfa36a]/5 to-beige-200 dark:from-gray-800 dark:to-gray-900 shadow-xl hover:shadow-2xl ring-2 ring-[#bfa36a]/20'
+                      : 'border-0 bg-gradient-to-br from-beige-100 via-beige-200 to-beige-300 dark:from-gray-800 dark:to-gray-900'
+                  }`}>
                     <motion.div
                       className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"
                       initial={{ opacity: 0 }}
@@ -155,6 +163,10 @@ export default function FeaturedProductsSection({ products, loading, error }: Fe
                             priority={index < 2}
                             sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
                           />
+                          {/* Launch Countdown Overlay on Image */}
+                          {product.isLaunch && product.launchAt && product.isLaunchActive && (
+                            <LaunchCountdownEnhanced launchAt={product.launchAt} variant="overlay" />
+                          )}
                         </motion.div>
                         {product.isOnSale && (
                           <motion.div
@@ -162,8 +174,20 @@ export default function FeaturedProductsSection({ products, loading, error }: Fe
                             animate={{ opacity: 1, scale: 1, x: 0 }}
                             transition={{ delay: 0.2 + index * 0.1, duration: 0.4 }}
                           >
-                            <Badge className={`absolute top-4 bg-red-500 hover:bg-red-600 ${isRTL ? 'right-4' : 'left-4'} shadow-lg`}>
+                            <Badge className={`absolute top-4 bg-red-500 hover:bg-red-600 ${isRTL ? 'right-4' : 'left-4'} shadow-lg z-10`}>
                               {isRTL ? 'تخفيض' : 'Sale'}
+                            </Badge>
+                          </motion.div>
+                        )}
+                        {product.isLaunch && product.isLaunchActive && (
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.8, x: -20 }}
+                            animate={{ opacity: 1, scale: 1, x: 0 }}
+                            transition={{ delay: 0.25 + index * 0.1, duration: 0.4 }}
+                          >
+                            <Badge className={`absolute top-4 bg-gradient-to-r from-[#bfa36a] to-[#d4af37] text-white border-0 shadow-lg font-semibold animate-pulse ${isRTL ? 'right-4' : 'left-4'} z-10`}>
+                              <Sparkles className={`w-3 h-3 ${isRTL ? 'ml-1' : 'mr-1'}`} />
+                              {isRTL ? 'قريباً' : 'Coming Soon'}
                             </Badge>
                           </motion.div>
                         )}
@@ -216,6 +240,7 @@ export default function FeaturedProductsSection({ products, loading, error }: Fe
                           </motion.div>
                         )}
 
+
                         <motion.div
                           className="flex items-center justify-center gap-2 mt-auto"
                           initial={{ opacity: 0, y: 10 }}
@@ -224,14 +249,18 @@ export default function FeaturedProductsSection({ products, loading, error }: Fe
                         >
                           <Button
                             size="sm"
-                            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                            className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed"
                             onClick={(e) => {
                               e.preventDefault()
                               handleAddToCart(product)
                             }}
+                            disabled={product.isLaunch && product.isLaunchActive}
                           >
                             <ShoppingCart className="w-4 h-4 mr-2" />
-                            {isRTL ? 'أضف للسلة' : 'Add to Cart'}
+                            {(product.isLaunch && product.isLaunchActive)
+                              ? (isRTL ? 'قريباً' : 'Coming Soon')
+                              : (isRTL ? 'أضف للسلة' : 'Add to Cart')
+                            }
                           </Button>
                           <Button
                             size="sm"

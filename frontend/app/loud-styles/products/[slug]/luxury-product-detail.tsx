@@ -42,7 +42,7 @@ import { useLocaleStore } from '@/lib/locale-store'
 import { toast } from 'sonner'
 import { LoudStylesNavbar } from '@/components/loud-styles-navbar'
 // Lazy load non-critical components
-const LaunchCountdown = dynamic(() => import('@/components/launch-countdown').then(mod => ({ default: mod.LaunchCountdown })), {
+const LaunchCountdownEnhanced = dynamic(() => import('@/components/launch-countdown-enhanced').then(mod => ({ default: mod.LaunchCountdownEnhanced })), {
   ssr: false
 })
 
@@ -110,6 +110,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   // Check if product is in accessoires category
   const categorySlug = product?.category?.slug?.toLowerCase() || '';
   const isAccessoires = categorySlug.includes('accessoire') || categorySlug.includes('accessories');
+  const isShoes = categorySlug.includes('shoe') || categorySlug.includes('chaussure') || product?.category?.name?.toLowerCase().includes('shoe') || product?.category?.name?.toLowerCase().includes('chaussure');
 
   // All hooks must be called before any conditional returns
   useEffect(() => {
@@ -129,17 +130,19 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   }, [product])
 
   useEffect(() => {
-    // Auto-select first size if available (only for non-accessoires, skip 'S')
+    // Auto-select first size if available (only for non-accessoires)
     if (!isAccessoires && product?.sizes && product.sizes.length > 0 && !selectedSize) {
       const firstSize = product.sizes.find(s => {
         const size = typeof s === 'string' ? s : s.size;
+        // For shoes, accept any size. For regular products, skip 'S'
+        if (isShoes) return true;
         return size !== 'S';
       });
       if (firstSize) {
         setSelectedSize(typeof firstSize === 'string' ? firstSize : firstSize.size)
       }
     }
-  }, [product?.sizes, selectedSize, isAccessoires])
+  }, [product?.sizes, selectedSize, isAccessoires, isShoes])
 
   // Fetch color variants for Victoria Dress
   useEffect(() => {
@@ -275,6 +278,12 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   }
 
   const handleAddToCart = () => {
+    // Check if product is in launch mode and countdown hasn't finished
+    if (!isOrderable) {
+      toast.error(isRTL ? 'يرجى الانتظار حتى انتهاء العد التنازلي' : 'Please wait for the countdown to finish')
+      return
+    }
+
     // Only require size if product has sizes and is not accessoires
     if (!isAccessoires && !selectedSize && product.sizes && product.sizes.length > 0) {
       toast.error(isRTL ? 'يرجى اختيار المقاس' : 'Please select a size')
@@ -382,6 +391,20 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   const getDisplaySizes = () => {
     // Don't show sizes for accessoires
     if (isAccessoires) return [];
+    // Return shoe sizes if it's a shoe category
+    if (isShoes) {
+      // Get actual sizes from product or return default shoe sizes
+      const actualSizes = getSizeStrings(product.sizes || []);
+      if (actualSizes.length > 0) {
+        // Sort numerically
+        return actualSizes.sort((a, b) => {
+          const numA = parseInt(a) || 0;
+          const numB = parseInt(b) || 0;
+          return numA - numB;
+        });
+      }
+      return ['36', '37', '38', '39', '40', '41'];
+    }
     // Return all standard sizes regardless of availability
     return ['M', 'L', 'XL', 'XXL', 'XXXL'];
   }
@@ -599,9 +622,10 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     </Badge>
                   )}
                   {product.isLaunch && product.launchAt && (
-                    <LaunchCountdown
+                    <LaunchCountdownEnhanced
                       launchAt={product.launchAt}
                       onComplete={() => setTimerCompleted(true)}
+                      variant="card"
                       className="mt-2"
                     />
                   )}
@@ -712,7 +736,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
               </motion.div>
 
               {/* Size Selection */}
-              {isOrderable && displaySizes.length > 0 && (
+              {displaySizes.length > 0 && (
                 <motion.div
                   className="space-y-2 sm:space-y-3 lg:space-y-4"
                   variants={itemVariants}
@@ -720,32 +744,52 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                   <h3 className="text-base sm:text-lg font-semibold text-foreground">
                     {isRTL ? 'المقاس' : 'Size'}
                   </h3>
+                  {!isOrderable && product.isLaunch && product.launchAt && (
+                    <div className="mb-2 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                      <p className="text-sm text-orange-800 dark:text-orange-200">
+                        {isRTL 
+                          ? 'يرجى الانتظار حتى انتهاء العد التنازلي لاختيار المقاس'
+                          : 'Please wait for the countdown to finish before selecting a size'
+                        }
+                      </p>
+                    </div>
+                  )}
                   <div className="grid grid-cols-3 sm:flex sm:flex-wrap gap-1.5 sm:gap-2 lg:gap-3">
-                    {displaySizes.filter(size => size !== 'S').map((size) => (
+                    {displaySizes.map((size) => (
                       <motion.button
                         key={size}
-                        className={`group relative px-3 py-2 sm:px-4 sm:py-2.5 lg:px-6 lg:py-3 rounded-md sm:rounded-lg border-2 transition-all duration-300 font-medium text-sm sm:text-base ${selectedSize === size
-                          ? 'border-primary bg-primary text-primary-foreground shadow-elegant'
-                          : 'border-border hover:border-primary/50 bg-background hover:bg-muted/50'
+                        disabled={!isOrderable}
+                        className={`group relative px-3 py-2 sm:px-4 sm:py-2.5 lg:px-6 lg:py-3 rounded-md sm:rounded-lg border-2 transition-all duration-300 font-medium text-sm sm:text-base ${
+                          !isOrderable
+                            ? 'opacity-50 cursor-not-allowed border-muted bg-muted/50'
+                            : selectedSize === size
+                            ? 'border-primary bg-primary text-primary-foreground shadow-elegant'
+                            : 'border-border hover:border-primary/50 bg-background hover:bg-muted/50'
                           }`}
-                        onClick={() => setSelectedSize(size)}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                        onClick={() => {
+                          if (isOrderable) {
+                            setSelectedSize(size)
+                          }
+                        }}
+                        whileHover={isOrderable ? { scale: 1.05 } : {}}
+                        whileTap={isOrderable ? { scale: 0.95 } : {}}
                         style={{ willChange: 'transform' }}
                       >
                         {size}
-                        {/* Enhanced Hover Tooltip */}
-                        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-4 py-2 bg-gradient-to-r from-gray-900 to-gray-800 text-white text-sm rounded-lg shadow-2xl border border-gray-700 pointer-events-none whitespace-nowrap z-20 opacity-0 group-hover:opacity-100 transition-all duration-200 ease-out">
-                          <div className="flex items-center space-x-2">
-                            <span className="font-semibold text-white">{size}</span>
-                            <span className="text-gray-300">=</span>
-                            <span className="font-mono text-yellow-400">
-                              {sizeMapping[size as keyof typeof sizeMapping] || size}
-                            </span>
+                        {/* Enhanced Hover Tooltip - Only for non-shoe sizes */}
+                        {isOrderable && !isShoes && sizeMapping[size as keyof typeof sizeMapping] && (
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-3 px-4 py-2 bg-gradient-to-r from-gray-900 to-gray-800 text-white text-sm rounded-lg shadow-2xl border border-gray-700 pointer-events-none whitespace-nowrap z-20 opacity-0 group-hover:opacity-100 transition-all duration-200 ease-out">
+                            <div className="flex items-center space-x-2">
+                              <span className="font-semibold text-white">{size}</span>
+                              <span className="text-gray-300">=</span>
+                              <span className="font-mono text-yellow-400">
+                                {sizeMapping[size as keyof typeof sizeMapping] || size}
+                              </span>
+                            </div>
+                            {/* Arrow pointing down */}
+                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
                           </div>
-                          {/* Arrow pointing down */}
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800"></div>
-                        </div>
+                        )}
                       </motion.button>
                     ))}
                     {/* Size Guide Button - styled like size buttons */}
@@ -776,8 +820,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                 {isRTL ? 'المقاس المعروض.' : 'Size displayed.'}
                               </p>
                               <div className="flex flex-wrap gap-2">
-                                {displaySizes.filter(size => size !== 'S').map((size) => {
-                                  const isSelected = selectedSize === size || (!selectedSize && size === displaySizes.find(s => s !== 'S'))
+                                {displaySizes.map((size) => {
+                                  const isSelected = selectedSize === size || (!selectedSize && size === displaySizes[0])
                                   return (
                                     <button
                                       key={size}
@@ -820,15 +864,17 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       <circle cx="85" cy="181" r="18" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
                                       <text x="85" y="185" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
-                                          const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
-                                          const sizeData = {
+                                          const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
+                                          // For shoes, don't show body measurements (not applicable)
+                                          if (isShoes) return 'N/A'
+                                          const sizeData: Record<string, string> = {
                                             'M': '86-94',
                                             'L': '95-101',
                                             'XL': '101-107',
                                             'XXL': '107-113',
                                             'XXXL': '113-119'
-                                          }[currentSize] || '86-94'
-                                          return sizeData
+                                          }
+                                          return sizeData[currentSize] || '86-94'
                                         })()}
                                       </text>
                                       
@@ -836,15 +882,17 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       <circle cx="85" cy="228" r="18" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
                                       <text x="85" y="232" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
-                                          const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
-                                          const sizeData = {
+                                          const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
+                                          // For shoes, don't show body measurements (not applicable)
+                                          if (isShoes) return 'N/A'
+                                          const sizeData: Record<string, string> = {
                                             'M': '66-74',
                                             'L': '75-81',
                                             'XL': '81-87',
                                             'XXL': '87-93',
                                             'XXXL': '93-99'
-                                          }[currentSize] || '66-74'
-                                          return sizeData
+                                          }
+                                          return sizeData[currentSize] || '66-74'
                                         })()}
                                       </text>
                                       
@@ -852,15 +900,17 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       <circle cx="85" cy="288" r="18" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
                                       <text x="85" y="292" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
-                                          const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
-                                          const sizeData = {
+                                          const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
+                                          // For shoes, don't show body measurements (not applicable)
+                                          if (isShoes) return 'N/A'
+                                          const sizeData: Record<string, string> = {
                                             'M': '91-99',
                                             'L': '100-106',
                                             'XL': '106-112',
                                             'XXL': '112-118',
                                             'XXXL': '118-124'
-                                          }[currentSize] || '91-99'
-                                          return sizeData
+                                          }
+                                          return sizeData[currentSize] || '91-99'
                                         })()}
                                       </text>
                                       
@@ -868,15 +918,17 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       <circle cx="208" cy="280" r="17" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
                                       <text x="208" y="284" textAnchor="middle" fill="white" fontSize="9" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
                                         {(() => {
-                                          const currentSize = selectedSize || displaySizes.find(s => s !== 'S') || 'M'
-                                          const sizeData = {
+                                          const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
+                                          // For shoes, don't show body measurements (not applicable)
+                                          if (isShoes) return 'N/A'
+                                          const sizeData: Record<string, string> = {
                                             'M': '165-175',
                                             'L': '175-180',
                                             'XL': '175-180',
                                             'XXL': '180-185',
                                             'XXXL': '180-185'
-                                          }[currentSize] || '165-175'
-                                          return sizeData
+                                          }
+                                          return sizeData[currentSize] || '165-175'
                                         })()}
                                       </text>
                                     </svg>
@@ -914,7 +966,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                         { size: 'XL', chest: '101-107', waist: '81-87', hips: '106-112', height: '175-180' },
                                         { size: 'XXL', chest: '107-113', waist: '87-93', hips: '112-118', height: '180-185' },
                                         { size: 'XXXL', chest: '113-119', waist: '93-99', hips: '118-124', height: '180-185' }
-                                      ].filter(item => displaySizes.includes(item.size) && item.size !== 'S').map((item, index) => {
+                                      ].filter(item => displaySizes.includes(item.size)).map((item, index) => {
                                         const isSelected = selectedSize === item.size || (!selectedSize && index === 0)
                                         return (
                                           <tr 
@@ -974,86 +1026,99 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
               )}
 
               {/* Quantity */}
-              {isOrderable && (
-                <motion.div
-                  className="space-y-2 sm:space-y-3 lg:space-y-4"
-                  variants={itemVariants}
-                >
-                  <h3 className="text-base sm:text-lg font-semibold text-foreground">
-                    {isRTL ? 'الكمية' : 'Quantity'}
-                  </h3>
-                  <div className="flex items-center space-x-3 sm:space-x-4">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      className="h-9 w-9 sm:h-10 sm:w-10"
-                    >
-                      <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </Button>
-                    <span className="text-base sm:text-lg font-medium min-w-[2.5rem] sm:min-w-[3rem] text-center">
-                      {quantity}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setQuantity(quantity + 1)}
-                      className="h-9 w-9 sm:h-10 sm:w-10"
-                    >
-                      <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                    </Button>
-                  </div>
-                </motion.div>
-              )}
+              <motion.div
+                className="space-y-2 sm:space-y-3 lg:space-y-4"
+                variants={itemVariants}
+              >
+                <h3 className="text-base sm:text-lg font-semibold text-foreground">
+                  {isRTL ? 'الكمية' : 'Quantity'}
+                </h3>
+                <div className="flex items-center space-x-3 sm:space-x-4">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    className="h-9 w-9 sm:h-10 sm:w-10"
+                    disabled={!isOrderable}
+                  >
+                    <Minus className="w-3 h-3 sm:w-4 sm:h-4" />
+                  </Button>
+                  <span className="text-base sm:text-lg font-medium min-w-[2.5rem] sm:min-w-[3rem] text-center">
+                    {quantity}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setQuantity(quantity + 1)}
+                    className="h-9 w-9 sm:h-10 sm:w-10"
+                    disabled={!isOrderable}
+                  >
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                  </Button>
+                </div>
+              </motion.div>
 
               {/* Action Buttons */}
-              {isOrderable && (
-                <motion.div
-                  className="space-y-3 sm:space-y-4"
-                  variants={itemVariants}
-                >
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 lg:gap-4">
-                    <Button
-                      size="lg"
-                      className="h-11 sm:h-12 lg:h-14 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold shadow-elegant hover:shadow-luxury transition-all duration-300 text-sm sm:text-base"
-                      onClick={handleAddToCart}
-                      disabled={!isAccessoires && product.sizes && product.sizes.length > 0 && !selectedSize}
-                    >
-                      <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-                      <span>{isRTL ? 'أضف للسلة' : 'Add to Cart'}</span>
-                    </Button>
-                    <Button
-                      size="lg"
-                      variant="outline"
-                      className="h-11 sm:h-12 lg:h-14 border-2 border-foreground text-foreground hover:bg-foreground hover:text-background font-semibold shadow-elegant transition-all duration-300 text-sm sm:text-base"
-                      disabled={!isAccessoires && product.sizes && product.sizes.length > 0 && !selectedSize}
-                      onClick={() => {
-                        // Only require size if product has sizes and is not accessoires
-                        if (!isAccessoires && product.sizes && product.sizes.length > 0 && !selectedSize) {
-                          toast.error(isRTL ? 'يرجى اختيار المقاس' : 'Please select a size')
-                          return
-                        }
-
-                        // Add to cart first
-                        const selectedSizeObj = getSelectedSizeObject(selectedSize);
-                        addItem({
-                          id: product.id,
-                          name: isRTL ? product.nameAr || product.name : product.name,
-                          price: product.price,
-                          image: product.images[0],
-                          size: isAccessoires ? undefined : (selectedSize || undefined),
-                          sizeId: isAccessoires ? undefined : selectedSizeObj?.id
-                        })
-
-                        // Redirect to checkout
-                        router.push('/checkout')
-                      }}
-                    >
-                      <span>{isRTL ? 'اشتري الآن' : 'Buy Now'}</span>
-                    </Button>
+              <motion.div
+                className="space-y-3 sm:space-y-4"
+                variants={itemVariants}
+              >
+                {!isOrderable && product.isLaunch && product.launchAt && (
+                  <div className="mb-2 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
+                    <p className="text-sm text-orange-800 dark:text-orange-200">
+                      {isRTL 
+                        ? 'يرجى الانتظار حتى انتهاء العد التنازلي لإضافة المنتج للسلة أو الشراء'
+                        : 'Please wait for the countdown to finish before adding to cart or purchasing'
+                      }
+                    </p>
                   </div>
-                </motion.div>
-              )}
+                )}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 lg:gap-4">
+                  <Button
+                    size="lg"
+                    className="h-11 sm:h-12 lg:h-14 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold shadow-elegant hover:shadow-luxury transition-all duration-300 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={handleAddToCart}
+                    disabled={!isOrderable || (!isAccessoires && product.sizes && product.sizes.length > 0 && !selectedSize)}
+                  >
+                    <ShoppingCart className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                    <span>{isRTL ? 'أضف للسلة' : 'Add to Cart'}</span>
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="h-11 sm:h-12 lg:h-14 border-2 border-foreground text-foreground hover:bg-foreground hover:text-background font-semibold shadow-elegant transition-all duration-300 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!isOrderable || (!isAccessoires && product.sizes && product.sizes.length > 0 && !selectedSize)}
+                    onClick={() => {
+                      if (!isOrderable) {
+                        toast.error(isRTL ? 'يرجى الانتظار حتى انتهاء العد التنازلي' : 'Please wait for the countdown to finish')
+                        return
+                      }
+                      
+                      // Only require size if product has sizes and is not accessoires
+                      if (!isAccessoires && product.sizes && product.sizes.length > 0 && !selectedSize) {
+                        toast.error(isRTL ? 'يرجى اختيار المقاس' : 'Please select a size')
+                        return
+                      }
+
+                      // Add to cart first
+                      const selectedSizeObj = getSelectedSizeObject(selectedSize);
+                      addItem({
+                        id: product.id,
+                        name: isRTL ? product.nameAr || product.name : product.name,
+                        price: product.price,
+                        image: product.images[0],
+                        size: isAccessoires ? undefined : (selectedSize || undefined),
+                        sizeId: isAccessoires ? undefined : selectedSizeObj?.id
+                      })
+
+                      // Redirect to checkout
+                      router.push('/checkout')
+                    }}
+                  >
+                    <span>{isRTL ? 'اشتري الآن' : 'Buy Now'}</span>
+                  </Button>
+                </div>
+              </motion.div>
 
               {/* Service Highlights */}
               <motion.div

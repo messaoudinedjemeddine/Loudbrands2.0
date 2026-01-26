@@ -28,6 +28,7 @@ import { useCartStore, useWishlistStore } from '@/lib/store'
 import { useLocaleStore } from '@/lib/locale-store'
 import { toast } from 'sonner'
 import { LaunchCountdown } from '@/components/launch-countdown'
+import { LaunchCountdownEnhanced } from '@/components/launch-countdown-enhanced'
 import { LoudStylesNavbar } from '@/components/loud-styles-navbar'
 import { ProductGridSkeleton } from '@/components/loading-skeleton-product'
 
@@ -62,6 +63,7 @@ function LoudStylesProductsContent() {
   const [mounted, setMounted] = useState(false)
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [djabadourProducts, setDjabadourProducts] = useState<Product[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
@@ -91,9 +93,25 @@ function LoudStylesProductsContent() {
       try {
         setLoading(true)
 
+        // Fetch djabadour el hemma products and regular products in parallel
+        const [djabadourRes, productsRes] = await Promise.all([
+          fetch('/api/products/djabadour-el-hemma?brand=loud-styles'),
+          fetch(`/api/products?brand=loud-styles&limit=50&page=1`)
+        ])
+
+        // Process djabadour products
+        if (djabadourRes.ok) {
+          const djabadourData = await djabadourRes.json()
+          const djabadourArray = djabadourData.products || []
+          setDjabadourProducts(djabadourArray.map((product: any) => ({
+            ...product,
+            sizes: product.sizes || [],
+            slug: product.slug || product.name.toLowerCase().replace(/\s+/g, '-')
+          })))
+        }
+
         // Fetch initial batch - reasonable limit for faster loading
         const limit = 50 // Reduced from 1000 for faster initial load
-        const productsRes = await fetch(`/api/products?brand=loud-styles&limit=${limit}&page=1`)
         if (!productsRes.ok) {
           throw new Error(`HTTP error! status: ${productsRes.status}`)
         }
@@ -222,6 +240,11 @@ function LoudStylesProductsContent() {
 
   }, [searchQuery, selectedCategories, selectedSizes, products, isRTL])
 
+  // Combine djabadour products with filtered products, putting djabadour first
+  const djabadourIds = new Set(djabadourProducts.map(p => p.id))
+  const otherProducts = filteredProducts.filter(p => !djabadourIds.has(p.id))
+  const displayProducts = [...djabadourProducts, ...otherProducts]
+
   if (!mounted) return <Preloader />
 
   const handleAddToCart = (product: Product) => {
@@ -234,14 +257,34 @@ function LoudStylesProductsContent() {
   }
 
   const ProductCard = ({ product, index }: { product: Product, index: number }) => {
-    // Check if product is in accessoires category
+    // Check if product is in accessoires or shoes category
     const categorySlug = typeof product.category === 'string' 
       ? product.category.toLowerCase() 
-      : product.category?.slug?.toLowerCase() || '';
+      : (product.category as { slug?: string })?.slug?.toLowerCase() || '';
+    const categoryName = typeof product.category === 'string'
+      ? product.category.toLowerCase()
+      : product.category?.name?.toLowerCase() || '';
     const isAccessoires = categorySlug.includes('accessoire') || categorySlug.includes('accessories');
+    const isShoes = categorySlug.includes('shoe') || categorySlug.includes('chaussure') || categoryName.includes('shoe') || categoryName.includes('chaussure');
     
-    // Convert sizes to string array for rendering (only if not accessoires)
-    const sizeStrings = isAccessoires ? [] : ['M', 'L', 'XL', 'XXL'];
+    // Convert sizes to string array for rendering
+    let sizeStrings: string[] = [];
+    if (isAccessoires) {
+      sizeStrings = [];
+    } else if (isShoes) {
+      // Get actual shoe sizes from product or use default
+      if (Array.isArray(product.sizes) && product.sizes.length > 0) {
+        sizeStrings = product.sizes.map(s => typeof s === 'string' ? s : s.size).sort((a, b) => {
+          const numA = parseInt(a) || 0;
+          const numB = parseInt(b) || 0;
+          return numA - numB;
+        });
+      } else {
+        sizeStrings = ['36', '37', '38', '39', '40', '41'];
+      }
+    } else {
+      sizeStrings = ['M', 'L', 'XL', 'XXL'];
+    }
 
     return (
       <motion.div
@@ -259,7 +302,11 @@ function LoudStylesProductsContent() {
         className="group relative h-full"
       >
         <Link href={`/loud-styles/products/${product.slug}?brand=loud-styles`} className="block h-full">
-          <Card className="overflow-hidden border border-gray-200 dark:border-gray-700 bg-transparent shadow-lg hover:shadow-2xl transition-all duration-500 h-full flex flex-col cursor-pointer">
+          <Card className={`overflow-hidden transition-all duration-500 h-full flex flex-col cursor-pointer ${
+            product.isLaunch && product.isLaunchActive
+              ? 'border-2 border-[#bfa36a] bg-gradient-to-br from-[#bfa36a]/5 via-[#bfa36a]/3 to-transparent shadow-xl hover:shadow-2xl ring-2 ring-[#bfa36a]/20'
+              : 'border border-gray-200 dark:border-gray-700 bg-transparent shadow-lg hover:shadow-2xl'
+          }`}>
             {/* Product Image */}
             <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-cream-100 via-warm-50 to-cream-200 dark:from-gray-800 dark:via-gray-700 dark:to-gray-800 flex-shrink-0 w-full">
               <motion.div
@@ -280,6 +327,10 @@ function LoudStylesProductsContent() {
                     target.src = '/placeholder.svg';
                   }}
                 />
+                {/* Launch Countdown Overlay on Image */}
+                {product.isLaunch && product.launchAt && product.isLaunchActive && (
+                  <LaunchCountdownEnhanced launchAt={product.launchAt} variant="overlay" />
+                )}
               </motion.div>
             </div>
 
@@ -334,14 +385,15 @@ function LoudStylesProductsContent() {
                   </Badge>
                 </motion.div>
               )}
-              {product.isLaunch && (
+              {product.isLaunch && product.isLaunchActive && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8, x: isRTL ? 20 : -20 }}
                   animate={{ opacity: 1, scale: 1, x: 0 }}
                   transition={{ delay: 0.25 + index * 0.1, duration: 0.4 }}
                 >
-                  <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white border-0 shadow-lg text-center">
-                    Coming Soon
+                  <Badge className="bg-gradient-to-r from-[#bfa36a] to-[#d4af37] text-white border-0 shadow-lg text-center font-semibold animate-pulse">
+                    <Sparkles className={`w-3 h-3 ${isRTL ? 'ml-1' : 'mr-1'}`} />
+                    {isRTL ? 'قريباً' : 'Coming Soon'}
                   </Badge>
                 </motion.div>
               )}
@@ -426,12 +478,6 @@ function LoudStylesProductsContent() {
                   </div>
                 </div>
 
-                {/* Launch Countdown */}
-                {product.isLaunch && product.launchAt && (
-                  <div className="mt-2 sm:mt-3">
-                    <LaunchCountdown launchAt={product.launchAt} />
-                  </div>
-                )}
 
                 {/* Add to Cart Button */}
                 <Button
@@ -620,12 +666,10 @@ function LoudStylesProductsContent() {
         ) : (
           <div className="space-y-8">
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
-              {filteredProducts.map((product, index) => (
+              {displayProducts.map((product, index) => (
                 <ProductCard key={product.id} product={product} index={index} />
               ))}
             </div>
-
-
           </div>
         )}
       </div>

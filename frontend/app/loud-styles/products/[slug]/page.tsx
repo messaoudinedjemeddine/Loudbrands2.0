@@ -29,6 +29,10 @@ interface Product {
   slug: string
   rating?: number
   isOnSale?: boolean
+  isLaunch?: boolean
+  launchAt?: string
+  isLaunchActive?: boolean
+  isOrderable?: boolean
   stock: number
   sizes: Array<{ id: string; size: string; stock: number }>
   category: {
@@ -136,7 +140,9 @@ export default function LoudStylesProductPage() {
   const luxuryProduct = {
     ...product,
     reference: product.id, // Use ID as reference if no reference field
-    isLaunch: false, // Default value
+    isLaunch: product.isLaunch || false, // Preserve launch data from API
+    launchAt: product.launchAt, // Preserve launch date from API
+    isLaunchActive: product.isLaunchActive || false, // Preserve launch active status from API
     reviewCount: 0 // Default value
   }
 

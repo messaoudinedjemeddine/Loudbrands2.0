@@ -7,6 +7,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 // Tree-shakeable framer-motion imports - only import what we need
 // Tree-shakeable framer-motion import - only import motion, not entire library
+import { motion } from 'framer-motion'
 import dynamic from 'next/dynamic'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -64,6 +65,9 @@ interface Product {
   slug: string
   rating?: number
   isOnSale?: boolean
+  isLaunch?: boolean
+  isLaunchActive?: boolean
+  launchAt?: string
   stock: number
   sizes: any[]
   category: {
@@ -71,7 +75,7 @@ interface Product {
     name: string
     nameAr?: string
     slug: string
-  }
+  } | string
   brand: {
     id: string
     name: string
@@ -93,6 +97,7 @@ export default function LoudStylesPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
+  const [djabadourProducts, setDjabadourProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
 
   const addItem = useCartStore((state) => state.addItem)
@@ -130,10 +135,10 @@ export default function LoudStylesPage() {
         setLoading(true)
         setError(null)
 
-        // Fetch products and categories in parallel for faster loading
-        // Only fetch 4 products since we only need featured ones
-        const [productsResponse, categoriesResponse] = await Promise.all([
+        // Fetch products, djabadour el hemma, and categories in parallel for faster loading
+        const [productsResponse, djabadourResponse, categoriesResponse] = await Promise.all([
           fetch('/api/products?brand=loud-styles&limit=4'),
+          fetch('/api/products/djabadour-el-hemma?brand=loud-styles'),
           fetch('/api/categories?brand=loud-styles')
         ])
 
@@ -149,9 +154,36 @@ export default function LoudStylesPage() {
           sizes: product.sizes || [],
           rating: product.rating || 4.5,
           isOnSale: product.oldPrice && product.oldPrice > product.price,
+          isLaunch: product.isLaunch || false,
+          isLaunchActive: product.isLaunchActive || false,
+          launchAt: product.launchAt || undefined,
           slug: product.slug || product.name.toLowerCase().replace(/\s+/g, '-')
         }))
-        setFeaturedProducts(featured)
+
+        // Process djabadour el hemma products
+        let djabadour: Product[] = []
+        if (djabadourResponse.ok) {
+          const djabadourData = await djabadourResponse.json()
+          const djabadourProductsArray = djabadourData.products || []
+          djabadour = djabadourProductsArray.map((product: any) => ({
+            ...product,
+            sizes: product.sizes || [],
+            rating: product.rating || 4.5,
+            isOnSale: product.oldPrice && product.oldPrice > product.price,
+            isLaunch: product.isLaunch || false,
+            isLaunchActive: product.isLaunchActive || false,
+            launchAt: product.launchAt || undefined,
+            slug: product.slug || product.name.toLowerCase().replace(/\s+/g, '-')
+          }))
+          setDjabadourProducts(djabadour)
+        }
+
+        // Combine djabadour products with featured products, putting djabadour first
+        // Filter out djabadour products from featured to avoid duplicates
+        const djabadourIds = new Set(djabadour.map((p: Product) => p.id))
+        const otherFeatured = featured.filter((p: Product) => !djabadourIds.has(p.id))
+        const combinedProducts = [...djabadour, ...otherFeatured].slice(0, 4)
+        setFeaturedProducts(combinedProducts)
 
         // Process categories
         if (!categoriesResponse.ok) {

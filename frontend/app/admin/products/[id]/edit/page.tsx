@@ -23,6 +23,7 @@ import { api } from '@/lib/api'
 import { useLocaleStore } from '@/lib/locale-store'
 
 const availableSizes = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL']
+const shoeSizes = ['36', '37', '38', '39', '40', '41']
 
 // Sort sizes: M, L, XL, XXL, XXXL first, then others
 const sortSizes = (sizes: string[]): string[] => {
@@ -37,6 +38,15 @@ const sortSizes = (sizes: string[]): string[] => {
     const orderA = sizeOrder[a] ?? 999
     const orderB = sizeOrder[b] ?? 999
     return orderA - orderB
+  })
+}
+
+// Sort shoe sizes numerically
+const sortShoeSizes = (sizes: string[]): string[] => {
+  return [...sizes].sort((a, b) => {
+    const numA = parseInt(a)
+    const numB = parseInt(b)
+    return numA - numB
   })
 }
 
@@ -103,9 +113,10 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     sizes: []
   })
 
-  // Derive isAccessories from the selected category name
+  // Derive isAccessories and isShoes from the selected category
   const selectedCategory = categories.find(c => c.name === productData.category)
   const isAccessories = selectedCategory?.slug?.toLowerCase().includes('accessoire') || selectedCategory?.slug?.toLowerCase().includes('accessories')
+  const isShoes = selectedCategory?.slug?.toLowerCase().includes('shoe') || selectedCategory?.slug?.toLowerCase().includes('chaussure') || selectedCategory?.name?.toLowerCase().includes('shoe') || selectedCategory?.name?.toLowerCase().includes('chaussure')
 
   const fetchCategories = useCallback(async () => {
     try {
@@ -490,7 +501,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                   </div>
                 )}
                 <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
-                  {sortSizes(availableSizes).map((size) => {
+                  {(isShoes ? sortShoeSizes(shoeSizes) : sortSizes(availableSizes)).map((size) => {
                     const isSelected = productData.sizes.find(s => s.size === size)
                     return (
                       <Button
@@ -522,16 +533,24 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                       {[...productData.sizes].sort((a, b) => {
-                        const sizeOrder: Record<string, number> = {
-                          'M': 1,
-                          'L': 2,
-                          'XL': 3,
-                          'XXL': 4,
-                          'XXXL': 5
+                        if (isShoes) {
+                          // Sort shoe sizes numerically
+                          const numA = parseInt(a.size) || 0
+                          const numB = parseInt(b.size) || 0
+                          return numA - numB
+                        } else {
+                          // Sort regular sizes
+                          const sizeOrder: Record<string, number> = {
+                            'M': 1,
+                            'L': 2,
+                            'XL': 3,
+                            'XXL': 4,
+                            'XXXL': 5
+                          }
+                          const orderA = sizeOrder[a.size] ?? 999
+                          const orderB = sizeOrder[b.size] ?? 999
+                          return orderA - orderB
                         }
-                        const orderA = sizeOrder[a.size] ?? 999
-                        const orderB = sizeOrder[b.size] ?? 999
-                        return orderA - orderB
                       }).map((sizeData) => (
                         <div key={sizeData.size} className="flex items-center space-x-2">
                           <Label className="w-8">{sizeData.size}:</Label>

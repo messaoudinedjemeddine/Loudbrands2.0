@@ -106,6 +106,23 @@ const parseYalidineProductList = (productList: string) => {
     return items
 }
 
+// Helper function to check if product is a shoe
+const isShoeProduct = (product: any): boolean => {
+    if (!product) return false
+    const categorySlug = product.category?.slug?.toLowerCase() || ''
+    const categoryName = product.category?.name?.toLowerCase() || ''
+    return categorySlug.includes('shoe') || 
+           categorySlug.includes('chaussure') || 
+           categoryName.includes('shoe') || 
+           categoryName.includes('chaussure')
+}
+
+// Helper function to check if a size is a valid shoe size
+const isValidShoeSize = (size: string): boolean => {
+    const shoeSizes = ['36', '37', '38', '39', '40', '41']
+    return shoeSizes.includes(size)
+}
+
 export default function InventorySmartPage() {
     const [activeTab, setActiveTab] = useState('labels')
     const [history, setHistory] = useState<StockMovement[]>([])
@@ -356,8 +373,11 @@ function LabelsSection() {
                     row = 0
                 }
             } else {
-                // For products with sizes: generate QR codes for ALL sizes (M, L, XL, XXL, XXXL) even if stock is 0
-                const allSizes = ['M', 'L', 'XL', 'XXL', 'XXXL']
+                // For products with sizes: generate QR codes for ALL sizes
+                // Check if it's a shoe category
+                const categorySlug = product.category?.slug?.toLowerCase() || ''
+                const isShoes = categorySlug.includes('shoe') || categorySlug.includes('chaussure') || product.category?.name?.toLowerCase().includes('shoe') || product.category?.name?.toLowerCase().includes('chaussure')
+                const allSizes = isShoes ? ['36', '37', '38', '39', '40', '41'] : ['M', 'L', 'XL', 'XXL', 'XXXL']
                 
                 for (const sizeLabel of allSizes) {
                     // Determine x,y based on grid
@@ -663,8 +683,10 @@ function LabelsSection() {
                                     </div>
                                 )
                             } else {
-                                // Show preview for products with sizes - show ALL sizes (M, L, XL, XXL, XXXL)
-                                const allSizes = ['M', 'L', 'XL', 'XXL', 'XXXL']
+                                // Show preview for products with sizes - show ALL sizes
+                                const categorySlug = selectedProduct?.category?.slug?.toLowerCase() || ''
+                                const isShoes = categorySlug.includes('shoe') || categorySlug.includes('chaussure') || selectedProduct?.category?.name?.toLowerCase().includes('shoe') || selectedProduct?.category?.name?.toLowerCase().includes('chaussure')
+                                const allSizes = isShoes ? ['36', '37', '38', '39', '40', '41'] : ['M', 'L', 'XL', 'XXL', 'XXXL']
                                 const imageUrl = selectedProduct?.images?.[0]?.url || selectedProduct?.images?.[0] || selectedProduct?.image || null
                                 return allSizes.map((sizeLabel) => {
                                     const barcodeValue = `${selectedProduct.reference}-${sizeLabel}`
@@ -780,6 +802,12 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                         
                         if (possibleReference === product.reference) {
                             // Accept the size even if it doesn't exist in product.sizes (stock can be 0)
+                            // For shoes, accept shoe sizes (36-41). For regular products, accept any size
+                            const isShoes = isShoeProduct(product)
+                            if (isShoes && !isValidShoeSize(possibleSize)) {
+                                toast.error(`Produit "${product.name}" nécessite une taille de chaussure (36-41). Format: ${product.reference}-TAILLE`)
+                                return
+                            }
                             reference = possibleReference
                             size = possibleSize
                         } else {
@@ -1296,15 +1324,24 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                         size = ''
                     } else {
                         // Handle products with sizes
-                        // Check Size
-                        const sizeObj = product.sizes?.find((s: any) => s.size === item.size)
+                        const isShoes = isShoeProduct(product)
+                        
+                        // For shoes, accept shoe sizes (36-41) even if not in product.sizes yet
+                        // For regular products, size must exist in product.sizes
+                        let sizeObj = product.sizes?.find((s: any) => s.size === item.size)
+                        
                         if (!sizeObj) {
-                            validationErrors.push({
-                                item,
-                                message: `المقاس "${item.size}" غير موجود`,
-                                productName: product.name
-                            })
-                            continue
+                            // If it's a shoe and the size is a valid shoe size, create a virtual size object
+                            if (isShoes && isValidShoeSize(item.size)) {
+                                sizeObj = { size: item.size, stock: 0 }
+                            } else {
+                                validationErrors.push({
+                                    item,
+                                    message: `المقاس "${item.size}" غير موجود`,
+                                    productName: product.name
+                                })
+                                continue
+                            }
                         }
 
                         // Check Stock
@@ -1988,15 +2025,24 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                         size = ''
                     } else {
                         // Handle products with sizes
-                        // Check Size
-                        const sizeObj = product.sizes?.find((s: any) => s.size === item.size)
+                        const isShoes = isShoeProduct(product)
+                        
+                        // For shoes, accept shoe sizes (36-41) even if not in product.sizes yet
+                        // For regular products, size must exist in product.sizes
+                        let sizeObj = product.sizes?.find((s: any) => s.size === item.size)
+                        
                         if (!sizeObj) {
-                            validationErrors.push({
-                                item,
-                                message: `المقاس "${item.size}" غير موجود`,
-                                productName: product.name
-                            })
-                            continue
+                            // If it's a shoe and the size is a valid shoe size, create a virtual size object
+                            if (isShoes && isValidShoeSize(item.size)) {
+                                sizeObj = { size: item.size, stock: 0 }
+                            } else {
+                                validationErrors.push({
+                                    item,
+                                    message: `المقاس "${item.size}" غير موجود`,
+                                    productName: product.name
+                                })
+                                continue
+                            }
                         }
 
                         // Check Stock
@@ -2281,14 +2327,25 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                     })
                 } else {
                     // Handle products with sizes
-                    const sizeObj = product.sizes?.find((s: any) => s.size === item.size)
+                    const isShoes = isShoeProduct(product)
+                    
+                    // For shoes, accept shoe sizes (36-41) even if not in product.sizes yet
+                    // For regular products, size must exist in product.sizes
+                    let sizeObj = product.sizes?.find((s: any) => s.size === item.size)
+                    
                     if (!sizeObj) {
-                        validationErrors.push({
-                            item,
-                            message: `المقاس "${item.size}" غير موجود`,
-                            productName: product.name
-                        })
-                        continue
+                        // If it's a shoe and the size is a valid shoe size, accept it
+                        if (isShoes && isValidShoeSize(item.size)) {
+                            // Accept the shoe size even if not in product.sizes
+                            sizeObj = { size: item.size, stock: 0 }
+                        } else {
+                            validationErrors.push({
+                                item,
+                                message: `المقاس "${item.size}" غير موجود`,
+                                productName: product.name
+                            })
+                            continue
+                        }
                     }
 
                     validatedItems.push({

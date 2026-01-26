@@ -27,6 +27,7 @@ import { api } from '@/lib/api'
 import { useLocaleStore } from '@/lib/locale-store'
 
 const availableSizes = ['S', 'M', 'L', 'XL', 'XXL', 'XXXL']
+const shoeSizes = ['36', '37', '38', '39', '40', '41']
 
 // Sort sizes: M, L, XL, XXL, XXXL first, then others
 const sortSizes = (sizes: string[]): string[] => {
@@ -41,6 +42,15 @@ const sortSizes = (sizes: string[]): string[] => {
     const orderA = sizeOrder[a] ?? 999
     const orderB = sizeOrder[b] ?? 999
     return orderA - orderB
+  })
+}
+
+// Sort shoe sizes numerically
+const sortShoeSizes = (sizes: string[]): string[] => {
+  return [...sizes].sort((a, b) => {
+    const numA = parseInt(a)
+    const numB = parseInt(b)
+    return numA - numB
   })
 }
 
@@ -87,6 +97,7 @@ export default function NewProductPage() {
 
   const selectedCategory = categories.find(c => c.id === productData.category)
   const isAccessories = selectedCategory?.slug?.toLowerCase().includes('accessoire') || selectedCategory?.slug?.toLowerCase().includes('accessories')
+  const isShoes = selectedCategory?.slug?.toLowerCase().includes('shoe') || selectedCategory?.slug?.toLowerCase().includes('chaussure') || selectedCategory?.name?.toLowerCase().includes('shoe') || selectedCategory?.name?.toLowerCase().includes('chaussure')
 
   useEffect(() => {
     setMounted(true)
@@ -466,7 +477,7 @@ export default function NewProductPage() {
               </CardHeader>
               <CardContent className="space-y-6">
                 <div className="grid grid-cols-4 md:grid-cols-8 gap-2">
-                  {sortSizes(availableSizes).map((size) => {
+                  {(isShoes ? sortShoeSizes(shoeSizes) : sortSizes(availableSizes)).map((size) => {
                     const isSelected = productData.sizes.find(s => s.size === size)
                     return (
                       <Button
