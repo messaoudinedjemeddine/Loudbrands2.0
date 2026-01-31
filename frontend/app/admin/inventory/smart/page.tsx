@@ -220,12 +220,13 @@ export default function InventorySmartPage() {
     const [history, setHistory] = useState<StockMovement[]>([])
     const [isLoadingHistory, setIsLoadingHistory] = useState(true)
 
-    // Load history from backend on mount
+    // Load history from backend on mount (high limit so all sorties/entrees show in Dernières Sorties and History tab)
+    const HISTORY_LIMIT = 10000
     useEffect(() => {
         const loadHistory = async () => {
             try {
                 setIsLoadingHistory(true)
-                const response = await api.admin.getStockMovements({ limit: 1000 }) as any
+                const response = await api.admin.getStockMovements({ limit: HISTORY_LIMIT }) as any
                 const movements = response?.movements || []
                 setHistory(movements.map((item: any) => ({
                     ...item,
@@ -255,8 +256,8 @@ export default function InventorySmartPage() {
     }, [])
 
     const addToHistory = async (movement: StockMovement) => {
-        // Add to local state immediately for UI responsiveness
-        setHistory(prev => [movement, ...prev].slice(0, 1000))
+        // Add to local state immediately for UI responsiveness (keep same cap as fetch so all sorties show)
+        setHistory(prev => [movement, ...prev].slice(0, HISTORY_LIMIT))
         
         // Save to backend
         try {
@@ -277,7 +278,7 @@ export default function InventorySmartPage() {
         } catch (error) {
             console.error('Failed to save movement to backend:', error)
             // Keep in localStorage as backup
-            const currentHistory = [movement, ...history].slice(0, 1000)
+            const currentHistory = [movement, ...history].slice(0, HISTORY_LIMIT)
             localStorage.setItem('inventory-history', JSON.stringify(currentHistory))
         }
     }

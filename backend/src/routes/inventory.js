@@ -243,19 +243,24 @@ router.post('/movements', async (req, res) => {
     }
 });
 
-// Get stock movements
+// Get stock movements (max 10000 to return all sortie/entree operations for admin)
+const STOCK_MOVEMENTS_MAX_LIMIT = 10000;
 router.get('/movements', async (req, res) => {
     try {
-        const { type, operationType, limit = 1000 } = req.query;
+        const { type, operationType, limit = 5000 } = req.query;
 
         const where = {};
         if (type) where.type = type;
         if (operationType) where.operationType = operationType;
 
+        let take = parseInt(limit, 10);
+        if (isNaN(take) || take < 1) take = 5000;
+        if (take > STOCK_MOVEMENTS_MAX_LIMIT) take = STOCK_MOVEMENTS_MAX_LIMIT;
+
         const movements = await prisma.stockMovement.findMany({
             where,
             orderBy: { createdAt: 'desc' },
-            take: parseInt(limit)
+            take
         });
 
         res.json({ movements });
