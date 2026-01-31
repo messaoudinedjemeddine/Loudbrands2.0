@@ -63,7 +63,6 @@ function LoudStylesProductsContent() {
   const [mounted, setMounted] = useState(false)
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
-  const [djabadourProducts, setDjabadourProducts] = useState<Product[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
@@ -93,22 +92,8 @@ function LoudStylesProductsContent() {
       try {
         setLoading(true)
 
-        // Fetch djabadour el hemma products and regular products in parallel
-        const [djabadourRes, productsRes] = await Promise.all([
-          fetch('/api/products/djabadour-el-hemma?brand=loud-styles'),
-          fetch(`/api/products?brand=loud-styles&limit=50&page=1`)
-        ])
-
-        // Process djabadour products
-        if (djabadourRes.ok) {
-          const djabadourData = await djabadourRes.json()
-          const djabadourArray = djabadourData.products || []
-          setDjabadourProducts(djabadourArray.map((product: any) => ({
-            ...product,
-            sizes: product.sizes || [],
-            slug: product.slug || product.name.toLowerCase().replace(/\s+/g, '-')
-          })))
-        }
+        // Fetch products
+        const productsRes = await fetch(`/api/products?brand=loud-styles&limit=50&page=1`)
 
         // Fetch initial batch - reasonable limit for faster loading
         const limit = 50 // Reduced from 1000 for faster initial load
@@ -239,11 +224,6 @@ function LoudStylesProductsContent() {
     setFilteredProducts(filtered)
 
   }, [searchQuery, selectedCategories, selectedSizes, products, isRTL])
-
-  // Combine djabadour products with filtered products, putting djabadour first
-  const djabadourIds = new Set(djabadourProducts.map(p => p.id))
-  const otherProducts = filteredProducts.filter(p => !djabadourIds.has(p.id))
-  const displayProducts = [...djabadourProducts, ...otherProducts]
 
   if (!mounted) return <Preloader />
 
@@ -666,7 +646,7 @@ function LoudStylesProductsContent() {
         ) : (
           <div className="space-y-8">
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
-              {displayProducts.map((product, index) => (
+              {filteredProducts.map((product, index) => (
                 <ProductCard key={product.id} product={product} index={index} />
               ))}
             </div>
