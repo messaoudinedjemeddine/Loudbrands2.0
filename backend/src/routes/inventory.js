@@ -61,6 +61,7 @@ router.post('/receptions', async (req, res) => {
         const reception = await prisma.stockReception.create({
             data: {
                 atelierId: data.atelierId,
+                atelierLegacy: atelier.name, // Keep legacy column populated (DB may still have NOT NULL on "atelier")
                 date: data.date ? new Date(data.date) : new Date(),
                 notes: data.notes,
                 totalCost,
