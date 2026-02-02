@@ -1352,9 +1352,23 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
         }
 
         setIsLoading(true)
-        setScanLogs([]) // Clear previous logs
+        setScanLogs([])
 
         try {
+            const validation = await api.validateTracking(barcodeKey, 'sortie') as { valid: boolean; message?: string }
+            if (!validation.valid) {
+                setErrorModal({
+                    isOpen: true,
+                    errors: [{
+                        productName: 'Tracking déjà utilisé',
+                        item: { size: '' },
+                        message: validation.message || 'Tracking number already used in Stock Out.'
+                    }]
+                })
+                setIsLoading(false)
+                return
+            }
+
             const shipment = await yalidineAPI.getShipment(barcodeKey)
             const tracking = shipment.tracking || shipment.tracking_number || shipment.tracking || barcodeKey
             const productList = shipment.product_list || shipment.productList || ''
@@ -2065,7 +2079,20 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
         setScanLogs([])
 
         try {
-            // 1. Fetch from Yalidine
+            const validation = await api.validateTracking(code, 'echange') as { valid: boolean; message?: string }
+            if (!validation.valid) {
+                setErrorModal({
+                    isOpen: true,
+                    errors: [{
+                        productName: 'Tracking déjà utilisé',
+                        item: { size: '' },
+                        message: validation.message || 'Tracking number already used in Exchange.'
+                    }]
+                })
+                setIsLoading(false)
+                return
+            }
+
             const shipment = await yalidineAPI.getShipment(code)
             const tracking = shipment.tracking || code
             const productList = shipment.product_list || shipment.productList || ''
@@ -2218,22 +2245,20 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                 return
             }
 
-            // STEP 3: All items are valid, process them
+            // STEP 3: All items are valid, process them (Échange = increase stock)
             const logs = []
             for (const validated of validatedItems) {
                 try {
-                    // Deduct Stock
                     for (let i = 0; i < validated.item.quantity; i++) {
-                        await api.products.scanProduct(validated.barcode, 'remove')
+                        await api.products.scanProduct(validated.barcode, 'add')
                     }
 
-                    const newStock = Math.max(0, validated.oldStock - validated.item.quantity)
+                    const newStock = validated.oldStock + validated.item.quantity
 
-                    // Log History
                     const movement: StockMovement = {
                         id: Date.now().toString() + Math.random(),
                         timestamp: new Date(),
-                        type: 'out',
+                        type: 'in',
                         barcode: validated.barcode,
                         productName: validated.product.name,
                         productReference: validated.product.reference,
@@ -2388,18 +2413,49 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
         setScanLogs([])
 
         try {
-            const shipment = await yalidineAPI.getShipment(trackingKey)
-            const productList = shipment.product_list || shipment.productList || ''
-
-            if (!productList) {
-                toast.error('Aucune liste de produits trouvée.')
+            const validation = await api.validateTracking(trackingKey, 'retour') as { valid: boolean; message?: string }
+            if (!validation.valid) {
+                setErrorModal({
+                    isOpen: true,
+                    errors: [{
+                        productName: 'Tracking déjà utilisé',
+                        item: { size: '' },
+                        message: validation.message || 'Tracking number already used in Return.'
+                    }]
+                })
                 setIsLoading(false)
                 return
             }
 
-            const parsedItems = parseYalidineProductList(productList)
+            let parsedItems: Array<{ productName: string; reference: string; size: string; quantity: number; barcode?: string }> = []
+            const lookupRes = await api.lookupSortieByTracking(trackingKey) as { items?: Array<{ productName: string; productReference?: string; size: string; quantity: number; barcode?: string }>; count?: number }
+            if (lookupRes?.items?.length) {
+                parsedItems = lookupRes.items.map(i => ({
+                    productName: i.productName,
+                    reference: i.productReference || '',
+                    size: i.size || '',
+                    quantity: i.quantity,
+                    barcode: i.barcode
+                }))
+            }
             if (parsedItems.length === 0) {
-                toast.error('Produits illisibles.')
+                const shipment = await yalidineAPI.getShipment(trackingKey)
+                const productList = shipment.product_list || shipment.productList || ''
+                if (!productList) {
+                    toast.error('Aucune liste de produits trouvée. Scannez le code produit ou le tracking Yalidine.')
+                    setIsLoading(false)
+                    return
+                }
+                parsedItems = parseYalidineProductList(productList).map((item: any) => ({
+                    productName: item.productName,
+                    reference: '',
+                    size: item.size || '',
+                    quantity: item.quantity,
+                    barcode: undefined
+                }))
+            }
+            if (parsedItems.length === 0) {
+                toast.error('Produits illisibles ou aucun Sortie trouvé pour ce tracking.')
                 setIsLoading(false)
                 return
             }
@@ -2415,17 +2471,18 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
             }> = []
 
             for (const item of parsedItems) {
-                const productsResponse = await api.products.getAll({ search: item.productName, limit: 20 }) as any
-                let products = productsResponse.products || []
-
-                // Filter products by size type if size is provided
-                // This prevents mixing shoes with regular products
-                if (item.size) {
-                    products = filterProductsBySizeType(products, item.size)
+                let product: any = null
+                if (item.reference) {
+                    const productsResponse = await api.products.getAll({ search: item.reference, limit: 50 }) as any
+                    const products = productsResponse.products || []
+                    product = products.find((p: any) => p.reference === item.reference)
                 }
-
-                // Use improved matching that prioritizes products with the required size
-                const product = findBestMatchingProduct(products, item.productName, item.size)
+                if (!product) {
+                    const productsResponse = await api.products.getAll({ search: item.productName, limit: 20 }) as any
+                    let products = productsResponse.products || []
+                    if (item.size) products = filterProductsBySizeType(products, item.size)
+                    product = findBestMatchingProduct(products, item.productName, item.size)
+                }
 
                 if (!product) {
                     validationErrors.push({

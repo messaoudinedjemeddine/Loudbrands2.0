@@ -728,12 +728,21 @@ export const api = {
   getAteliers: () => apiClient.getAteliers(),
   createAtelier: (data: { name: string }) => apiClient.createAtelier(data),
 
-  // Inventory (New)
+  // Inventory
   createReception: (data: Parameters<typeof apiClient.createReception>[0]) =>
     apiClient.createReception(data),
   updateReception: (id: string, data: Parameters<typeof apiClient.updateReception>[1]) =>
     apiClient.updateReception(id, data),
   getReceptions: () => apiClient.getReceptions(),
+  // Tracking validation (scoped per operationType: sortie, echange, retour)
+  validateTracking: (trackingNumber: string, operationType: string) =>
+    apiClient.request<{ valid: boolean; message?: string }>(
+      `/inventory/validate-tracking?${new URLSearchParams({ trackingNumber, operationType }).toString()}`
+    ),
+  lookupSortieByTracking: (trackingNumber: string) =>
+    apiClient.request<{ items: Array<{ productName: string; productReference?: string; size: string; quantity: number; barcode?: string }>; count: number }>(
+      `/inventory/lookup-sortie-by-tracking?${new URLSearchParams({ trackingNumber }).toString()}`
+    ),
 };
 
 export default apiClient;

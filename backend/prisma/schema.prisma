@@ -337,11 +337,12 @@ model StockMovement {
   orderNumber     String?
   trackingNumber  String?
   notes           String?
-  operationType   String?  // 'entree', 'sortie', 'echange', 'retour'
+  operationType   String?  // 'entree', 'sortie', 'echange', 'retour' (scoped with trackingNumber)
   createdAt       DateTime @default(now())
 
   @@map("stock_movements")
   @@index([createdAt])
   @@index([type])
   @@index([operationType])
+  @@index([trackingNumber, operationType])
 }

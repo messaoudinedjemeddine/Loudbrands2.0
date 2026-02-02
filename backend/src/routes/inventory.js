@@ -239,6 +239,78 @@ router.get('/receptions', async (req, res) => {
     }
 });
 
+// ---------------------------------------------------------------------------
+// Tracking validation: scoped per operationType (SORTIE, ECHANGE, RETOUR)
+// ---------------------------------------------------------------------------
+
+/**
+ * Reusable helper: returns true if trackingNumber has NOT been used yet for this operationType.
+ * Uniqueness is (trackingNumber + operationType), not global.
+ * @param {string} trackingNumber
+ * @param {string} operationType - 'sortie' | 'echange' | 'retour'
+ * @returns {Promise<boolean>} true = valid (can use), false = already used
+ */
+async function validateTracking(trackingNumber, operationType) {
+    if (!trackingNumber || !operationType) return true;
+    const normalized = String(trackingNumber).trim().toUpperCase();
+    const op = String(operationType).toLowerCase();
+    const existing = await prisma.stockMovement.findFirst({
+        where: {
+            trackingNumber: { equals: normalized, mode: 'insensitive' },
+            operationType: op
+        }
+    });
+    return !existing;
+}
+
+// GET /inventory/validate-tracking?trackingNumber=XXX&operationType=sortie
+router.get('/validate-tracking', async (req, res) => {
+    try {
+        const { trackingNumber, operationType } = req.query;
+        if (!trackingNumber || !operationType) {
+            return res.status(400).json({ error: 'trackingNumber and operationType are required' });
+        }
+        const valid = await validateTracking(trackingNumber, operationType);
+        const op = String(operationType).toLowerCase();
+        const message = valid ? null : `Tracking number already used in ${op === 'sortie' ? 'Stock Out' : op === 'echange' ? 'Exchange' : 'Return'}.`;
+        res.json({ valid, message });
+    } catch (error) {
+        console.error('Validate tracking error:', error);
+        res.status(500).json({ error: 'Failed to validate tracking' });
+    }
+});
+
+// GET /inventory/lookup-sortie-by-tracking?trackingNumber=XXX
+// Returns products from the most recent SORTIE movement(s) with this tracking (for Retour auto-lookup).
+router.get('/lookup-sortie-by-tracking', async (req, res) => {
+    try {
+        const { trackingNumber } = req.query;
+        if (!trackingNumber) {
+            return res.status(400).json({ error: 'trackingNumber is required' });
+        }
+        const normalized = String(trackingNumber).trim();
+        const movements = await prisma.stockMovement.findMany({
+            where: {
+                trackingNumber: { equals: normalized, mode: 'insensitive' },
+                operationType: 'sortie'
+            },
+            orderBy: { createdAt: 'desc' },
+            take: 50
+        });
+        const items = movements.map(m => ({
+            productName: m.productName,
+            productReference: m.productReference,
+            size: m.size || '',
+            quantity: m.quantity,
+            barcode: m.barcode || (m.productReference && m.size ? `${m.productReference}-${m.size}` : m.productReference)
+        }));
+        res.json({ items, count: items.length });
+    } catch (error) {
+        console.error('Lookup sortie by tracking error:', error);
+        res.status(500).json({ error: 'Failed to lookup' });
+    }
+});
+
 // Schema for creating a stock movement
 const stockMovementSchema = z.object({
     type: z.enum(['in', 'out']),
@@ -255,7 +327,7 @@ const stockMovementSchema = z.object({
     operationType: z.enum(['entree', 'sortie', 'echange', 'retour']).optional().nullable()
 });
 
-// Create a stock movement
+// Create a stock movement (no per-request tracking validation here; caller must validate once before creating multiple movements for same tracking)
 router.post('/movements', async (req, res) => {
     try {
         const data = stockMovementSchema.parse(req.body);
