@@ -723,6 +723,10 @@ export const api = {
     getShipmentStats: () => apiClient.request('/shipping/shipments/stats'),
   },
 
+  // Ateliers (top-level for admin ateliers & inventory/smart)
+  getAteliers: () => apiClient.getAteliers(),
+  createAtelier: (data: { name: string }) => apiClient.createAtelier(data),
+
   // Inventory (New)
   createReception: (data: Parameters<typeof apiClient.createReception>[0]) =>
     apiClient.createReception(data),
