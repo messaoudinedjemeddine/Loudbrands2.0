@@ -175,7 +175,13 @@ router.post('/receptions', async (req, res) => {
             return res.status(400).json({ error: error.errors });
         }
         console.error('Create reception error:', error);
-        const message = error.meta?.cause || error.message || 'Failed to create reception';
+        let message = error.meta?.cause || error.message || 'Failed to create reception';
+        if (error.code === 'P2003') {
+            message = 'Atelier introuvable. Créez d\'abord un atelier dans Admin → Ateliers.';
+        }
+        if (error.code === 'P2010' || (error.message && error.message.includes('does not exist'))) {
+            message = 'Base de données non à jour. Exécutez les migrations sur le backend (Heroku).';
+        }
         res.status(500).json({ error: message });
     }
 });

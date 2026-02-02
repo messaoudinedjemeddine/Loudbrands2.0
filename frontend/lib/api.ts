@@ -1,4 +1,5 @@
 // Ensure API_BASE_URL doesn't have double /api
+// App name: loudbrands-backend-eu → URL: loudbrands-backend-eu-abfa65dd1df6.herokuapp.com
 const getApiBaseUrl = () => {
   const url = process.env.NEXT_PUBLIC_API_URL || 'https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com/api';
   // Remove trailing /api if present to avoid double /api/api

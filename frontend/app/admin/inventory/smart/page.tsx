@@ -86,6 +86,12 @@ interface StockMovement {
     operationType?: 'entree' | 'sortie' | 'echange' | 'retour'
 }
 
+// Scoped uniqueness: each operation type has its own "already scanned" list.
+// A Yalidine tracking can be scanned once per section (Sortie, Échange, Retour).
+const STORAGE_KEY_SORTIE = 'scanned-yalidine-sortie'
+const STORAGE_KEY_ECHANGE = 'scanned-yalidine-echange'
+const STORAGE_KEY_RETOUR = 'scanned-yalidine-retour'
+
 // Shared Helper for Yalidine Product Lists
 const parseYalidineProductList = (productList: string) => {
     if (!productList) return []
@@ -1307,13 +1313,12 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
 
     useEffect(() => {
         inputRef.current?.focus()
-        // Load scanned barcodes from localStorage
-        const saved = localStorage.getItem('scanned-yalidine-barcodes')
+        const saved = localStorage.getItem(STORAGE_KEY_SORTIE)
         if (saved) {
             try {
                 setScannedBarcodes(new Set(JSON.parse(saved)))
             } catch (e) {
-                console.error('Failed to load scanned barcodes', e)
+                console.error('Failed to load scanned barcodes (Sortie)', e)
             }
         }
     }, [])
@@ -1326,7 +1331,7 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
         const newSet = new Set(scannedBarcodes)
         newSet.add(barcode.trim())
         setScannedBarcodes(newSet)
-        localStorage.setItem('scanned-yalidine-barcodes', JSON.stringify(Array.from(newSet)))
+        localStorage.setItem(STORAGE_KEY_SORTIE, JSON.stringify(Array.from(newSet)))
     }
 
     const handleYalidineScan = async (e: React.FormEvent) => {
@@ -1334,15 +1339,13 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
         if (!yalidineBarcode.trim()) return
 
         const barcodeKey = yalidineBarcode.trim()
-        
-        // Check if barcode was already scanned
         if (isBarcodeAlreadyScanned(barcodeKey)) {
             setErrorModal({
                 isOpen: true,
                 errors: [{
-                    productName: 'خطأ في المسح',
+                    productName: 'Doublon',
                     item: { size: '' },
-                    message: 'تم مسح هذا الرمز الشريطي Yalidine مسبقاً. يمكن استخدام كل رمز شريطي مرة واحدة فقط.'
+                    message: 'Ce tracking a déjà été scanné dans Sortie. Un même tracking ne peut être scanné qu\'une fois par section.'
                 }]
             })
             return
@@ -2015,13 +2018,12 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
 
     useEffect(() => {
         inputRef.current?.focus()
-        // Load scanned barcodes from localStorage
-        const saved = localStorage.getItem('scanned-yalidine-barcodes')
+        const saved = localStorage.getItem(STORAGE_KEY_ECHANGE)
         if (saved) {
             try {
                 setScannedBarcodes(new Set(JSON.parse(saved)))
             } catch (e) {
-                console.error('Failed to load scanned barcodes', e)
+                console.error('Failed to load scanned barcodes (Échange)', e)
             }
         }
     }, [])
@@ -2034,7 +2036,7 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
         const newSet = new Set(scannedBarcodes)
         newSet.add(barcode.trim())
         setScannedBarcodes(newSet)
-        localStorage.setItem('scanned-yalidine-barcodes', JSON.stringify(Array.from(newSet)))
+        localStorage.setItem(STORAGE_KEY_ECHANGE, JSON.stringify(Array.from(newSet)))
     }
 
     const handleScan = async (e: React.FormEvent) => {
@@ -2047,14 +2049,13 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
             return
         }
 
-        // Check if barcode was already scanned
         if (isBarcodeAlreadyScanned(code)) {
             setErrorModal({
                 isOpen: true,
                 errors: [{
-                    productName: 'خطأ في المسح',
+                    productName: 'Doublon',
                     item: { size: '' },
-                    message: 'تم مسح هذا الرمز الشريطي Yalidine مسبقاً. يمكن استخدام كل رمز شريطي مرة واحدة فقط.'
+                    message: 'Ce tracking a déjà été scanné dans Échange. Un même tracking ne peut être scanné qu\'une fois par section.'
                 }]
             })
             return
@@ -2345,13 +2346,12 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
 
     useEffect(() => {
         inputRef.current?.focus()
-        // Load scanned barcodes from localStorage
-        const saved = localStorage.getItem('scanned-yalidine-barcodes')
+        const saved = localStorage.getItem(STORAGE_KEY_RETOUR)
         if (saved) {
             try {
                 setScannedBarcodes(new Set(JSON.parse(saved)))
             } catch (e) {
-                console.error('Failed to load scanned barcodes', e)
+                console.error('Failed to load scanned barcodes (Retour)', e)
             }
         }
     }, [])
@@ -2364,7 +2364,7 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
         const newSet = new Set(scannedBarcodes)
         newSet.add(barcode.trim())
         setScannedBarcodes(newSet)
-        localStorage.setItem('scanned-yalidine-barcodes', JSON.stringify(Array.from(newSet)))
+        localStorage.setItem(STORAGE_KEY_RETOUR, JSON.stringify(Array.from(newSet)))
     }
 
     const handleScan = async (e: React.FormEvent) => {
@@ -2372,14 +2372,13 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
         const trackingKey = tracking.trim()
         if (!trackingKey) return
 
-        // Check if barcode was already scanned
         if (isBarcodeAlreadyScanned(trackingKey)) {
             setErrorModal({
                 isOpen: true,
                 errors: [{
-                    productName: 'خطأ في المسح',
+                    productName: 'Doublon',
                     item: { size: '' },
-                    message: 'تم مسح هذا الرمز الشريطي Yalidine مسبقاً. يمكن استخدام كل رمز شريطي مرة واحدة فقط.'
+                    message: 'Ce tracking a déjà été scanné dans Retour. Un même tracking ne peut être scanné qu\'une fois par section.'
                 }]
             })
             return
