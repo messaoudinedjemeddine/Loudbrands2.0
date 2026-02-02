@@ -123,6 +123,7 @@ model Product {
   isActive    Boolean  @default(true)
   isLaunch    Boolean  @default(false)
   launchAt    DateTime?
+  displayPriority Int?  // Lower = show first on Loud Styles products page; null = no priority
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -274,17 +275,36 @@ model OrderCoupon {
   @@map("order_coupons")
 }
 
-model StockReception {
+enum PaymentStatus {
+  PAID
+  PENDING
+  PARTIAL
+}
+
+model Atelier {
   id        String   @id @default(cuid())
-  atelier   String
-  date      DateTime @default(now())
-  status    String   @default("COMPLETED")
-  paymentStatus String @default("PENDING")
-  totalCost Float    @default(0)
-  notes     String?
-  items     StockReceptionItem[]
+  name      String   @unique
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+
+  receptions StockReception[]
+
+  @@map("ateliers")
+}
+
+model StockReception {
+  id            String        @id @default(cuid())
+  atelierId     String?       // Optional until legacy data migrated; then required
+  atelier       Atelier?      @relation(fields: [atelierId], references: [id], onDelete: Restrict)
+  atelierLegacy String?       @map("atelier") // Legacy string column; remove after migration script
+  date          DateTime      @default(now())
+  status        String        @default("COMPLETED")
+  paymentStatus PaymentStatus @default(PENDING)
+  totalCost     Float         @default(0)
+  amountPaid    Float         @default(0)
+  notes         String?
+  items         StockReceptionItem[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   @@map("stock_receptions")
 }
@@ -295,6 +315,7 @@ model StockReceptionItem {
   reference   String?
   size        String?  // Nullable for accessories
   quantity    Int
+  unitCost    Float    @default(0)  // Snapshot of buying price at reception time
   barcode     String?
 
   receptionId String

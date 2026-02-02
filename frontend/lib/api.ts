@@ -329,12 +329,23 @@ class ApiClient {
     return this.request(`/admin/users${query ? `?${query}` : ''}`);
   }
 
-  // Inventory Reception
+  // Ateliers
+  async getAteliers() {
+    return this.request<{ ateliers: { id: string; name: string; createdAt: string }[] }>('/ateliers');
+  }
+
+  async createAtelier(data: { name: string }) {
+    return this.request<{ id: string; name: string; createdAt: string }>('/ateliers', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  // Inventory Reception (atelierId required; backend computes totalCost)
   async createReception(data: {
-    atelier: string;
+    atelierId: string;
     date?: string;
     notes?: string;
-    totalCost?: number;
     items: Array<{
       productName: string;
       reference?: string;
@@ -352,6 +363,7 @@ class ApiClient {
   async updateReception(id: string, data: {
     paymentStatus?: string;
     totalCost?: number;
+    amountPaid?: number;
     notes?: string;
   }) {
     return this.request(`/inventory/receptions/${id}`, {
@@ -507,23 +519,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
-    // Stock Receptions (Arrivals)
-    createReception: (data: {
-      atelier: string;
-      date?: string;
-      notes?: string;
-      items: Array<{
-        productName: string;
-        reference?: string;
-        size: string;
-        quantity: number;
-        barcode?: string;
-      }>
-    }) => apiClient.request('/inventory/receptions', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    }),
-    getReceptions: () => apiClient.request('/inventory/receptions'),
+    // Ateliers
+    getAteliers: () => apiClient.getAteliers(),
+    createAtelier: (data: { name: string }) => apiClient.createAtelier(data),
+    // Stock Receptions (Arrivals) – atelierId required; backend computes totalCost
+    createReception: (data: Parameters<typeof apiClient.createReception>[0]) =>
+      apiClient.createReception(data),
+    getReceptions: () => apiClient.getReceptions(),
     // Stock Movements
     createStockMovement: (data: {
       type: 'in' | 'out';

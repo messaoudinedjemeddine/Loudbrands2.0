@@ -46,6 +46,7 @@ interface Product {
   image: string
   createdAt: string
   sales?: number // Optional since it's not in the backend response
+  displayPriority?: number | null // Lower = show first on Loud Styles products page
 }
 
 // Helper function to get category name
@@ -162,6 +163,21 @@ export default function AdminProductsPage() {
     } catch (error) {
       console.error('Failed to delete product:', error)
       toast.error('Failed to delete product')
+    }
+  }
+
+  const handlePriorityChange = async (productId: string, value: string) => {
+    const num = value === '' ? null : parseInt(value, 10)
+    if (value !== '' && (isNaN(num) || num < 0)) return
+    try {
+      await api.admin.updateProduct(productId, { displayPriority: num })
+      setProducts(prev => prev.map(p =>
+        p.id === productId ? { ...p, displayPriority: num ?? undefined } : p
+      ))
+      toast.success('Priorité mise à jour')
+    } catch (error) {
+      console.error('Failed to update priority:', error)
+      toast.error('Échec de la mise à jour de la priorité')
     }
   }
 
@@ -475,6 +491,39 @@ export default function AdminProductsPage() {
                         <span className="text-sm text-muted-foreground">
                           Ventes: {product.sales || 0}
                         </span>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <Label htmlFor={`priority-${product.id}`} className="text-xs text-muted-foreground whitespace-nowrap">Priorité LS:</Label>
+                          <Input
+                            id={`priority-${product.id}`}
+                            type="number"
+                            min={0}
+                            className="w-16 h-7 text-xs"
+                            value={product.displayPriority ?? ''}
+                            placeholder="—"
+                            onChange={(e) => {
+                              const v = e.target.value
+                              if (v === '' || /^\d+$/.test(v)) {
+                                setProducts(prev => prev.map(p =>
+                                  p.id === product.id ? { ...p, displayPriority: v === '' ? null : parseInt(v, 10) } : p
+                                ))
+                              }
+                            }}
+                            onBlur={(e) => {
+                              const v = e.target.value
+                              const current = product.displayPriority
+                              const next = v === '' ? null : parseInt(v, 10)
+                              if (next !== null && isNaN(next)) return
+                              if (next === current || (next === null && (current === null || current === undefined))) return
+                              handlePriorityChange(product.id, v)
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.currentTarget.blur()
+                              }
+                            }}
+                          />
+                          <span className="text-[10px] text-muted-foreground">(1er = plus petit)</span>
+                        </div>
                       </div>
                     </div>
                   </div>

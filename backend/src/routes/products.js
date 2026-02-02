@@ -202,9 +202,17 @@ router.get('/', async (req, res) => {
       where.isOnSale = true;
     }
 
-    // Build orderBy clause
-    const orderBy = {};
-    orderBy[query.sortBy] = query.sortOrder;
+    // Build orderBy clause. For Loud Styles, show by displayPriority first (lower = first), then by sort
+    let orderBy;
+    if (query.brand === 'loud-styles') {
+      orderBy = [
+        { displayPriority: { sort: 'asc', nulls: 'last' } },
+        { [query.sortBy]: query.sortOrder }
+      ];
+    } else {
+      orderBy = {};
+      orderBy[query.sortBy] = query.sortOrder;
+    }
 
     // Fetch products
     const [products, total] = await Promise.all([

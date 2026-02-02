@@ -9,47 +9,63 @@ const router = express.Router();
 router.use(authenticateToken);
 router.use(requireStockManager);
 
-// Schema for creating a reception
+// Schema for creating a reception (atelierId required; backend computes totalCost from product costPrice)
 const receptionSchema = z.object({
-    atelier: z.string().min(1, 'Atelier name is required'),
+    atelierId: z.string().min(1, 'Atelier is required'),
     date: z.string().optional(),
     notes: z.string().optional(),
-    totalCost: z.number().optional().default(0), // New field
     items: z.array(z.object({
         productName: z.string().min(1),
         reference: z.string().optional(),
-        size: z.string().nullable().optional(), // Allow null for accessories
+        size: z.string().nullable().optional(),
         quantity: z.number().int().positive(),
         barcode: z.string().optional()
     })).min(1, 'At least one item is required')
 });
 
-// Create a new stock reception
+// Create a new stock reception (backend computes unitCost from Product.costPrice and totalCost)
 router.post('/receptions', async (req, res) => {
     try {
         const data = receptionSchema.parse(req.body);
 
-        // 1. Create the reception record
+        // Resolve unitCost for each item from Product.costPrice (snapshot at reception time)
+        const itemsWithUnitCost = await Promise.all(data.items.map(async (item) => {
+            let unitCost = 0;
+            if (item.reference) {
+                const product = await prisma.product.findUnique({
+                    where: { reference: item.reference },
+                    select: { costPrice: true }
+                });
+                unitCost = product?.costPrice ?? 0;
+            }
+            return {
+                productName: item.productName,
+                reference: item.reference,
+                size: item.size,
+                quantity: item.quantity,
+                unitCost,
+                barcode: item.barcode
+            };
+        }));
+
+        const totalCost = itemsWithUnitCost.reduce((sum, i) => sum + i.unitCost * i.quantity, 0);
+
         const reception = await prisma.stockReception.create({
             data: {
-                atelier: data.atelier,
+                atelierId: data.atelierId,
                 date: data.date ? new Date(data.date) : new Date(),
                 notes: data.notes,
-                totalCost: data.totalCost,
+                totalCost,
+                amountPaid: 0,
                 status: 'COMPLETED',
                 paymentStatus: 'PENDING',
                 items: {
-                    create: data.items.map(item => ({
-                        productName: item.productName,
-                        reference: item.reference,
-                        size: item.size,
-                        quantity: item.quantity,
-                        barcode: item.barcode
-                    }))
+                    create: itemsWithUnitCost
                 }
             },
             include: {
-                items: true
+                items: true,
+                atelier: true
             }
         });
 
@@ -155,19 +171,30 @@ router.post('/receptions', async (req, res) => {
     }
 });
 
-// Update reception status/payment
+// Update reception (payment: amountPaid + derived paymentStatus; or notes)
 router.patch('/receptions/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const { paymentStatus, totalCost, notes } = req.body;
+        const { paymentStatus, totalCost, amountPaid, notes } = req.body;
+
+        const updates = {};
+        if (notes !== undefined) updates.notes = notes;
+        if (totalCost !== undefined) updates.totalCost = totalCost;
+        if (paymentStatus !== undefined) updates.paymentStatus = paymentStatus;
+
+        if (amountPaid !== undefined) {
+            updates.amountPaid = amountPaid;
+            const reception = await prisma.stockReception.findUnique({ where: { id }, select: { totalCost: true } });
+            const total = reception?.totalCost ?? 0;
+            if (amountPaid >= total) updates.paymentStatus = 'PAID';
+            else if (amountPaid > 0) updates.paymentStatus = 'PARTIAL';
+            else updates.paymentStatus = 'PENDING';
+        }
 
         const reception = await prisma.stockReception.update({
             where: { id },
-            data: {
-                paymentStatus,
-                totalCost,
-                notes
-            }
+            data: updates,
+            include: { atelier: true, items: true }
         });
 
         res.json(reception);
@@ -177,15 +204,16 @@ router.patch('/receptions/:id', async (req, res) => {
     }
 });
 
-// Get all receptions
+// Get all receptions (with atelier relation)
 router.get('/receptions', async (req, res) => {
     try {
         const receptions = await prisma.stockReception.findMany({
             orderBy: { createdAt: 'desc' },
             include: {
-                items: true
+                items: true,
+                atelier: true
             },
-            take: 50
+            take: 200
         });
 
         res.json({ receptions });

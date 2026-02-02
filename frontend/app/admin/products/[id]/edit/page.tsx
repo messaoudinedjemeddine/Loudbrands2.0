@@ -66,6 +66,7 @@ interface Product {
   isActive: boolean;
   isLaunch?: boolean;
   launchAt?: string;
+  displayPriority?: number | null;
   images?: Array<{ url: string; alt?: string }>;
   slug?: string;
   sizes: Array<{ size: string; stock: number }>;
@@ -109,6 +110,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     isActive: true,
     isLaunch: false,
     launchAt: '',
+    displayPriority: null as number | null,
     images: [],
     sizes: []
   })
@@ -166,6 +168,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         isActive: data.isActive !== false,
         isLaunch: data.isLaunch || false,
         launchAt: data.launchAt ? new Date(data.launchAt).toISOString().slice(0, 16) : '',
+        displayPriority: data.displayPriority != null ? data.displayPriority : null,
         images: transformedImages,
         slug: data.slug || '',
         sizes: data.sizes?.map((s: any) => ({ size: s.size, stock: s.stock })) || []
@@ -259,6 +262,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         isActive: productData.isActive,
         isLaunch: productData.isLaunch,
         launchAt: productData.launchAt ? new Date(productData.launchAt).toISOString() : undefined,
+        displayPriority: productData.displayPriority ?? null,
         slug: slug,
         images: productData.images,
         sizes: productData.sizes
@@ -483,6 +487,24 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                   </p>
                 </div>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="displayPriority">Priorité (Loud Styles)</Label>
+                <Input
+                  id="displayPriority"
+                  type="number"
+                  min={0}
+                  value={productData.displayPriority ?? ''}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    handleInputChange('displayPriority', v === '' ? null : parseInt(v, 10))
+                  }}
+                  placeholder="Aucune (ordre par défaut)"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Plus le nombre est petit, plus le produit apparaît en premier sur la page produits Loud Styles. Laisser vide = pas de priorité.
+                </p>
+              </div>
             </CardContent>
           </Card>
 

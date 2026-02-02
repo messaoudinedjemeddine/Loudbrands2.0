@@ -154,6 +154,7 @@ app.use('/api/agent-livraison', agentLivraisonRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/shipping', shippingRoutes);
 app.use('/api/inventory', require('./routes/inventory'));
+app.use('/api/ateliers', require('./routes/ateliers'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/sse', sseRoutes);
 

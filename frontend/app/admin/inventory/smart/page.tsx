@@ -30,6 +30,13 @@ import {
 import { api } from '@/lib/api'
 import { yalidineAPI } from '@/lib/yalidine-api'
 import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
+import {
     Tabs,
     TabsContent,
     TabsList,
@@ -833,7 +840,8 @@ function LabelsSection() {
 
 // Stock In Section
 function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMovement) => void }) {
-    const [atelier, setAtelier] = useState('')
+    const [ateliers, setAteliers] = useState<{ id: string; name: string }[]>([])
+    const [selectedAtelierId, setSelectedAtelierId] = useState<string>('')
     const [date, setDate] = useState(new Date().toISOString().split('T')[0])
     const [notes, setNotes] = useState('')
 
@@ -845,9 +853,12 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
     const [isSaving, setIsSaving] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
 
-    // Focus input on mount
     useEffect(() => {
         inputRef.current?.focus()
+    }, [])
+
+    useEffect(() => {
+        api.getAteliers().then((res: any) => setAteliers(res.ateliers || [])).catch(() => {})
     }, [])
 
     const handleScan = async (e: React.FormEvent) => {
@@ -1047,19 +1058,21 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
             toast.error('Aucun article')
             return
         }
-
-        const targetAtelier = atelier.trim() || "Réception Rapide"
+        if (!selectedAtelierId) {
+            toast.error('Veuillez sélectionner un atelier / source')
+            return
+        }
 
         setIsSaving(true)
         try {
             const payload = {
-                atelier: targetAtelier,
+                atelierId: selectedAtelierId,
                 date,
                 notes,
                 items: sessionItems.map(item => ({
                     productName: item.product.name,
                     reference: item.reference,
-                    size: item.size || null, // null for accessories
+                    size: item.size || null,
                     quantity: item.quantity,
                     barcode: item.barcode
                 }))
@@ -1087,7 +1100,7 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                     quantity: item.quantity,
                     oldStock: 0,
                     newStock: 0,
-                    notes: `Reception: ${targetAtelier}`,
+                    notes: `Reception: ${ateliers.find(a => a.id === selectedAtelierId)?.name || 'Atelier'}`,
                     operationType: 'entree'
                 })
             })
@@ -1119,12 +1132,16 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-muted/30 p-3 rounded-lg border">
                     <div className="space-y-1">
                         <Label className="text-xs">Atelier / Source</Label>
-                        <Input
-                            value={atelier}
-                            onChange={(e) => setAtelier(e.target.value)}
-                            placeholder="Ex: Atelier Alger (Optionnel)"
-                            className="h-8 text-sm"
-                        />
+                        <Select value={selectedAtelierId} onValueChange={setSelectedAtelierId}>
+                            <SelectTrigger className="h-8 text-sm">
+                                <SelectValue placeholder="Sélectionner un atelier..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                                {ateliers.map((a) => (
+                                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
                     <div className="space-y-1">
                         <Label className="text-xs">Date</Label>
@@ -1682,11 +1699,13 @@ function ReceptionsList() {
         }
     }
 
-    const handleMarkAsPaid = async (reception: any) => {
-        if (!confirm(`Marquer la réception de "${reception.atelier}" comme PAYÉE ?`)) return
+    const atelierDisplayName = (r: any) => r.atelier?.name ?? r.atelierLegacy ?? '—'
+    const restToPay = (r: any) => (r.totalCost ?? 0) - (r.amountPaid ?? 0)
 
+    const handleMarkAsPaid = async (reception: any) => {
+        if (!confirm(`Marquer la réception de "${atelierDisplayName(reception)}" comme PAYÉE ?`)) return
         try {
-            await api.updateReception(reception.id, { paymentStatus: 'PAID' })
+            await api.updateReception(reception.id, { amountPaid: reception.totalCost ?? 0 })
             toast.success('Réception marquée comme payée')
             fetchReceptions()
         } catch (error) {
@@ -1724,10 +1743,12 @@ function ReceptionsList() {
                     <Button variant="outline" size="sm" onClick={() => {
                         const exportData = receptions.map(r => ({
                             Date: new Date(r.date).toLocaleDateString(),
-                            Atelier: r.atelier,
+                            Atelier: atelierDisplayName(r),
                             Articles: r.items?.length || 0,
                             Cout_Total: r.totalCost,
-                            Statut: r.paymentStatus === 'PAID' ? 'PAYÉ' : 'EN ATTENTE',
+                            Paye: r.amountPaid,
+                            Reste: restToPay(r),
+                            Statut: r.paymentStatus === 'PAID' ? 'PAYÉ' : r.paymentStatus === 'PARTIAL' ? 'PARTIEL' : 'EN ATTENTE',
                             Notes: r.notes || ''
                         }))
                         exportToExcel(exportData, `Receptions_${new Date().toISOString().split('T')[0]}`)
@@ -1767,14 +1788,14 @@ function ReceptionsList() {
                                 <TableRow key={reception.id}>
                                     <TableCell>{new Date(reception.date).toLocaleDateString()}</TableCell>
                                     <TableCell className="font-medium">
-                                        {reception.atelier}
+                                        {atelierDisplayName(reception)}
                                         {reception.notes && <div className="text-xs text-muted-foreground">{reception.notes}</div>}
                                     </TableCell>
                                     <TableCell>{reception.items?.length || 0} articles</TableCell>
                                     <TableCell>{reception.totalCost?.toLocaleString()} DA</TableCell>
                                     <TableCell>
-                                        <Badge variant={reception.paymentStatus === 'PAID' ? 'default' : 'secondary'} className={reception.paymentStatus === 'PAID' ? 'bg-green-600' : 'bg-yellow-500 text-white'}>
-                                            {reception.paymentStatus === 'PAID' ? 'PAYÉ' : 'EN ATTENTE'}
+                                        <Badge variant={reception.paymentStatus === 'PAID' ? 'default' : 'secondary'} className={reception.paymentStatus === 'PAID' ? 'bg-green-600' : reception.paymentStatus === 'PARTIAL' ? 'bg-amber-500 text-white' : 'bg-yellow-500 text-white'}>
+                                            {reception.paymentStatus === 'PAID' ? 'PAYÉ' : reception.paymentStatus === 'PARTIAL' ? 'PARTIEL' : 'EN ATTENTE'}
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right space-x-2">
@@ -2481,11 +2502,17 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                 return
             }
 
-            // STEP 3: All items are valid, process them
+            // STEP 3: All items are valid, process them (use "Retour Client" atelier)
             if (validatedItems.length > 0) {
+                const ateliersRes: any = await api.getAteliers()
+                const ateliersList = ateliersRes.ateliers || []
+                let retourAtelierId = ateliersList.find((a: any) => a.name === 'Retour Client')?.id
+                if (!retourAtelierId) {
+                    const created = await api.createAtelier({ name: 'Retour Client' }) as any
+                    retourAtelierId = created.id
+                }
                 await api.createReception({
-                    atelier: `Retour Client`,
-                    totalCost: 0,
+                    atelierId: retourAtelierId,
                     date: new Date().toISOString(),
                     notes: `Retour Tracking: ${trackingKey}`,
                     items: validatedItems

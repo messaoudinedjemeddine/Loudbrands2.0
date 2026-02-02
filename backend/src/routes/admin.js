@@ -224,6 +224,7 @@ router.post('/products', async (req, res) => {
         isActive: productData.isActive !== false,
         isLaunch: productData.isLaunch || false,
         launchAt: productData.launchAt ? new Date(productData.launchAt) : null,
+        displayPriority: productData.displayPriority !== undefined && productData.displayPriority !== '' && productData.displayPriority !== null ? parseInt(productData.displayPriority, 10) : null,
         brandId: productData.brandId,
         categoryId: productData.categoryId,
         slug: productData.slug
@@ -329,6 +330,7 @@ router.put('/products/:id', async (req, res) => {
     if (productData.launchAt !== undefined) updateData.launchAt = productData.launchAt ? new Date(productData.launchAt) : null;
     if (productData.categoryId !== undefined) updateData.categoryId = productData.categoryId;
     if (productData.slug !== undefined) updateData.slug = productData.slug;
+    if (productData.displayPriority !== undefined) updateData.displayPriority = productData.displayPriority === '' || productData.displayPriority === null ? null : parseInt(productData.displayPriority, 10);
 
     // Update the product
     const product = await prisma.product.update({
