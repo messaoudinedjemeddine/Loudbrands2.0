@@ -28,6 +28,14 @@ router.post('/receptions', async (req, res) => {
     try {
         const data = receptionSchema.parse(req.body);
 
+        // Ensure atelier exists (avoids FK error and gives clear message)
+        const atelier = await prisma.atelier.findUnique({
+            where: { id: data.atelierId }
+        });
+        if (!atelier) {
+            return res.status(400).json({ error: 'Atelier not found. Create it first in Admin → Ateliers.' });
+        }
+
         // Resolve unitCost for each item from Product.costPrice (snapshot at reception time)
         const itemsWithUnitCost = await Promise.all(data.items.map(async (item) => {
             let unitCost = 0;
@@ -167,7 +175,8 @@ router.post('/receptions', async (req, res) => {
             return res.status(400).json({ error: error.errors });
         }
         console.error('Create reception error:', error);
-        res.status(500).json({ error: 'Failed to create reception' });
+        const message = error.meta?.cause || error.message || 'Failed to create reception';
+        res.status(500).json({ error: message });
     }
 });
 
