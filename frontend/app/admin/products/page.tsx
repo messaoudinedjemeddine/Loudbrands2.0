@@ -168,11 +168,12 @@ export default function AdminProductsPage() {
 
   const handlePriorityChange = async (productId: string, value: string) => {
     const num = value === '' ? null : parseInt(value, 10)
-    if (value !== '' && (isNaN(num) || num < 0)) return
+    if (value !== '' && (num === null || isNaN(num) || num < 0)) return
+    const priority = value === '' ? undefined : num
     try {
-      await api.admin.updateProduct(productId, { displayPriority: num })
+      await api.admin.updateProduct(productId, { displayPriority: priority })
       setProducts(prev => prev.map(p =>
-        p.id === productId ? { ...p, displayPriority: num ?? undefined } : p
+        p.id === productId ? { ...p, displayPriority: priority } : p
       ))
       toast.success('Priorité mise à jour')
     } catch (error) {
