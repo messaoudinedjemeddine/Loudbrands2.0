@@ -206,17 +206,20 @@ export function DeliveryAgentDashboard() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
-  const defaultTab = searchParams.get('tab') || 'all-parcels'
+  const defaultTab = searchParams.get('tab') || 'confirmed'
 
   const [activeTab, setActiveTab] = useState(defaultTab)
+  const [otherTabsDataLoaded, setOtherTabsDataLoaded] = useState(false)
 
-  // Update active tab when URL changes
+  // Update active tab when URL changes; default to confirmed and sync URL
   useEffect(() => {
     const tab = searchParams.get('tab')
     if (tab) {
       setActiveTab(tab)
+    } else if (defaultTab === 'confirmed') {
+      router.replace(`${pathname}?tab=confirmed`)
     }
-  }, [searchParams])
+  }, [searchParams, defaultTab, pathname, router])
 
   const handleTabChange = (value: string) => {
     setActiveTab(value)
@@ -319,319 +322,134 @@ export function DeliveryAgentDashboard() {
     { value: 'Echange échoué', label: 'Echange échoué' }
   ]
 
-  useEffect(() => {
-    fetchDeliveryData()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  const YALIDINE_DELAY_MS = 260 // ~4 req/sec to stay under 5/sec quota
 
-  // Fetch Yalidine shipments for dashboard tabs
-  const fetchYalidineShipments = async () => {
-    try {
-      const response = await yalidineAPI.getAllShipments({ page: 1 })
-      setYalidineShipments(response.data || [])
-    } catch (error) {
-      console.error('Error fetching Yalidine shipments:', error)
-      setYalidineShipments([])
+  const normalizeShipment = (s: any) => {
+    const tracking = s.tracking || s.tracking_number
+    return {
+      ...s,
+      id: s.id || tracking,
+      tracking,
+      last_status: s.last_status || s.status || s.state || 'Unknown',
+      date_creation: s.date_creation || s.created_at || s.date || new Date().toISOString(),
+      date_last_status: s.date_last_status || s.updated_at || s.date || new Date().toISOString(),
+      customer_name: s.customer_name || `${s.firstname || ''} ${s.familyname || ''}`.trim() || 'N/A',
+      customer_phone: s.customer_phone || s.contact_phone || s.phone || 'N/A',
+      customer_address: s.customer_address || s.address || 'N/A',
+      from_wilaya_name: s.from_wilaya_name || s.fromWilayaName || 'N/A',
+      to_wilaya_name: s.to_wilaya_name || s.toWilayaName || 'N/A',
+      to_commune_name: s.to_commune_name || s.toCommuneName || 'N/A',
+      product_list: s.product_list || s.productList || 'N/A',
+      price: s.price || 0,
+      weight: s.weight || 1
     }
   }
 
-
-  const fetchDeliveryData = async () => {
+  // Phase 1: Fast load – confirmed orders only (no Yalidine calls). Returns list for phase 2.
+  const fetchConfirmedOrdersOnly = async (): Promise<Order[]> => {
     try {
       setLoading(true)
       setError(null)
-
-      // Fetch delivery data, Yalidine shipments, and Yalidine stats
-      // For confirmed tab, we need ALL confirmed orders to match with Yalidine shipments
-      const [ordersData, confirmedOrdersData, yalidineStats] = await Promise.all([
-        api.admin.getOrders({ limit: 100 }), // Get orders for general display
-        api.admin.getOrders({ limit: 10000, confirmedOnly: 'true' }), // Get ALL confirmed orders for matching
-        yalidineAPI.getShipmentStats().catch(err => {
-          console.warn('Failed to fetch Yalidine stats:', err)
-          return {
-            enPreparation: 0,
-            centre: 0,
-            versWilaya: 0,
-            sortiEnLivraison: 0,
-            livre: 0,
-            echecLivraison: 0,
-            retourARetirer: 0,
-            retourneAuVendeur: 0,
-            echangeEchoue: 0,
-            totalShipments: 0
-          }
-        })
-      ])
-
-      // Fetch all Yalidine shipments (all pages) with timeout and better error handling
-      const fetchShipmentsWithTimeout = async (): Promise<any[]> => {
-        return new Promise(async (resolve) => {
-          const timeout = setTimeout(() => {
-            console.warn('Timeout while fetching Yalidine shipments, using partial data')
-            resolve([])
-          }, 15000) // 15 second timeout (reduced for faster feedback)
-
-          try {
-            let allShipments: any[] = []
-            let currentPage = 1
-            const maxPages = 20 // Limit to 20 pages (approximately 500 parcels)
-            let hasMore = true
-
-            // Fetch limited pages for faster loading
-            // Filter by date: only get shipments created from December 25, 2024 onwards
-            const minDate = '2024-12-25' // December 25, 2024
-            while (hasMore && currentPage <= maxPages) {
-              try {
-                const response = await yalidineAPI.getAllShipments({ 
-                  page: currentPage,
-                  date_creation: minDate // Filter by creation date
-                })
-                const shipments = response.data || []
-                
-                // If no shipments returned, stop
-                if (shipments.length === 0) {
-                  hasMore = false
-                  break
-                }
-                
-                allShipments = [...allShipments, ...shipments]
-                
-                // Check if there are more pages - stop if has_more is false or undefined
-                hasMore = response.has_more === true
-                currentPage++
-                
-                // Add a small delay to avoid overwhelming the API
-                if (hasMore && currentPage <= maxPages) {
-                  await new Promise(resolve => setTimeout(resolve, 100))
-                }
-              } catch (pageError) {
-                console.error(`Error fetching page ${currentPage}:`, pageError)
-                // If we have some shipments, continue with what we have
-                if (allShipments.length > 0) {
-                  break
-                }
-                throw pageError
-              }
-            }
-
-            if (currentPage > maxPages) {
-              console.warn(`Reached maximum page limit (${maxPages}) while fetching Yalidine shipments. Total shipments: ${allShipments.length}`)
-            }
-
-            clearTimeout(timeout)
-            resolve(allShipments)
-          } catch (err) {
-            console.warn('Failed to fetch Yalidine shipments:', err)
-            clearTimeout(timeout)
-            resolve([])
-          }
-        })
-      }
-
-      const allShipments = await fetchShipmentsWithTimeout()
-
-      // Additional client-side filter: only keep shipments created from December 25, 2024 onwards
-      const minDate = new Date('2024-12-25')
-      const filteredByDate = allShipments.filter((shipment: any) => {
-        if (!shipment.date_creation) return false
-        const shipmentDate = new Date(shipment.date_creation)
-        return shipmentDate >= minDate
-      })
-
-      const ordersList = (ordersData as any).orders || ordersData as Order[]
-      const allConfirmedOrders = (confirmedOrdersData as any).orders || confirmedOrdersData as Order[]
-      setOrders(ordersList)
-
-      // Filter shipments to only show those created from our website
-      // For confirmed tab, use ALL confirmed orders to match with Yalidine shipments
-      const confirmedOrderTrackingNumbers = new Set(
-        allConfirmedOrders
-          .map((o: Order) => o.trackingNumber)
-          .filter((t: string | undefined): t is string => !!t)
-      )
-
-      // For general display, use regular orders
-      const orderTrackingNumbers = new Set(
-        ordersList
-          .map((o: Order) => o.trackingNumber)
-          .filter((t: string | undefined): t is string => !!t)
-      )
-
-      // Only keep shipments that match our orders' tracking numbers (for general display)
-      const websiteShipments = filteredByDate.filter((shipment: any) => 
-        orderTrackingNumbers.has(shipment.tracking)
-      )
-
-      // For confirmed tab, filter shipments by confirmed orders only
-      let confirmedShipments = filteredByDate.filter((shipment: any) => 
-        confirmedOrderTrackingNumbers.has(shipment.tracking)
-      )
-
-      // For confirmed orders that don't have shipments in the fetched pages,
-      // fetch their status individually from Yalidine
-      const confirmedOrdersWithTracking = allConfirmedOrders.filter((o: Order) => 
-        o.callCenterStatus === 'CONFIRMED' && !!o.trackingNumber
-      )
-      
-      const foundTrackingNumbers = new Set(confirmedShipments.map((s: any) => s.tracking))
-      const missingTrackingNumbers = confirmedOrdersWithTracking
-        .map((o: Order) => o.trackingNumber!)
-        .filter((t: string) => !foundTrackingNumbers.has(t))
-
-      // Fetch missing shipments individually (in batches to avoid overwhelming the API)
-      if (missingTrackingNumbers.length > 0) {
-        console.log(`Fetching ${missingTrackingNumbers.length} missing shipments individually...`)
-        const batchSize = 10
-        for (let i = 0; i < missingTrackingNumbers.length; i += batchSize) {
-          const batch = missingTrackingNumbers.slice(i, i + batchSize)
-          try {
-            const batchPromises = batch.map((tracking: string) => 
-              yalidineAPI.getShipment(tracking).catch(err => {
-                console.warn(`Failed to fetch shipment ${tracking}:`, err)
-                return null
-              })
-            )
-            const batchResults = await Promise.all(batchPromises)
-            const validShipments = batchResults
-              .filter((s: any) => s && (s.tracking || s.tracking_number))
-              .map((s: any) => {
-                // Normalize the shipment data to match our expected format
-                const tracking = s.tracking || s.tracking_number
-                return {
-                  ...s,
-                  tracking,
-                  last_status: s.last_status || s.status || s.state || 'Unknown',
-                  date_creation: s.date_creation || s.created_at || s.date || new Date().toISOString(),
-                  date_last_status: s.date_last_status || s.updated_at || s.date || new Date().toISOString(),
-                  customer_name: s.customer_name || `${s.firstname || ''} ${s.familyname || ''}`.trim() || 'N/A',
-                  customer_phone: s.customer_phone || s.contact_phone || s.phone || 'N/A',
-                  customer_address: s.customer_address || s.address || 'N/A',
-                  from_wilaya_name: s.from_wilaya_name || s.fromWilayaName || 'N/A',
-                  to_wilaya_name: s.to_wilaya_name || s.toWilayaName || 'N/A',
-                  to_commune_name: s.to_commune_name || s.toCommuneName || 'N/A',
-                  product_list: s.product_list || s.productList || 'N/A',
-                  price: s.price || 0,
-                  weight: s.weight || 1
-                }
-              })
-            confirmedShipments = [...confirmedShipments, ...validShipments]
-            
-            // Small delay between batches
-            if (i + batchSize < missingTrackingNumbers.length) {
-              await new Promise(resolve => setTimeout(resolve, 200))
-            }
-          } catch (err) {
-            console.error(`Error fetching batch ${i}-${i + batchSize}:`, err)
-          }
+      const confirmedOrdersData = await api.admin.getOrders({ limit: 10000, confirmedOnly: 'true' })
+      const list = (confirmedOrdersData as any).orders || (confirmedOrdersData as Order[])
+      const withTracking = list.filter((o: Order) => o.callCenterStatus === 'CONFIRMED' && !!o.trackingNumber)
+      setAllConfirmedOrders(list)
+      setOrders(list)
+      setStats(prev => ({
+        ...prev,
+        confirmedOrders: withTracking.length,
+        confirmedStats: prev.confirmedStats || {
+          enPreparation: 0, centre: 0, versWilaya: 0, sortiEnLivraison: 0, livre: 0,
+          echecLivraison: 0, retourARetirer: 0, retourneAuVendeur: 0, echangeEchoue: 0,
+          tentativeEchouee: 0, enAlerte: 0, enAttenteClient: 0, totalShipments: 0
         }
-        console.log(`Fetched ${confirmedShipments.length} total confirmed shipments`)
-      }
-
-      setYalidineShipments(websiteShipments)
-      setAllConfirmedOrders(allConfirmedOrders)
-      setConfirmedShipments(confirmedShipments)
-
-      // Create a map of tracking numbers to shipments for quick lookup
-      const shipmentMap = new Map<string, any>()
-      confirmedShipments.forEach((shipment: any) => {
-        const tracking = shipment.tracking || shipment.tracking_number
-        if (tracking) {
-          shipmentMap.set(tracking, shipment)
-        }
-      })
-
-      // Calculate stats by counting confirmed orders with each Yalidine status
-      // This gives us the actual number of orders, not shipments
-      // confirmedOrdersWithTracking is already defined above, reuse it
-
-      const confirmedStats = {
-        enPreparation: confirmedOrdersWithTracking.filter((o: Order) => {
-          const shipment = shipmentMap.get(o.trackingNumber!)
-          return shipment?.last_status === 'En préparation'
-        }).length,
-        centre: confirmedOrdersWithTracking.filter((o: Order) => {
-          const shipment = shipmentMap.get(o.trackingNumber!)
-          return shipment?.last_status === 'Centre'
-        }).length,
-        versWilaya: confirmedOrdersWithTracking.filter((o: Order) => {
-          const shipment = shipmentMap.get(o.trackingNumber!)
-          return shipment?.last_status === 'Vers Wilaya'
-        }).length,
-        sortiEnLivraison: confirmedOrdersWithTracking.filter((o: Order) => {
-          const shipment = shipmentMap.get(o.trackingNumber!)
-          return shipment?.last_status === 'Sorti en livraison'
-        }).length,
-        livre: confirmedOrdersWithTracking.filter((o: Order) => {
-          const shipment = shipmentMap.get(o.trackingNumber!)
-          return shipment?.last_status === 'Livré'
-        }).length,
-        echecLivraison: confirmedOrdersWithTracking.filter((o: Order) => {
-          const shipment = shipmentMap.get(o.trackingNumber!)
-          return shipment?.last_status === 'Echèc livraison' || shipment?.last_status === 'Echec de livraison'
-        }).length,
-        retourARetirer: confirmedOrdersWithTracking.filter((o: Order) => {
-          const shipment = shipmentMap.get(o.trackingNumber!)
-          return shipment?.last_status === 'Retour à retirer'
-        }).length,
-        retourneAuVendeur: confirmedOrdersWithTracking.filter((o: Order) => {
-          const shipment = shipmentMap.get(o.trackingNumber!)
-          return shipment?.last_status === 'Retourné au vendeur'
-        }).length,
-        echangeEchoue: confirmedOrdersWithTracking.filter((o: Order) => {
-          const shipment = shipmentMap.get(o.trackingNumber!)
-          return shipment?.last_status === 'Echange échoué'
-        }).length,
-        tentativeEchouee: confirmedOrdersWithTracking.filter((o: Order) => {
-          const shipment = shipmentMap.get(o.trackingNumber!)
-          return shipment?.last_status === 'Tentative échouée'
-        }).length,
-        enAlerte: confirmedOrdersWithTracking.filter((o: Order) => {
-          const shipment = shipmentMap.get(o.trackingNumber!)
-          return shipment?.last_status === 'En alerte'
-        }).length,
-        enAttenteClient: confirmedOrdersWithTracking.filter((o: Order) => {
-          const shipment = shipmentMap.get(o.trackingNumber!)
-          return shipment?.last_status === 'En attente du client'
-        }).length,
-        totalShipments: confirmedShipments.length
-      }
-
-      // Calculate stats from filtered website shipments (for general tabs)
-      const calculatedStats = {
-        enPreparation: websiteShipments.filter((s: any) => s.last_status === 'En préparation').length,
-        centre: websiteShipments.filter((s: any) => s.last_status === 'Centre').length,
-        versWilaya: websiteShipments.filter((s: any) => s.last_status === 'Vers Wilaya').length,
-        sortiEnLivraison: websiteShipments.filter((s: any) => s.last_status === 'Sorti en livraison').length,
-        livre: websiteShipments.filter((s: any) => s.last_status === 'Livré').length,
-        echecLivraison: websiteShipments.filter((s: any) => s.last_status === 'Echèc livraison' || s.last_status === 'Echec de livraison').length,
-        retourARetirer: websiteShipments.filter((s: any) => s.last_status === 'Retour à retirer').length,
-        retourneAuVendeur: websiteShipments.filter((s: any) => s.last_status === 'Retourné au vendeur').length,
-        echangeEchoue: websiteShipments.filter((s: any) => s.last_status === 'Echange échoué').length,
-        tentativeEchouee: websiteShipments.filter((s: any) => s.last_status === 'Tentative échouée').length,
-        enAlerte: websiteShipments.filter((s: any) => s.last_status === 'En alerte').length,
-        enAttenteClient: websiteShipments.filter((s: any) => s.last_status === 'En attente du client').length,
-        totalShipments: websiteShipments.length
-      }
-
-      // Calculate stats combining calculated Yalidine data with confirmed orders
-      const confirmedOrders = ordersList.filter((o: Order) => o.callCenterStatus === 'CONFIRMED')
-      const stats = {
-        ...calculatedStats,
-        confirmedOrders: confirmedOrdersWithTracking.length, // Total confirmed orders with tracking (414)
-        // Store confirmed stats separately for the confirmed tab
-        confirmedStats: confirmedStats
-      }
-      console.log('📊 Stats calculated:', {
-        confirmedOrders: stats.confirmedOrders,
-        confirmedStats: stats.confirmedStats
-      })
-      setStats(stats)
-
+      }))
+      return list
     } catch (err) {
-      console.error('Error fetching delivery data:', err)
-      setError(err instanceof Error ? err.message : 'Failed to load data')
+      console.error('Error fetching confirmed orders:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load orders')
+      return []
     } finally {
       setLoading(false)
     }
+  }
+
+  // Phase 2: Fetch Yalidine status only for confirmed orders' trackings (rate-limited: ~4 req/sec)
+  const fetchYalidineStatusForConfirmed = async (ordersList?: Order[]) => {
+    const list = ordersList ?? allConfirmedOrders.filter((o: Order) => o.callCenterStatus === 'CONFIRMED' && !!o.trackingNumber)
+    if (list.length === 0) return
+    const trackings = list.map((o: Order) => o.trackingNumber!)
+    const results: any[] = []
+    for (let i = 0; i < trackings.length; i++) {
+      try {
+        const s = await yalidineAPI.getShipment(trackings[i])
+        if (s && (s.tracking || s.tracking_number)) results.push(normalizeShipment(s))
+      } catch (_) {
+        // skip failed
+      }
+      if (i < trackings.length - 1) await new Promise(r => setTimeout(r, YALIDINE_DELAY_MS))
+    }
+    setConfirmedShipments(results)
+    const shipmentMap = new Map<string, any>()
+    results.forEach((s: any) => { if (s.tracking) shipmentMap.set(s.tracking, s) })
+    const confirmedStats = {
+      enPreparation: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'En préparation').length,
+      centre: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Centre').length,
+      versWilaya: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Vers Wilaya').length,
+      sortiEnLivraison: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Sorti en livraison').length,
+      livre: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Livré').length,
+      echecLivraison: list.filter((o: Order) => {
+        const st = shipmentMap.get(o.trackingNumber!)?.last_status
+        return st === 'Echèc livraison' || st === 'Echec de livraison'
+      }).length,
+      retourARetirer: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Retour à retirer').length,
+      retourneAuVendeur: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Retourné au vendeur').length,
+      echangeEchoue: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Echange échoué').length,
+      tentativeEchouee: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Tentative échouée').length,
+      enAlerte: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'En alerte').length,
+      enAttenteClient: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'En attente du client').length,
+      totalShipments: results.length
+    }
+    setStats(prev => ({ ...prev, confirmedStats, ...confirmedStats }))
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    fetchConfirmedOrdersOnly().then(orders => {
+      if (cancelled || !orders.length) return
+      fetchYalidineStatusForConfirmed(orders)
+    })
+    return () => { cancelled = true }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Lazy load "All Parcels" and other tabs when user first switches to them (respects Yalidine quota)
+  const loadOtherTabsData = async () => {
+    if (otherTabsDataLoaded) return
+    setOtherTabsDataLoaded(true)
+    try {
+      const [ordersData, yalidineRes] = await Promise.all([
+        api.admin.getOrders({ limit: 500 }),
+        yalidineAPI.getAllShipments({ page: 1, date_creation: '2024-12-25' }).catch(() => ({ data: [], has_more: false }))
+      ])
+      const ordersList = (ordersData as any).orders || (ordersData as Order[])
+      const orderTrackings = new Set(ordersList.map((o: Order) => o.trackingNumber).filter(Boolean))
+      const websiteShipments = (yalidineRes.data || []).filter((s: any) => orderTrackings.has(s.tracking))
+      setYalidineShipments(websiteShipments)
+      setOrders(prev => (prev.length === 0 ? ordersList : prev))
+    } catch (e) {
+      console.warn('Lazy load other tabs failed:', e)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'confirmed') return
+    loadOtherTabsData()
+  }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fetchDeliveryData = async () => {
+    setOtherTabsDataLoaded(false)
+    const orders = await fetchConfirmedOrdersOnly()
+    if (orders.length > 0) await fetchYalidineStatusForConfirmed(orders)
   }
 
 

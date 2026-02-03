@@ -31,7 +31,9 @@ function DashboardContent() {
 
     // Redirect to appropriate dashboard based on user role
     if (mounted && user && role !== user.role.toLowerCase()) {
-      router.push(`/admin/dashboard/${user.role.toLowerCase()}`)
+      const base = `/admin/dashboard/${user.role.toLowerCase()}`
+      const url = user.role === 'AGENT_LIVRAISON' ? `${base}?tab=confirmed` : base
+      router.push(url)
       return
     }
 
