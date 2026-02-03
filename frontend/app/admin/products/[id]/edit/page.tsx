@@ -318,7 +318,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
             </div>
           </div>
           <Button variant="outline" size="sm" asChild>
-            <Link href={`/products/${unwrappedParams.id}`}>
+            <Link href={productData.slug ? `/products/${productData.slug}` : '#'}>
               <Eye className="w-4 h-4 mr-2" />
               View Product
             </Link>

@@ -358,12 +358,6 @@ export default function InventorySmartPage() {
     )
 }
 
-// Cache-bust helper so product images don't show grey until hard refresh
-const cacheBustImageUrl = (url: string | null | undefined, version: number) => {
-    if (!url || url === '/placeholder.svg') return url || '/placeholder.svg'
-    return `${url}${url.includes('?') ? '&' : '?'}v=${version}`
-}
-
 // Labels Section
 function LabelsSection() {
     const [products, setProducts] = useState<any[]>([])
@@ -374,7 +368,6 @@ function LabelsSection() {
     const [generatingId, setGeneratingId] = useState<string | null>(null)
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null)
     const [showPreview, setShowPreview] = useState(false)
-    const [labelsListVersion, setLabelsListVersion] = useState(() => Date.now())
 
     useEffect(() => {
         fetchProducts(1)
@@ -391,7 +384,6 @@ function LabelsSection() {
             setProducts(response.products || [])
             setTotalPages(response.pagination?.pages || 1)
             setPage(pageNum)
-            setLabelsListVersion(Date.now())
         } catch (error) {
             if (process.env.NODE_ENV === 'development') {
                 console.error('Échec du chargement des produits', error)
@@ -622,11 +614,10 @@ function LabelsSection() {
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
                                         <div className="relative w-12 h-12 rounded overflow-hidden flex-shrink-0 bg-muted">
                                             {(() => {
-                                                const rawUrl = product.image || product.images?.[0]?.url || product.images?.[0] || ''
-                                                const imageUrl = rawUrl && rawUrl !== '/placeholder.svg' ? cacheBustImageUrl(rawUrl, labelsListVersion) : null
-                                                return imageUrl ? (
+                                                const imageUrl = product.image || product.images?.[0]?.url || product.images?.[0] || ''
+                                                return imageUrl && imageUrl !== '/placeholder.svg' ? (
                                                     <img
-                                                        key={`${product?.id}-${rawUrl}-${labelsListVersion}`}
+                                                        key={`${product?.id}-${imageUrl}`}
                                                         src={imageUrl}
                                                         alt={product.name || 'Product'}
                                                         className="w-full h-full object-cover"
@@ -760,15 +751,14 @@ function LabelsSection() {
                                 // Show single preview for accessory with total stock
                                 const barcodeValue = selectedProduct?.reference || selectedProduct?.id
                                 const totalStock = selectedProduct?.stock || 0
-                                const rawImageUrl = selectedProduct?.images?.[0]?.url || selectedProduct?.images?.[0] || selectedProduct?.image || null
-                                const imageUrl = rawImageUrl ? cacheBustImageUrl(rawImageUrl, labelsListVersion) : null
+                                const imageUrl = selectedProduct?.images?.[0]?.url || selectedProduct?.images?.[0] || selectedProduct?.image || null
                                 return (
                                     <div className="border rounded-lg p-4">
                                         <div className="flex items-center gap-4 mb-4">
                                             {imageUrl && (
                                                 <div className="relative w-20 h-20 rounded overflow-hidden bg-muted flex-shrink-0">
                                                     <Image
-                                                        key={`preview-acc-${selectedProduct?.id}-${rawImageUrl}-${labelsListVersion}`}
+                                                        key={`preview-acc-${selectedProduct?.id}-${imageUrl}`}
                                                         src={imageUrl}
                                                         alt={selectedProduct?.name || 'Product'}
                                                         fill
@@ -777,7 +767,7 @@ function LabelsSection() {
                                                             const target = e.target as HTMLImageElement
                                                             target.src = '/placeholder.svg'
                                                         }}
-                                                        unoptimized={rawImageUrl?.startsWith('http')}
+                                                        unoptimized={imageUrl.startsWith('http')}
                                                     />
                                                 </div>
                                             )}
@@ -805,8 +795,7 @@ function LabelsSection() {
                                 const categorySlug = selectedProduct?.category?.slug?.toLowerCase() || ''
                                 const isShoes = categorySlug.includes('shoe') || categorySlug.includes('chaussure') || selectedProduct?.category?.name?.toLowerCase().includes('shoe') || selectedProduct?.category?.name?.toLowerCase().includes('chaussure')
                                 const allSizes = isShoes ? ['36', '37', '38', '39', '40', '41'] : ['M', 'L', 'XL', 'XXL', 'XXXL']
-                                const rawImageUrl = selectedProduct?.images?.[0]?.url || selectedProduct?.images?.[0] || selectedProduct?.image || null
-                                const imageUrl = rawImageUrl ? cacheBustImageUrl(rawImageUrl, labelsListVersion) : null
+                                const imageUrl = selectedProduct?.images?.[0]?.url || selectedProduct?.images?.[0] || selectedProduct?.image || null
                                 return allSizes.map((sizeLabel) => {
                                     const barcodeValue = `${selectedProduct.reference}-${sizeLabel}`
                                     const sizeData = selectedProduct?.sizes?.find((s: any) => s.size === sizeLabel)
@@ -818,7 +807,7 @@ function LabelsSection() {
                                                 {imageUrl && (
                                                     <div className="relative w-20 h-20 rounded overflow-hidden bg-muted flex-shrink-0">
                                                         <Image
-                                                            key={`preview-${sizeLabel}-${selectedProduct?.id}-${rawImageUrl}-${labelsListVersion}`}
+                                                            key={`preview-${sizeLabel}-${selectedProduct?.id}-${imageUrl}`}
                                                             src={imageUrl}
                                                             alt={`${selectedProduct?.name || 'Product'} - ${sizeLabel}`}
                                                             fill
@@ -827,7 +816,7 @@ function LabelsSection() {
                                                                 const target = e.target as HTMLImageElement
                                                                 target.src = '/placeholder.svg'
                                                             }}
-                                                            unoptimized={rawImageUrl?.startsWith('http')}
+                                                            unoptimized={imageUrl.startsWith('http')}
                                                         />
                                                     </div>
                                                 )}

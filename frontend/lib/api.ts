@@ -470,8 +470,8 @@ export const api = {
     deleteUser: (id: string) => apiClient.request(`/admin/users/${id}`, {
       method: 'DELETE',
     }),
-    // Products management
-    getProduct: (id: string) => apiClient.getProduct(id),
+    // Products management (use admin endpoint so fetch is by id, not public slug)
+    getProduct: (id: string) => apiClient.request(`/admin/products/${id}`),
     createProduct: (data: any) => apiClient.request('/admin/products', {
       method: 'POST',
       body: JSON.stringify(data),

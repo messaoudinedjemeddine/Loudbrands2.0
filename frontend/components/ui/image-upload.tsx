@@ -14,9 +14,6 @@ interface ImageUploadProps {
   className?: string;
 }
 
-// Cache-bust version so images don't show grey until hard refresh (browser cache)
-const useImageVersion = () => React.useState(() => Date.now())[0];
-
 export function ImageUpload({
   images = [],
   onImagesChange,
@@ -25,12 +22,8 @@ export function ImageUpload({
   className = ''
 }: ImageUploadProps) {
   const [isUploading, setIsUploading] = useState(false);
-  const imageVersion = useImageVersion();
   const { toast } = useToast();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-  const cacheBustUrl = (url: string) =>
-    url ? `${url}${url.includes('?') ? '&' : '?'}v=${imageVersion}` : '';
 
   const handleFileSelect = useCallback(async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -236,10 +229,10 @@ export function ImageUpload({
       {images.length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {images.map((image, index) => (
-            <Card key={`${index}-${image.url}-${imageVersion}`} className="relative group">
+            <Card key={`${index}-${image.url}`} className="relative group">
               <div className="aspect-square relative overflow-hidden rounded-lg">
                 <img
-                  src={cacheBustUrl(image.url)}
+                  src={image.url}
                   alt={image.alt || `Image ${index + 1}`}
                   className="w-full h-full object-cover"
                   onError={(e) => {
