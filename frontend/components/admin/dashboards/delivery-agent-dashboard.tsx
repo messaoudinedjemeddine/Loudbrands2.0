@@ -192,7 +192,7 @@ STATUS_ALIASES.forEach(([key, canonical]) => STATUS_NORMALIZE_MAP.set(normalizeK
 function normalizeYalidineStatus(raw: string | undefined): string {
   if (raw == null || typeof raw !== 'string') return 'Unknown'
   const key = normalizeKey(raw)
-  return STATUS_NORMALIZE_MAP.get(key) ?? raw.trim() || 'Unknown'
+  return STATUS_NORMALIZE_MAP.get(key) ?? (raw.trim() || 'Unknown')
 }
 
 const getStatusVariant = (status: string) => {
