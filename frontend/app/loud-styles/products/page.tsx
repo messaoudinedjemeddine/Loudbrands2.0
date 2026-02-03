@@ -108,6 +108,19 @@ function LoudStylesProductsContent() {
 
         let productsArray = Array.isArray(productsData) ? productsData : (productsData.products || [])
 
+        // Helper: sort so Mikhwar Elite (6 products) appear first (top row)
+        const isMikhwarElite = (p: Product) => {
+          const cat = p.category
+          if (!cat) return false
+          const name = typeof cat === 'string' ? cat : (cat.name || '')
+          const slug = typeof cat === 'string' ? '' : (cat.slug || '')
+          return /mikhwar\s*elite/i.test(name) || /mikhwar-elite/i.test(slug)
+        }
+        const sortMikhwarEliteFirst = <T extends Product>(arr: T[]) =>
+          [...arr].sort((a, b) => (isMikhwarElite(b) ? 1 : 0) - (isMikhwarElite(a) ? 1 : 0))
+
+        productsArray = sortMikhwarEliteFirst(productsArray)
+
         // If there are more pages, fetch them progressively in background
         if (productsData.pagination && productsData.pagination.pages > 1) {
           const totalPages = productsData.pagination.pages
@@ -135,8 +148,8 @@ function LoudStylesProductsContent() {
 
               const newProducts = batchResponses.flat()
               if (newProducts.length > 0) {
-                setProducts(prev => [...prev, ...newProducts])
-                setFilteredProducts(prev => [...prev, ...newProducts])
+                setProducts(prev => sortMikhwarEliteFirst([...prev, ...newProducts]))
+                setFilteredProducts(prev => sortMikhwarEliteFirst([...prev, ...newProducts]))
               }
             }
           }

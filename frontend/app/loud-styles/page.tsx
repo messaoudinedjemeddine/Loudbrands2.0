@@ -134,18 +134,26 @@ export default function LoudStylesPage() {
         setLoading(true)
         setError(null)
 
-        // Fetch products and categories in parallel for faster loading
+        // Fetch products and categories in parallel – fetch enough to get Mikhwar Elite first
         const [productsResponse, categoriesResponse] = await Promise.all([
-          fetch('/api/products?brand=loud-styles&limit=4'),
+          fetch('/api/products?brand=loud-styles&limit=24'),
           fetch('/api/categories?brand=loud-styles')
         ])
 
-        // Process products
+        // Process products – sort so Mikhwar Elite (6 products) appear first, then take first 4 for featured
         if (!productsResponse.ok) {
           throw new Error('Failed to fetch products')
         }
         const productsData = await productsResponse.json()
-        const products = Array.isArray(productsData) ? productsData : (productsData.products || [])
+        let products = Array.isArray(productsData) ? productsData : (productsData.products || [])
+        const isMikhwarElite = (p: any) => {
+          const cat = p.category
+          if (!cat) return false
+          const name = typeof cat === 'string' ? cat : (cat.name || '')
+          const slug = typeof cat === 'string' ? '' : (cat.slug || '')
+          return /mikhwar\s*elite/i.test(name) || /mikhwar-elite/i.test(slug)
+        }
+        products = [...products].sort((a, b) => (isMikhwarElite(b) ? 1 : 0) - (isMikhwarElite(a) ? 1 : 0))
 
         const featured = products.slice(0, 4).map((product: any) => ({
           ...product,

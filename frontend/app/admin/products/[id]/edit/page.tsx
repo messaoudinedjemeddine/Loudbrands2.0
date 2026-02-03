@@ -112,6 +112,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     launchAt: '',
     displayPriority: null as number | null,
     images: [],
+    slug: '',
     sizes: []
   })
 
@@ -244,8 +245,11 @@ export default function EditProductPage({ params }: EditProductPageProps) {
     setIsLoading(true)
 
     try {
-      // Generate slug from name if not provided
-      const slug = productData.slug || productData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      // Use edited slug, or generate from name; normalize to lowercase and hyphens
+      const rawSlug = (productData.slug || '').trim()
+      const slug = rawSlug
+        ? rawSlug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '')
+        : productData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
       await api.admin.updateProduct(unwrappedParams.id, {
         name: productData.name,
@@ -349,6 +353,33 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                     onChange={(e) => handleInputChange('nameAr', e.target.value)}
                     dir="rtl"
                   />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="slug">URL Slug</Label>
+                  <Input
+                    id="slug"
+                    value={productData.slug || ''}
+                    onChange={(e) => handleInputChange('slug', e.target.value)}
+                    placeholder="e.g. mikhwar-elite-noir"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used in product link. Leave empty to auto-generate from name. Example: Mikhwar Elite Noir → mikhwar-elite-noir
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="mt-1"
+                    onClick={() => {
+                      const generated = productData.name.toLowerCase().replace(/[^a-z0-9\s-]/g, '').replace(/\s+/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '')
+                      handleInputChange('slug', generated)
+                    }}
+                  >
+                    Generate from name
+                  </Button>
                 </div>
               </div>
 
