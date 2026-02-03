@@ -190,7 +190,7 @@ module.exports = router;
 // Simple in-memory cache for API responses
 const cache = new Map();
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for dynamic data
-const STATIC_CACHE_DURATION = 60 * 60 * 1000; // 1 hour for static data (wilayas, communes, centers)
+const STATIC_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours for static data (wilayas change rarely)
 
 // Cache helper function
 function getCachedData(key, isStatic = false) {
@@ -297,79 +297,28 @@ router.get('/test', async (req, res) => {
   }
 });
 
-// Get all wilayas (provinces)
+// Get all wilayas (provinces) – cached 24h to avoid hitting Yalidine quota
 router.get('/wilayas', async (req, res) => {
   try {
-    console.log('🔍 Wilayas request received');
-
     if (!yalidineService.isConfigured()) {
-      console.log('❌ Yalidine service not configured');
-      // Return empty data structure instead of error to prevent frontend crashes
       return res.json({ data: [], has_more: false, total_data: 0 });
     }
 
-    // Check cache first (wilayas are static data - cache for 1 hour)
     const cacheKey = 'wilayas';
     const cachedWilayas = getCachedData(cacheKey, true);
     if (cachedWilayas) {
-      console.log('✅ Returning cached wilayas data');
       return res.json(cachedWilayas);
     }
 
-    console.log('🔍 Calling Yalidine service for wilayas');
-
-    // Add retry logic for intermittent failures (but not for quota errors)
-    let wilayas;
-    let retryCount = 0;
-    const maxRetries = 2; // Reduced retries to avoid quota issues
-
-    while (retryCount < maxRetries) {
-      try {
-        wilayas = await yalidineService.getWilayas();
-        console.log('✅ Wilayas fetched successfully, count:', wilayas.data ? wilayas.data.length : 'unknown');
-        break;
-      } catch (retryError) {
-        // Don't retry if quota is exceeded
-        if (retryError.quotaExceeded) {
-          console.error('❌ Quota exceeded - not retrying');
-          return res.status(429).json({ 
-            error: 'Quota API dépassé',
-            message: retryError.message || 'Votre accès à l\'API est temporairement désactivé. Veuillez réessayer plus tard.'
-          });
-        }
-        
-        retryCount++;
-        console.log(`⚠️ Retry ${retryCount}/${maxRetries} for wilayas request`);
-
-        if (retryCount >= maxRetries) {
-          throw retryError;
-        }
-
-        // Wait before retrying (exponential backoff)
-        await new Promise(resolve => setTimeout(resolve, 1000 * retryCount));
-      }
-    }
-
-    // Cache the result (static data - 1 hour)
+    const wilayas = await yalidineService.getWilayas();
     setCachedData(cacheKey, wilayas, true);
-
     res.json(wilayas);
   } catch (error) {
     console.error('❌ Error fetching wilayas:', error.message);
-    console.error('❌ Error stack:', error.stack);
-    if (error.response) {
-      console.error('Response status:', error.response.status);
-      console.error('Response data:', error.response.data);
-    }
-    if (error.request) {
-      console.error('Request made but no response received');
-    }
-    // Return a more informative error message
-    const errorMessage = error.message || 'Failed to fetch wilayas';
-    res.status(500).json({ 
-      error: 'Failed to fetch wilayas',
-      message: errorMessage,
-      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    const status = error.quotaExceeded || (error.response && error.response.status === 429) ? 429 : 500;
+    res.status(status).json({
+      error: status === 429 ? 'Quota API dépassé' : 'Failed to fetch wilayas',
+      message: error.message
     });
   }
 });
@@ -512,7 +461,10 @@ router.get('/centers', async (req, res) => {
   }
 });
 
-// Calculate shipping fees
+// Calculate shipping fees – result cached per (from, to) to reduce Yalidine calls
+const feesCache = new Map();
+const FEES_CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
 router.post('/calculate-fees', async (req, res) => {
   try {
     if (!yalidineService.isConfigured()) {
@@ -522,8 +474,16 @@ router.post('/calculate-fees', async (req, res) => {
     const validatedData = calculateFeesSchema.parse(req.body);
     const { fromWilayaId, toWilayaId, weight, length, width, height, declaredValue } = validatedData;
 
-    // Get base fees from Yalidine
-    const feesData = await yalidineService.calculateFees(fromWilayaId, toWilayaId);
+    const feesCacheKey = `${fromWilayaId}-${toWilayaId}`;
+    let feesData = null;
+    const cached = feesCache.get(feesCacheKey);
+    if (cached && Date.now() - cached.timestamp < FEES_CACHE_TTL) {
+      feesData = cached.data;
+    }
+    if (!feesData) {
+      feesData = await yalidineService.calculateFees(fromWilayaId, toWilayaId);
+      feesCache.set(feesCacheKey, { data: feesData, timestamp: Date.now() });
+    }
 
     // Calculate weight fees if dimensions provided
     let weightFees = 0;
@@ -573,7 +533,11 @@ router.post('/calculate-fees', async (req, res) => {
       return res.status(400).json({ error: 'Invalid input data', details: error.errors });
     }
     console.error('Error calculating shipping fees:', error);
-    res.status(500).json({ error: 'Failed to calculate shipping fees' });
+    const status = error.quotaExceeded || (error.response && error.response.status === 429) ? 429 : 500;
+    res.status(status).json({
+      error: status === 429 ? 'Quota API dépassé' : 'Failed to calculate shipping fees',
+      message: error.message
+    });
   }
 });
 
