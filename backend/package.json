@@ -16,6 +16,7 @@
     "db:seed:all": "node seed-database.js && node seed-orders.js",
     "db:migrate:stock-movements": "node scripts/migrate-stock-movements.js",
     "migrate:stock": "node run-migration.js",
+    "set-mikhwar-priority": "node scripts/set-mikhwar-elite-priority.js",
     "postinstall": "prisma generate"
   },
   "dependencies": {
