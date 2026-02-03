@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { AdminLayout } from '@/components/admin/admin-layout'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -358,6 +358,12 @@ export default function InventorySmartPage() {
     )
 }
 
+// Cache-bust helper so product images don't show grey until hard refresh
+const cacheBustImageUrl = (url: string | null | undefined, version: number) => {
+    if (!url || url === '/placeholder.svg') return url || '/placeholder.svg'
+    return `${url}${url.includes('?') ? '&' : '?'}v=${version}`
+}
+
 // Labels Section
 function LabelsSection() {
     const [products, setProducts] = useState<any[]>([])
@@ -368,6 +374,7 @@ function LabelsSection() {
     const [generatingId, setGeneratingId] = useState<string | null>(null)
     const [selectedProduct, setSelectedProduct] = useState<any | null>(null)
     const [showPreview, setShowPreview] = useState(false)
+    const [labelsListVersion, setLabelsListVersion] = useState(() => Date.now())
 
     useEffect(() => {
         fetchProducts(1)
@@ -380,10 +387,11 @@ function LabelsSection() {
                 page: pageNum,
                 limit: 20,
                 search: search || undefined
-            }) as any
+            }, { cache: 'no-store' }) as any
             setProducts(response.products || [])
             setTotalPages(response.pagination?.pages || 1)
             setPage(pageNum)
+            setLabelsListVersion(Date.now())
         } catch (error) {
             if (process.env.NODE_ENV === 'development') {
                 console.error('Échec du chargement des produits', error)
@@ -614,16 +622,18 @@ function LabelsSection() {
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
                                         <div className="relative w-12 h-12 rounded overflow-hidden flex-shrink-0 bg-muted">
                                             {(() => {
-                                                const imageUrl = product.image || product.images?.[0]?.url || product.images?.[0] || '/placeholder.svg'
-                                                return imageUrl && imageUrl !== '/placeholder.svg' ? (
+                                                const rawUrl = product.image || product.images?.[0]?.url || product.images?.[0] || ''
+                                                const imageUrl = rawUrl && rawUrl !== '/placeholder.svg' ? cacheBustImageUrl(rawUrl, labelsListVersion) : null
+                                                return imageUrl ? (
                                                     <img
+                                                        key={`${product?.id}-${rawUrl}-${labelsListVersion}`}
                                                         src={imageUrl}
                                                         alt={product.name || 'Product'}
                                                         className="w-full h-full object-cover"
                                                         onError={(e) => {
                                                             const target = e.target as HTMLImageElement
                                                             target.src = '/placeholder.svg'
-                                                            target.onerror = null // Prevent infinite loop
+                                                            target.onerror = null
                                                         }}
                                                     />
                                                 ) : (
@@ -750,13 +760,15 @@ function LabelsSection() {
                                 // Show single preview for accessory with total stock
                                 const barcodeValue = selectedProduct?.reference || selectedProduct?.id
                                 const totalStock = selectedProduct?.stock || 0
-                                const imageUrl = selectedProduct?.images?.[0]?.url || selectedProduct?.images?.[0] || selectedProduct?.image || null
+                                const rawImageUrl = selectedProduct?.images?.[0]?.url || selectedProduct?.images?.[0] || selectedProduct?.image || null
+                                const imageUrl = rawImageUrl ? cacheBustImageUrl(rawImageUrl, labelsListVersion) : null
                                 return (
                                     <div className="border rounded-lg p-4">
                                         <div className="flex items-center gap-4 mb-4">
                                             {imageUrl && (
                                                 <div className="relative w-20 h-20 rounded overflow-hidden bg-muted flex-shrink-0">
                                                     <Image
+                                                        key={`preview-acc-${selectedProduct?.id}-${rawImageUrl}-${labelsListVersion}`}
                                                         src={imageUrl}
                                                         alt={selectedProduct?.name || 'Product'}
                                                         fill
@@ -765,7 +777,7 @@ function LabelsSection() {
                                                             const target = e.target as HTMLImageElement
                                                             target.src = '/placeholder.svg'
                                                         }}
-                                                        unoptimized={imageUrl.startsWith('http')}
+                                                        unoptimized={rawImageUrl?.startsWith('http')}
                                                     />
                                                 </div>
                                             )}
@@ -793,7 +805,8 @@ function LabelsSection() {
                                 const categorySlug = selectedProduct?.category?.slug?.toLowerCase() || ''
                                 const isShoes = categorySlug.includes('shoe') || categorySlug.includes('chaussure') || selectedProduct?.category?.name?.toLowerCase().includes('shoe') || selectedProduct?.category?.name?.toLowerCase().includes('chaussure')
                                 const allSizes = isShoes ? ['36', '37', '38', '39', '40', '41'] : ['M', 'L', 'XL', 'XXL', 'XXXL']
-                                const imageUrl = selectedProduct?.images?.[0]?.url || selectedProduct?.images?.[0] || selectedProduct?.image || null
+                                const rawImageUrl = selectedProduct?.images?.[0]?.url || selectedProduct?.images?.[0] || selectedProduct?.image || null
+                                const imageUrl = rawImageUrl ? cacheBustImageUrl(rawImageUrl, labelsListVersion) : null
                                 return allSizes.map((sizeLabel) => {
                                     const barcodeValue = `${selectedProduct.reference}-${sizeLabel}`
                                     const sizeData = selectedProduct?.sizes?.find((s: any) => s.size === sizeLabel)
@@ -805,6 +818,7 @@ function LabelsSection() {
                                                 {imageUrl && (
                                                     <div className="relative w-20 h-20 rounded overflow-hidden bg-muted flex-shrink-0">
                                                         <Image
+                                                            key={`preview-${sizeLabel}-${selectedProduct?.id}-${rawImageUrl}-${labelsListVersion}`}
                                                             src={imageUrl}
                                                             alt={`${selectedProduct?.name || 'Product'} - ${sizeLabel}`}
                                                             fill
@@ -813,7 +827,7 @@ function LabelsSection() {
                                                                 const target = e.target as HTMLImageElement
                                                                 target.src = '/placeholder.svg'
                                                             }}
-                                                            unoptimized={imageUrl.startsWith('http')}
+                                                            unoptimized={rawImageUrl?.startsWith('http')}
                                                         />
                                                     </div>
                                                 )}
@@ -2016,7 +2030,7 @@ function HistoryTable({ data, title = "Historique", showFilters = true }: { data
 }
 
 // ------------------------------------------------------------------
-// NEW SECTIONS: ECHANGE (Stock Out) & RETOUR (Stock In)
+// ECHANGE (Stock In: scan ECH-XXXXXX adds items to stock) & RETOUR (Stock In)
 // ------------------------------------------------------------------
 
 function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement: StockMovement) => void, history: StockMovement[] }) {
@@ -2322,9 +2336,12 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
             <Card className="h-full flex flex-col border-orange-200 bg-orange-50/30">
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2 text-orange-700">
-                        <ArrowDown className="h-5 w-5" />
-                        Échange (Sortie Stock)
+                        <ArrowUp className="h-5 w-5" />
+                        Échange (Entrée Stock)
                     </CardTitle>
+                    <CardDescription>
+                        En scannant un ticket ECH-XXXXXX, les articles sont ajoutés au stock (entrée).
+                    </CardDescription>
                 </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-4">
                 <form onSubmit={handleScan} className="space-y-4">

@@ -268,6 +268,17 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         sizes: productData.sizes
       })
 
+      // Invalidate products cache so primary picture and list update immediately on client
+      try {
+        await fetch('/api/revalidate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ path: 'products', slug: slug || productData.slug || undefined })
+        })
+      } catch {
+        // Best-effort; revalidate is optional
+      }
+
       toast.success('Product updated successfully!')
       router.push('/admin/products')
     } catch (error) {

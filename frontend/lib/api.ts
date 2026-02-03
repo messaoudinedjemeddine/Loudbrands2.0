@@ -116,19 +116,22 @@ class ApiClient {
   }
 
   // Products
-  async getProducts(params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-    category?: string;
-    brand?: string;
-    minPrice?: number;
-    maxPrice?: number;
-    sortBy?: string;
-    sortOrder?: 'asc' | 'desc';
-    inStock?: boolean;
-    onSale?: boolean;
-  }) {
+  async getProducts(
+    params?: {
+      page?: number;
+      limit?: number;
+      search?: string;
+      category?: string;
+      brand?: string;
+      minPrice?: number;
+      maxPrice?: number;
+      sortBy?: string;
+      sortOrder?: 'asc' | 'desc';
+      inStock?: boolean;
+      onSale?: boolean;
+    },
+    options?: RequestInit
+  ) {
     const searchParams = new URLSearchParams();
 
     if (params) {
@@ -140,7 +143,7 @@ class ApiClient {
     }
 
     const query = searchParams.toString();
-    return this.request(`/products${query ? `?${query}` : ''}`);
+    return this.request(`/products${query ? `?${query}` : ''}`, options);
   }
 
   async getProduct(id: string) {
@@ -384,8 +387,8 @@ export const apiClient = new ApiClient(API_BASE_URL);
 export const api = {
   // Products
   products: {
-    getAll: (params?: Parameters<typeof apiClient.getProducts>[0]) =>
-      apiClient.getProducts(params),
+    getAll: (params?: Parameters<typeof apiClient.getProducts>[0], options?: RequestInit) =>
+      apiClient.getProducts(params, options),
     getById: (id: string) => apiClient.getProduct(id),
     getFeatured: () => apiClient.getFeaturedProducts(),
     scanProduct: (barcode: string, action: 'add' | 'remove') =>
@@ -427,7 +430,7 @@ export const api = {
       search?: string;
       category?: string;
       status?: string;
-    }) => apiClient.request(`/admin/products${params ? `?${new URLSearchParams({ ...params, limit: params.limit?.toString() || '1000' } as any).toString()}` : '?limit=1000'}`),
+    }) => apiClient.request(`/admin/products${params ? `?${new URLSearchParams({ ...params, limit: params.limit?.toString() || '1000' } as any).toString()}` : '?limit=1000'}`, { cache: 'no-store' }),
     getOrders: (params?: Parameters<typeof apiClient.getAdminOrders>[0]) =>
       apiClient.getAdminOrders(params),
     updateOrderStatus: (

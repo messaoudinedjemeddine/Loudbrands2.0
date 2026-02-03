@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Cache products for 60 seconds (ISR - Incremental Static Regeneration)
-export const revalidate = 60
+// Cache products for 15 seconds so primary picture updates show quickly (ISR)
+export const revalidate = 15
 
 export async function GET(request: NextRequest) {
   try {
@@ -17,8 +17,7 @@ export async function GET(request: NextRequest) {
       headers: {
         'Content-Type': 'application/json',
       },
-      // Use cache with revalidation instead of no-store
-      next: { revalidate: 60 }
+      next: { revalidate: 15 }
     })
 
     if (!response.ok) {
@@ -29,7 +28,7 @@ export async function GET(request: NextRequest) {
     const result = NextResponse.json(data)
     
     // Add cache headers for client-side caching
-    result.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300')
+    result.headers.set('Cache-Control', 'public, s-maxage=15, stale-while-revalidate=120')
     
     return result
   } catch (error) {

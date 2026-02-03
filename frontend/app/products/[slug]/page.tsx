@@ -47,7 +47,7 @@ interface ProductPageProps {
 export async function generateStaticParams() {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com'}/api/products`, {
-      next: { revalidate: 60 }
+      next: { revalidate: 15 }
     })
 
     if (!res.ok) {
@@ -69,7 +69,7 @@ export async function generateStaticParams() {
 async function getProduct(slug: string): Promise<Product | null> {
   try {
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com'}/api/products/slug/${slug}`, {
-      next: { revalidate: 60 }
+      next: { revalidate: 15 }
     })
 
     if (!res.ok) {

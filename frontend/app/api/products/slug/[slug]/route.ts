@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Cache product details for 5 minutes (products change less frequently)
-export const revalidate = 300
+// Cache product details for 15s so primary picture and details update quickly
+export const revalidate = 15
 
 export async function GET(
   request: NextRequest,
@@ -23,8 +23,7 @@ export async function GET(
       headers: {
         'Content-Type': 'application/json',
       },
-      // Use cache with revalidation instead of no-store
-      next: { revalidate: 300 }
+      next: { revalidate: 15 }
     })
 
     if (!response.ok) {
@@ -38,7 +37,7 @@ export async function GET(
     const result = NextResponse.json(data)
     
     // Add cache headers
-    result.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600')
+    result.headers.set('Cache-Control', 'public, s-maxage=15, stale-while-revalidate=120')
     
     return result
   } catch (error) {

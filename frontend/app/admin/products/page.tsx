@@ -67,6 +67,7 @@ export default function AdminProductsPage() {
   const [statusFilter, setStatusFilter] = useState('all')
   const [loading, setLoading] = useState(true)
   const [inventoryEnabled, setInventoryEnabled] = useState(false)
+  const [listVersion, setListVersion] = useState(() => Date.now())
 
   useEffect(() => {
     setMounted(true)
@@ -98,6 +99,7 @@ export default function AdminProductsPage() {
       const response = await api.admin.getProducts() as { products: Product[] }
       console.log('Products response:', response)
       setProducts(response.products || [])
+      setListVersion(Date.now())
       console.log('Products set:', response.products?.length || 0)
     } catch (error) {
       console.error('Failed to fetch products:', error)
@@ -446,12 +448,18 @@ export default function AdminProductsPage() {
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
                 >
                   <div className="flex items-center space-x-4">
-                    <div className="relative w-16 h-16 bg-muted rounded-md overflow-hidden">
+                    <div className="relative w-16 h-16 bg-muted rounded-md overflow-hidden flex-shrink-0">
                       <Image
-                        src={product.image}
+                        key={`${product.id}-${product.image}-${listVersion}`}
+                        src={product.image ? `${product.image}${product.image.includes('?') ? '&' : '?'}v=${listVersion}` : '/placeholder.svg'}
                         alt={product.name}
                         fill
                         className="object-cover"
+                        unoptimized={product.image?.startsWith('http')}
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement
+                          if (target.src !== '/placeholder.svg') target.src = '/placeholder.svg'
+                        }}
                       />
                     </div>
                     

@@ -507,7 +507,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     src={product.images[currentImageIndex] || '/placeholder.svg'}
                     alt={isRTL ? product.nameAr || product.name : product.name}
                     fill
-                    className="object-cover transition-transform duration-300 group-hover:scale-105"
+                    className="object-contain transition-transform duration-300 group-hover:scale-105"
                     priority={currentImageIndex === 0}
                     fetchPriority={currentImageIndex === 0 ? 'high' : 'auto'}
                     loading={currentImageIndex === 0 ? 'eager' : 'lazy'}
@@ -576,7 +576,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                             src={image}
                             alt={`${isRTL ? product.nameAr || product.name : product.name} - Image ${index + 1}`}
                             fill
-                            className="object-cover"
+                            className="object-contain"
                             loading="lazy"
                             sizes="(max-width: 640px) 40px, (max-width: 1024px) 56px, 80px"
                             onError={(e) => {

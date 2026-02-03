@@ -330,7 +330,7 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
                   src={product.images[currentImageIndex] || '/placeholder.svg'}
                   alt={isRTL ? product.nameAr || product.name : product.name}
                   fill
-                  className="object-cover"
+                  className="object-contain"
                   priority
                   onError={(e) => {
                     const target = e.target as HTMLImageElement
@@ -392,7 +392,7 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
                         src={image}
                         alt={`${isRTL ? product.nameAr || product.name : product.name} - Image ${index + 1}`}
                         fill
-                        className="object-cover"
+                        className="object-contain"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement
                           target.src = '/placeholder.svg'
