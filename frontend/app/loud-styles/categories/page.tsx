@@ -99,6 +99,7 @@ export default function LoudStylesCategoriesPage() {
                 alt={name}
                 fill
                 className="object-cover group-hover:scale-110 transition-transform duration-700"
+                unoptimized={category.image?.startsWith('http')}
                 onError={(e) => {
                   const target = e.target as HTMLImageElement
                   target.src = '/placeholder.svg'

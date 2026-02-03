@@ -102,6 +102,7 @@ export default function CategoriesPage() {
                 alt={name}
                 fill
                 className="object-cover group-hover:scale-110 transition-transform duration-700 ease-out"
+                unoptimized={category.image?.startsWith('http')}
               />
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
               
@@ -297,6 +298,7 @@ export default function CategoriesPage() {
                               width={32}
                               height={32}
                               className="object-cover"
+                              unoptimized={category.image?.startsWith('http')}
                             />
                           </div>
                           <span className="font-medium">{isRTL ? category.nameAr || category.name : category.name}</span>

@@ -719,6 +719,7 @@ export default function CheckoutPage() {
                               alt={item.name}
                               fill
                               className="object-cover"
+                              unoptimized={item.image?.startsWith('http')}
                             />
                           </div>
                           <div className="flex-1 min-w-0">

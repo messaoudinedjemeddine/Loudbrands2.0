@@ -513,7 +513,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     loading={currentImageIndex === 0 ? 'eager' : 'lazy'}
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 40vw"
                     quality={currentImageIndex === 0 ? 90 : 75}
-                    unoptimized={false}
+                    unoptimized={(product.images[currentImageIndex] || '').startsWith('http')}
                     onError={(e) => {
                       const target = e.target as HTMLImageElement
                       target.src = '/placeholder.svg'
@@ -579,6 +579,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                             className="object-contain"
                             loading="lazy"
                             sizes="(max-width: 640px) 40px, (max-width: 1024px) 56px, 80px"
+                            unoptimized={typeof image === 'string' && image.startsWith('http')}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement
                               target.src = '/placeholder.svg'
@@ -1250,6 +1251,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     fill
                     className="object-contain"
                     sizes="100vw"
+                    unoptimized={(product.images[currentImageIndex] || '').startsWith('http')}
                     onError={(e) => {
                       const target = e.target as HTMLImageElement
                       target.src = '/placeholder.svg'

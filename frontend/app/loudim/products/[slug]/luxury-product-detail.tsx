@@ -314,6 +314,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     fill
                     className="object-cover"
                     priority
+                    unoptimized={(product.images[currentImageIndex] || '').startsWith('http')}
                     onError={(e) => {
                       const target = e.target as HTMLImageElement
                       target.src = '/placeholder.svg'
@@ -375,6 +376,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                           alt={`${isRTL ? product.nameAr || product.name : product.name} - Image ${index + 1}`}
                           fill
                           className="object-cover"
+                          unoptimized={typeof image === 'string' && image.startsWith('http')}
                           onError={(e) => {
                             const target = e.target as HTMLImageElement
                             target.src = '/placeholder.svg'
@@ -736,6 +738,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     alt={isRTL ? product.nameAr || product.name : product.name}
                     fill
                     className="object-contain"
+                    unoptimized={(product.images[currentImageIndex] || '').startsWith('http')}
                     onError={(e) => {
                       const target = e.target as HTMLImageElement
                       target.src = '/placeholder.svg'

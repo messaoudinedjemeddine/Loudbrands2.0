@@ -95,6 +95,7 @@ export default function WishlistPage() {
               alt={isRTL ? item.nameAr || item.name : item.name}
               fill
               className="object-cover group-hover:scale-110 transition-transform duration-300"
+              unoptimized={item.image?.startsWith('http')}
             />
             {item.isOnSale && (
               <Badge className="absolute top-2 left-2 bg-red-500 hover:bg-red-600">

@@ -93,6 +93,7 @@ export default function CategoriesSection({ categories, loading, error }: Catego
                       alt={isRTL ? category.nameAr || category.name : category.name}
                       fill
                       className="object-cover group-hover:scale-110 transition-transform duration-700"
+                      unoptimized={category.image?.startsWith('http')}
                       loading="lazy"
                       sizes="(max-width: 640px) 192px, 192px"
                       onError={(e) => {

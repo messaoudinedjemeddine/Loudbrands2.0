@@ -223,6 +223,7 @@ function LoudimProductsContent() {
                   alt={isRTL ? product.nameAr || product.name : product.name}
                   fill
                   className="object-cover transition-transform duration-500"
+                  unoptimized={product.image?.startsWith('http')}
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
                     target.src = '/placeholder.svg';

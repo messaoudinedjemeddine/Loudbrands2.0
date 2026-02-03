@@ -312,6 +312,7 @@ function LoudStylesProductsContent() {
                   alt={isRTL ? product.nameAr || product.name : product.name}
                   fill
                   className="object-cover transition-transform duration-500"
+                  unoptimized={product.image?.startsWith('http')}
                   loading={index < 8 ? "eager" : "lazy"}
                   priority={index < 8}
                   sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"

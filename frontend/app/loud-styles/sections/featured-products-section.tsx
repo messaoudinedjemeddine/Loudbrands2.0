@@ -159,6 +159,7 @@ export default function FeaturedProductsSection({ products, loading, error }: Fe
                             alt={isRTL ? product.nameAr || product.name : product.name}
                             fill
                             className="object-cover transition-transform duration-500"
+                            unoptimized={product.image?.startsWith('http')}
                             loading={index < 2 ? "eager" : "lazy"}
                             priority={index < 2}
                             sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"

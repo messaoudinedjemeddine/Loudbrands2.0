@@ -359,6 +359,7 @@ export default function LoudimPage() {
                             alt={isRTL ? category.nameAr || category.name : category.name}
                             fill
                             className="object-cover group-hover:scale-110 transition-transform duration-700"
+                            unoptimized={category.image?.startsWith('http')}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement;
                               target.src = '/placeholder.svg';
@@ -487,6 +488,7 @@ export default function LoudimPage() {
                                   alt={isRTL ? product.nameAr || product.name : product.name}
                                   fill
                                   className="object-cover transition-transform duration-500"
+                                  unoptimized={product.image?.startsWith('http')}
                                 />
                               </motion.div>
                               {product.isOnSale && (
