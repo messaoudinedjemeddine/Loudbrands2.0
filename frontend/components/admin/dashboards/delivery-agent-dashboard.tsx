@@ -154,6 +154,47 @@ interface YalidineShipment {
   date_last_status: string;
 }
 
+// Normalize Yalidine API status to canonical form (API may return variants: no accents, different casing)
+const CANONICAL_STATUSES = [
+  'En préparation', 'Centre', 'Vers Wilaya', 'Sorti en livraison', 'Livré',
+  'Echèc livraison', 'Echec de livraison', 'Retour à retirer', 'Retourné au vendeur',
+  'Echange échoué', 'Tentative échouée', 'En alerte', 'En attente du client'
+] as const
+function normalizeKey(s: string): string {
+  return (s || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/\s+/g, ' ')
+}
+const STATUS_NORMALIZE_MAP = new Map<string, string>()
+CANONICAL_STATUSES.forEach(c => STATUS_NORMALIZE_MAP.set(normalizeKey(c), c))
+// Common API variants (no accents, different spelling)
+const STATUS_ALIASES: [string, string][] = [
+  ['en preparation', 'En préparation'],
+  ['tentative echouee', 'Tentative échouée'],
+  ['sorti en livraison', 'Sorti en livraison'],
+  ['livre', 'Livré'],
+  ['echec livraison', 'Echec de livraison'],
+  ['echec de livraison', 'Echec de livraison'],
+  ['echèc livraison', 'Echec de livraison'],
+  ['centre', 'Centre'],
+  ['vers wilaya', 'Vers Wilaya'],
+  ['en alerte', 'En alerte'],
+  ['en attente du client', 'En attente du client'],
+  ['retour a retirer', 'Retour à retirer'],
+  ['retourne au vendeur', 'Retourné au vendeur'],
+  ['echange echoue', 'Echange échoué'],
+]
+STATUS_ALIASES.forEach(([key, canonical]) => STATUS_NORMALIZE_MAP.set(normalizeKey(key), canonical))
+
+function normalizeYalidineStatus(raw: string | undefined): string {
+  if (raw == null || typeof raw !== 'string') return 'Unknown'
+  const key = normalizeKey(raw)
+  return STATUS_NORMALIZE_MAP.get(key) ?? raw.trim() || 'Unknown'
+}
+
 const getStatusVariant = (status: string) => {
   const statusMap: Record<string, string> = {
     'Livré': 'success',
@@ -326,11 +367,12 @@ export function DeliveryAgentDashboard() {
 
   const normalizeShipment = (s: any) => {
     const tracking = s.tracking || s.tracking_number
+    const rawStatus = s.last_status || s.status || s.state || ''
     return {
       ...s,
       id: s.id || tracking,
       tracking,
-      last_status: s.last_status || s.status || s.state || 'Unknown',
+      last_status: normalizeYalidineStatus(rawStatus),
       date_creation: s.date_creation || s.created_at || s.date || new Date().toISOString(),
       date_last_status: s.date_last_status || s.updated_at || s.date || new Date().toISOString(),
       customer_name: s.customer_name || `${s.firstname || ''} ${s.familyname || ''}`.trim() || 'N/A',
@@ -398,10 +440,7 @@ export function DeliveryAgentDashboard() {
       versWilaya: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Vers Wilaya').length,
       sortiEnLivraison: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Sorti en livraison').length,
       livre: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Livré').length,
-      echecLivraison: list.filter((o: Order) => {
-        const st = shipmentMap.get(o.trackingNumber!)?.last_status
-        return st === 'Echèc livraison' || st === 'Echec de livraison'
-      }).length,
+      echecLivraison: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Echec de livraison').length,
       retourARetirer: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Retour à retirer').length,
       retourneAuVendeur: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Retourné au vendeur').length,
       echangeEchoue: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Echange échoué').length,
@@ -433,8 +472,8 @@ export function DeliveryAgentDashboard() {
       ])
       const ordersList = (ordersData as any).orders || (ordersData as Order[])
       const orderTrackings = new Set(ordersList.map((o: Order) => o.trackingNumber).filter(Boolean))
-      const websiteShipments = (yalidineRes.data || []).filter((s: any) => orderTrackings.has(s.tracking))
-      setYalidineShipments(websiteShipments)
+      const raw = (yalidineRes.data || []).filter((s: any) => orderTrackings.has(s.tracking || s.tracking_number))
+      setYalidineShipments(raw.map((s: any) => normalizeShipment(s)))
       setOrders(prev => (prev.length === 0 ? ordersList : prev))
     } catch (e) {
       console.warn('Lazy load other tabs failed:', e)
