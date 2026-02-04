@@ -20,9 +20,7 @@ import {
   Eye,
   Filter,
   X,
-  Check,
-  ChevronLeft,
-  ChevronRight
+  Check
 } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -81,10 +79,6 @@ function LoudStylesProductsContent() {
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedSizes, setSelectedSizes] = useState<string[]>([])
   const [isFilterOpen, setIsFilterOpen] = useState(false)
-  const [currentPage, setCurrentPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [totalProducts, setTotalProducts] = useState(0)
-  const productsPerPage = 25
 
 
   const addItem = useCartStore((state) => state.addItem)
@@ -199,7 +193,7 @@ function LoudStylesProductsContent() {
     }
   }, [searchParams, products]);
 
-  // Filter products based on search query, categories, and sizes, then paginate
+  // Filter products based on search query, categories, and sizes
   // Note: All filtering operations preserve the displayPriority order from the API
   useEffect(() => {
     let filtered = products
@@ -241,27 +235,10 @@ function LoudStylesProductsContent() {
       })
     }
 
-    // Calculate pagination
-    const totalFiltered = filtered.length
-    const pages = Math.max(1, Math.ceil(totalFiltered / productsPerPage))
-    setTotalPages(pages)
-    setTotalProducts(totalFiltered)
+    // Display all filtered products (no pagination)
+    setFilteredProducts(filtered)
 
-    // Paginate filtered results (slice preserves order)
-    const startIndex = (currentPage - 1) * productsPerPage
-    const endIndex = startIndex + productsPerPage
-    const paginatedProducts = filtered.slice(startIndex, endIndex)
-
-    setFilteredProducts(paginatedProducts)
-
-  }, [searchQuery, selectedCategories, selectedSizes, products, isRTL, currentPage])
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    if (currentPage !== 1 && (searchQuery.trim() || selectedCategories.length > 0 || selectedSizes.length > 0)) {
-      setCurrentPage(1)
-    }
-  }, [searchQuery, selectedCategories, selectedSizes])
+  }, [searchQuery, selectedCategories, selectedSizes, products, isRTL])
 
   if (!mounted) return <Preloader />
 
@@ -689,85 +666,6 @@ function LoudStylesProductsContent() {
                 <ProductCard key={product.id} product={product} index={index} />
               ))}
             </div>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex flex-col items-center gap-4 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <div className="text-sm text-muted-foreground">
-                  {isRTL 
-                    ? `عرض ${(currentPage - 1) * productsPerPage + 1} إلى ${Math.min(currentPage * productsPerPage, totalProducts)} من ${totalProducts} منتج`
-                    : `Showing ${(currentPage - 1) * productsPerPage + 1} to ${Math.min(currentPage * productsPerPage, totalProducts)} of ${totalProducts} products`
-                  }
-                </div>
-                <div className="flex items-center justify-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                    disabled={currentPage === 1}
-                    className={isRTL ? 'flex-row-reverse' : ''}
-                  >
-                    {isRTL ? (
-                      <>
-                        <span>التالي</span>
-                        <ChevronRight className="h-4 w-4" />
-                      </>
-                    ) : (
-                      <>
-                        <ChevronLeft className="h-4 w-4" />
-                        <span>Previous</span>
-                      </>
-                    )}
-                  </Button>
-
-                  {/* Page numbers */}
-                  <div className="flex items-center gap-1">
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      let pageNum: number;
-                      if (totalPages <= 5) {
-                        pageNum = i + 1;
-                      } else {
-                        // Show pages around current page
-                        const startPage = Math.max(1, Math.min(totalPages - 4, currentPage - 2));
-                        pageNum = startPage + i;
-                      }
-                      const isCurrentPageNum = pageNum === currentPage;
-                      return (
-                        <Button
-                          key={pageNum}
-                          variant={isCurrentPageNum ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => setCurrentPage(pageNum)}
-                          className="w-10 h-10 p-0"
-                        >
-                          {pageNum}
-                        </Button>
-                      );
-                    })}
-                  </div>
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                    disabled={currentPage === totalPages}
-                    className={isRTL ? 'flex-row-reverse' : ''}
-                  >
-                    {isRTL ? (
-                      <>
-                        <ChevronLeft className="h-4 w-4" />
-                        <span>السابق</span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Next</span>
-                        <ChevronRight className="h-4 w-4" />
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
           </div>
         )}
       </div>
