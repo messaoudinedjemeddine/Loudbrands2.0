@@ -56,6 +56,17 @@ interface Product {
   launchAt?: string;
   stock: number;
   sizes: Array<{ id: string; size: string; stock: number }> | string[];
+  displayPriority?: number | null;
+}
+
+/** Deduplicate by product id and keep order (backend already sends displayPriority order). */
+function dedupeById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter(p => {
+    if (seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
+  });
 }
 
 function LoudStylesProductsContent() {
@@ -106,51 +117,34 @@ function LoudStylesProductsContent() {
           throw new Error(productsData.error)
         }
 
-        let productsArray = Array.isArray(productsData) ? productsData : (productsData.products || [])
+        // Backend returns products ordered by displayPriority (1–10 first), then rest
+        let productsArray: Product[] = Array.isArray(productsData) ? productsData : (productsData.products || [])
+        productsArray = dedupeById(productsArray)
 
-        // Helper: sort so Mikhwar Elite (6 products) appear first (top row)
-        const isMikhwarElite = (p: Product) => {
-          const cat = p.category
-          if (!cat) return false
-          const name = typeof cat === 'string' ? cat : (cat.name || '')
-          const slug = typeof cat === 'string' ? '' : (cat.slug || '')
-          return /mikhwar\s*elite/i.test(name) || /mikhwar-elite/i.test(slug)
-        }
-        const sortMikhwarEliteFirst = <T extends Product>(arr: T[]) =>
-          [...arr].sort((a, b) => (isMikhwarElite(b) ? 1 : 0) - (isMikhwarElite(a) ? 1 : 0))
+        const totalPages = productsData.pagination?.pages ?? 1
 
-        productsArray = sortMikhwarEliteFirst(productsArray)
-
-        // If there are more pages, fetch them progressively in background
-        if (productsData.pagination && productsData.pagination.pages > 1) {
-          const totalPages = productsData.pagination.pages
-
-          // Set initial products immediately for faster display
+        if (totalPages > 1) {
+          // Set first page immediately
           setProducts(productsArray)
           setFilteredProducts(productsArray)
 
-          // Fetch remaining pages in background (non-blocking)
-          if (totalPages > 1) {
-            const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2)
-
-            // Fetch in smaller batches to avoid blocking
-            const batchSize = 3
-            for (let i = 0; i < remainingPages.length; i += batchSize) {
-              const batch = remainingPages.slice(i, i + batchSize)
-              const batchResponses = await Promise.all(
-                batch.map(page =>
-                  fetch(`/api/products?brand=loud-styles&limit=${limit}&page=${page}`)
-                    .then(res => res.json())
-                    .then(data => data.products || [])
-                    .catch(() => []) // Continue even if one page fails
-                )
+          // Fetch remaining pages and merge without duplicates (keep backend order)
+          const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2)
+          const batchSize = 3
+          for (let i = 0; i < remainingPages.length; i += batchSize) {
+            const batch = remainingPages.slice(i, i + batchSize)
+            const batchResponses = await Promise.all(
+              batch.map(page =>
+                fetch(`/api/products?brand=loud-styles&limit=${limit}&page=${page}`)
+                  .then(res => res.json())
+                  .then(data => (data.products || []) as Product[])
+                  .catch(() => [] as Product[])
               )
-
-              const newProducts = batchResponses.flat()
-              if (newProducts.length > 0) {
-                setProducts(prev => sortMikhwarEliteFirst([...prev, ...newProducts]))
-                setFilteredProducts(prev => sortMikhwarEliteFirst([...prev, ...newProducts]))
-              }
+            )
+            const newProducts = dedupeById(batchResponses.flat())
+            if (newProducts.length > 0) {
+              setProducts(prev => dedupeById([...prev, ...newProducts]))
+              setFilteredProducts(prev => dedupeById([...prev, ...newProducts]))
             }
           }
         } else {
