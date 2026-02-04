@@ -95,7 +95,7 @@ function LoudStylesProductsContent() {
   )
   const sizes = Array.from(new Set(allSizes)).filter(Boolean)
 
-  // Fetch products - Optimized with reasonable limit and progressive loading
+  // Fetch all Loud Styles products (single request with high limit + any remaining pages)
   useEffect(() => {
     setMounted(true)
 
@@ -103,36 +103,28 @@ function LoudStylesProductsContent() {
       try {
         setLoading(true)
 
-        // Fetch products
-        const productsRes = await fetch(`/api/products?brand=loud-styles&limit=50&page=1`)
-
-        // Fetch initial batch - reasonable limit for faster loading
-        const limit = 50 // Reduced from 1000 for faster initial load
+        const limit = 200 // Get up to 200 per request so we load all products
+        const productsRes = await fetch(`/api/products?brand=loud-styles&limit=${limit}&page=1`)
         if (!productsRes.ok) {
           throw new Error(`HTTP error! status: ${productsRes.status}`)
         }
         const productsData = await productsRes.json()
-
         if (productsData.error) {
           throw new Error(productsData.error)
         }
 
-        // Backend returns products ordered by displayPriority (1–10 first), then rest
         let productsArray: Product[] = Array.isArray(productsData) ? productsData : (productsData.products || [])
         productsArray = dedupeById(productsArray)
+        const total = productsData.pagination?.total ?? productsArray.length
+        const totalPages = Math.max(1, productsData.pagination?.pages ?? Math.ceil(total / limit))
 
-        const totalPages = productsData.pagination?.pages ?? 1
+        setProducts(productsArray)
+        setFilteredProducts(productsArray)
 
         if (totalPages > 1) {
-          // Set first page immediately
-          setProducts(productsArray)
-          setFilteredProducts(productsArray)
-
-          // Fetch remaining pages and merge without duplicates (keep backend order)
           const remainingPages = Array.from({ length: totalPages - 1 }, (_, i) => i + 2)
-          const batchSize = 3
-          for (let i = 0; i < remainingPages.length; i += batchSize) {
-            const batch = remainingPages.slice(i, i + batchSize)
+          for (let i = 0; i < remainingPages.length; i += 3) {
+            const batch = remainingPages.slice(i, i + 3)
             const batchResponses = await Promise.all(
               batch.map(page =>
                 fetch(`/api/products?brand=loud-styles&limit=${limit}&page=${page}`)
@@ -147,9 +139,6 @@ function LoudStylesProductsContent() {
               setFilteredProducts(prev => dedupeById([...prev, ...newProducts]))
             }
           }
-        } else {
-          setProducts(productsArray)
-          setFilteredProducts(productsArray)
         }
 
       } catch (error) {
