@@ -84,7 +84,7 @@ function LoudStylesProductsContent() {
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [totalProducts, setTotalProducts] = useState(0)
-  const productsPerPage = 24
+  const productsPerPage = 25
 
 
   const addItem = useCartStore((state) => state.addItem)
@@ -692,14 +692,14 @@ function LoudStylesProductsContent() {
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex flex-col items-center gap-4 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
                 <div className="text-sm text-muted-foreground">
                   {isRTL 
                     ? `عرض ${(currentPage - 1) * productsPerPage + 1} إلى ${Math.min(currentPage * productsPerPage, totalProducts)} من ${totalProducts} منتج`
                     : `Showing ${(currentPage - 1) * productsPerPage + 1} to ${Math.min(currentPage * productsPerPage, totalProducts)} of ${totalProducts} products`
                   }
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
