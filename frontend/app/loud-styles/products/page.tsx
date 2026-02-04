@@ -262,7 +262,6 @@ function LoudStylesProductsContent() {
       setCurrentPage(1)
     }
   }, [searchQuery, selectedCategories, selectedSizes])
->>>>>>> 45a143a6746bda059e1d951e45adde11e45492aa
 
   if (!mounted) return <Preloader />
 
@@ -690,7 +689,6 @@ function LoudStylesProductsContent() {
                 <ProductCard key={product.id} product={product} index={index} />
               ))}
             </div>
-<<<<<<< HEAD
 
             {/* Pagination Controls */}
             {totalPages > 1 && (
