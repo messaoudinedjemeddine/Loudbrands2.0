@@ -1,0 +1,28 @@
+{
+    "name": "Loud Brands",
+    "short_name": "Loud Brands",
+    "description": "Loud Brands - Traditional Modern Fashion",
+    "icons": [
+        {
+            "src": "/logo-mini.png",
+            "sizes": "any",
+            "type": "image/png"
+        },
+        {
+            "src": "/logo-mini.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/logo-mini.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ],
+    "theme_color": "#C4A47C",
+    "background_color": "#ffffff",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "portrait"
+}
