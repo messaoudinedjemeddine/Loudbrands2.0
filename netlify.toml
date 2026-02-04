@@ -4,6 +4,7 @@
 [build]
   base    = "frontend"
   command = "npm run build"
+  publish = "frontend/.next"
 
 # Essential Next.js plugin (Netlify may auto-install; explicit is fine)
 # Handles Next.js output, serverless/SSR, and rewrites
