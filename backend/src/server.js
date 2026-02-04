@@ -55,6 +55,7 @@ const corsOptions = {
       origin.includes('loudbrandss.com') ||
       origin.includes('loudbrands-backend') ||
       origin.includes('vercel.app') ||
+      origin.includes('netlify.app') ||
       origin.includes('localhost');
 
     if (!isAllowed) {

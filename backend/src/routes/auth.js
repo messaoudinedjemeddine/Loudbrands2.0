@@ -19,7 +19,7 @@ router.use((req, res, next) => {
     'http://127.0.0.1:3000'
   ].filter(Boolean);
 
-  if (origin && (allowedOrigins.includes(origin) || origin.includes('loudbrandss.com') || origin.includes('vercel.app') || origin.includes('localhost'))) {
+  if (origin && (allowedOrigins.includes(origin) || origin.includes('loudbrandss.com') || origin.includes('vercel.app') || origin.includes('netlify.app') || origin.includes('localhost'))) {
     res.header('Access-Control-Allow-Origin', origin);
   }
   res.header('Access-Control-Allow-Credentials', 'true');
