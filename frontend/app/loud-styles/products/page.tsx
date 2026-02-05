@@ -157,6 +157,8 @@ function LoudStylesProductsContent() {
         }
 
         setProducts(productsArray)
+        // Initialize filteredProducts with all products immediately
+        setFilteredProducts(productsArray)
 
       } catch (error) {
         if (process.env.NODE_ENV === 'development') {
@@ -164,6 +166,7 @@ function LoudStylesProductsContent() {
         }
         // Set empty arrays to prevent the page from crashing
         setProducts([])
+        setFilteredProducts([])
       } finally {
         setLoading(false)
       }
@@ -196,6 +199,12 @@ function LoudStylesProductsContent() {
   // Filter products based on search query, categories, and sizes
   // Note: All filtering operations preserve the displayPriority order from the API
   useEffect(() => {
+    // If no products yet, don't filter
+    if (products.length === 0) {
+      setFilteredProducts([])
+      return
+    }
+
     let filtered = products
 
     // Search filter (only if not already filtered by API)
