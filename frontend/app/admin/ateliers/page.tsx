@@ -291,6 +291,30 @@ export default function AteliersPage() {
         }
     }
 
+    /** Download an example Excel file (same structure as advanced export) for reference */
+    const handleDownloadExampleExcel = () => {
+        try {
+            const SIZE_COLS = ['M', 'L', 'XL', 'XXL', 'XXXL'] as const
+            const exampleData = [
+                ['Nom produit', ...SIZE_COLS, 'Quantité totale', 'Prix unitaire (DA)', 'Montant (DA)', 'Payé (DA)', 'Reste (DA)'],
+                ['Robe traditionnelle', 2, 3, 4, 2, 1, 12, 3500, 42000, '', ''],
+                ['Caftan Miral', 0, 1, 2, 1, 0, 4, 5500, 22000, '', ''],
+                ['Mikhwar Elite', 1, 2, 2, 2, 1, 8, 4200, 33600, '', ''],
+                [],
+                ['TOTAL', '', '', '', '', '', 24, '', 97600, 50000, 47600]
+            ]
+            const ws = XLSX.utils.aoa_to_sheet(exampleData)
+            ws['!cols'] = [{ wch: 22 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 12 }]
+            const wb = XLSX.utils.book_new()
+            XLSX.utils.book_append_sheet(wb, ws, 'Exemple')
+            XLSX.writeFile(wb, 'Exemple_Export_Ateliers_Avance.xlsx')
+            toast.success('Exemple téléchargé')
+        } catch (e) {
+            console.error(e)
+            toast.error('Erreur lors du téléchargement de l\'exemple')
+        }
+    }
+
     const filteredReceptions = receptions.filter(r => {
         const name = atelierName(r).toLowerCase()
         const isNotReturn = !name.includes('retour client')
@@ -317,6 +341,10 @@ export default function AteliersPage() {
                         <Button onClick={handleExportExcelAdvanced} className="bg-green-600 hover:bg-green-700">
                             <Download className="h-4 w-4 mr-2" />
                             Excel Avancé (1 onglet / atelier)
+                        </Button>
+                        <Button onClick={handleDownloadExampleExcel} variant="outline" className="border-dashed">
+                            <Download className="h-4 w-4 mr-2" />
+                            Télécharger un exemple
                         </Button>
                     </div>
                 </div>
