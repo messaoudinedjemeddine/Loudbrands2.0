@@ -127,6 +127,30 @@ export default function AteliersPage() {
         }
     }
 
+    /** Strip size suffix so "product1-xl" and "product1-xxl" → "product1" (one row per product) */
+    const baseProductName = (name: string, size?: string | null): string => {
+        if (!name || typeof name !== 'string') return ''
+        const s = name.trim()
+        const sizes = ['XXXL', 'XXL', 'XL', 'L', 'M']
+        let out = s
+        for (const sz of sizes) {
+            const re = new RegExp(`[-\\s]${sz}$`, 'i')
+            if (re.test(out)) {
+                out = out.replace(re, '').trim()
+                break
+            }
+        }
+        return out || s
+    }
+
+    /** Normalize size for column: M, L, XL, XXL, XXXL */
+    const normalizeSize = (size: string | null | undefined): 'M' | 'L' | 'XL' | 'XXL' | 'XXXL' | null => {
+        if (!size || typeof size !== 'string') return null
+        const u = size.trim().toUpperCase()
+        if (['M', 'L', 'XL', 'XXL', 'XXXL'].includes(u)) return u as 'M' | 'L' | 'XL' | 'XXL' | 'XXXL'
+        return null
+    }
+
     const handleExportExcel = () => {
         try {
             const exportData = filteredReceptions.map(r => ({
@@ -151,6 +175,78 @@ export default function AteliersPage() {
         }
     }
 
+    /** Advanced export: one sheet per atelier; each sheet lists products (one row per product) with M/L/XL/XXL/XXXL, total, price, payment */
+    const handleExportExcelAdvanced = () => {
+        try {
+            const SIZE_COLS = ['M', 'L', 'XL', 'XXL', 'XXXL'] as const
+            const receptionsByAtelier = new Map<string, { name: string; receptions: typeof filteredReceptions }>()
+            filteredReceptions.forEach(r => {
+                const name = atelierName(r)
+                const key = (r.atelierId || name || '').toString() || 'Sans atelier'
+                if (!receptionsByAtelier.has(key)) {
+                    receptionsByAtelier.set(key, { name, receptions: [] })
+                }
+                receptionsByAtelier.get(key)!.receptions.push(r)
+            })
+
+            const wb = XLSX.utils.book_new()
+            receptionsByAtelier.forEach(({ name, receptions: atelierReceptions }) => {
+                const byProduct = new Map<string, { M: number; L: number; XL: number; XXL: number; XXXL: number; totalQty: number; unitCostSum: number; costQty: number }>()
+                atelierReceptions.forEach(reception => {
+                    const items = reception.items || []
+                    items.forEach((item: { productName: string; reference?: string; size?: string | null; quantity: number; unitCost?: number }) => {
+                        const base = baseProductName(item.productName, item.size)
+                        const key = base || item.productName || item.reference || 'Sans nom'
+                        const sizeCol = normalizeSize(item.size)
+                        const qty = item.quantity ?? 0
+                        const unitCost = Number(item.unitCost) || 0
+
+                        if (!byProduct.has(key)) {
+                            byProduct.set(key, { M: 0, L: 0, XL: 0, XXL: 0, XXXL: 0, totalQty: 0, unitCostSum: 0, costQty: 0 })
+                        }
+                        const row = byProduct.get(key)!
+                        row.totalQty += qty
+                        row.unitCostSum += unitCost * qty
+                        row.costQty += qty
+                        if (sizeCol) row[sizeCol] += qty
+                    })
+                })
+
+                const sheetData = [
+                    ['Nom produit', ...SIZE_COLS, 'Quantité totale', 'Prix unitaire (DA)', 'Montant (DA)'],
+                    ...Array.from(byProduct.entries()).map(([productName, row]) => {
+                        const unitPrice = row.costQty > 0 ? row.unitCostSum / row.costQty : 0
+                        const payment = row.totalQty * unitPrice
+                        return [
+                            productName,
+                            row.M || '',
+                            row.L || '',
+                            row.XL || '',
+                            row.XXL || '',
+                            row.XXXL || '',
+                            row.totalQty,
+                            Math.round(unitPrice * 100) / 100,
+                            Math.round(payment * 100) / 100
+                        ]
+                    })
+                ]
+                const ws = XLSX.utils.aoa_to_sheet(sheetData)
+                const sheetName = (name || 'Atelier').replace(/[\s:*?\/\\\[\]]/g, '_').slice(0, 31)
+                XLSX.utils.book_append_sheet(wb, ws, sheetName)
+            })
+
+            if (wb.SheetNames.length === 0) {
+                toast.info('Aucune réception à exporter.')
+                return
+            }
+            XLSX.writeFile(wb, `Ateliers_Produits_${new Date().toISOString().split('T')[0]}.xlsx`)
+            toast.success('Export Excel (un onglet par atelier) téléchargé !')
+        } catch (e) {
+            console.error(e)
+            toast.error('Erreur lors de l\'export avancé')
+        }
+    }
+
     const filteredReceptions = receptions.filter(r => {
         const name = atelierName(r).toLowerCase()
         const isNotReturn = !name.includes('retour client')
@@ -169,10 +265,16 @@ export default function AteliersPage() {
                         </h1>
                         <p className="text-muted-foreground">Gérer les ateliers et le suivi des réceptions (coûts et paiements)</p>
                     </div>
-                    <Button onClick={handleExportExcel} className="bg-green-600 hover:bg-green-700">
-                        <Download className="h-4 w-4 mr-2" />
-                        Exporter Excel
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                        <Button onClick={handleExportExcel} variant="outline">
+                            <Download className="h-4 w-4 mr-2" />
+                            Excel Réceptions
+                        </Button>
+                        <Button onClick={handleExportExcelAdvanced} className="bg-green-600 hover:bg-green-700">
+                            <Download className="h-4 w-4 mr-2" />
+                            Excel Avancé (1 onglet / atelier)
+                        </Button>
+                    </div>
                 </div>
 
                 {/* Ateliers: add new */}
@@ -196,8 +298,26 @@ export default function AteliersPage() {
                             Ajouter
                         </Button>
                         {ateliers.length > 0 && (
-                            <div className="text-sm text-muted-foreground">
-                                Ateliers existants : {ateliers.map(a => a.name).join(', ')}
+                            <div className="w-full mt-4">
+                                <Label className="text-sm font-medium">Ateliers déjà créés</Label>
+                                <div className="mt-2 rounded-md border overflow-hidden">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead className="w-12">#</TableHead>
+                                                <TableHead>Nom de l&apos;atelier</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {ateliers.map((a, i) => (
+                                                <TableRow key={a.id}>
+                                                    <TableCell className="text-muted-foreground">{i + 1}</TableCell>
+                                                    <TableCell className="font-medium">{a.name}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
                             </div>
                         )}
                     </CardContent>
