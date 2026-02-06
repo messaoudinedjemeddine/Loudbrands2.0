@@ -14,7 +14,8 @@ import {
     Download,
     Loader2,
     Search,
-    Plus
+    Plus,
+    Trash2
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -49,6 +50,9 @@ export default function AteliersPage() {
     const [selectedReception, setSelectedReception] = useState<any>(null)
     const [paymentAmount, setPaymentAmount] = useState('')
     const [isSavingPayment, setIsSavingPayment] = useState(false)
+
+    const [deletingAtelierId, setDeletingAtelierId] = useState<string | null>(null)
+    const [deletingReceptionId, setDeletingReceptionId] = useState<string | null>(null)
 
     useEffect(() => {
         fetchData()
@@ -116,6 +120,37 @@ export default function AteliersPage() {
             toast.error(e?.message || 'Erreur lors de la mise à jour')
         } finally {
             setIsSavingPayment(false)
+        }
+    }
+
+    const handleDeleteAtelier = async (id: string, name: string) => {
+        if (!confirm(`Supprimer l'atelier « ${name} » ? Cette action est irréversible.`)) return
+        setDeletingAtelierId(id)
+        try {
+            await api.deleteAtelier(id)
+            toast.success('Atelier supprimé')
+            fetchData()
+        } catch (e: any) {
+            const msg = e?.message || (typeof e?.error === 'string' ? e.error : 'Erreur lors de la suppression')
+            toast.error(msg)
+        } finally {
+            setDeletingAtelierId(null)
+        }
+    }
+
+    const handleDeleteReception = async (reception: any) => {
+        const name = atelierName(reception)
+        const date = new Date(reception.date).toLocaleDateString()
+        if (!confirm(`Supprimer la session du ${date} (${name}) ? Les articles de cette réception seront supprimés.`)) return
+        setDeletingReceptionId(reception.id)
+        try {
+            await api.deleteReception(reception.id)
+            toast.success('Session de réception supprimée')
+            fetchData()
+        } catch (e: any) {
+            toast.error(e?.message || 'Erreur lors de la suppression')
+        } finally {
+            setDeletingReceptionId(null)
         }
     }
 
@@ -212,25 +247,34 @@ export default function AteliersPage() {
                     })
                 })
 
+                const dataRows = Array.from(byProduct.entries()).map(([productName, row]) => {
+                    const unitPrice = row.costQty > 0 ? row.unitCostSum / row.costQty : 0
+                    const payment = row.totalQty * unitPrice
+                    return {
+                        productName,
+                        M: row.M || '',
+                        L: row.L || '',
+                        XL: row.XL || '',
+                        XXL: row.XXL || '',
+                        XXXL: row.XXXL || '',
+                        totalQty: row.totalQty,
+                        unitPrice: Math.round(unitPrice * 100) / 100,
+                        payment: Math.round(payment * 100) / 100
+                    }
+                })
+                const totalQuantite = dataRows.reduce((s, r) => s + (r.totalQty || 0), 0)
+                const totalMontant = dataRows.reduce((s, r) => s + (r.payment || 0), 0)
+                const totalPaye = atelierReceptions.reduce((s, r) => s + (Number(r.amountPaid) || 0), 0)
+                const totalReste = atelierReceptions.reduce((s, r) => s + (restToPay(r)), 0)
+
                 const sheetData = [
-                    ['Nom produit', ...SIZE_COLS, 'Quantité totale', 'Prix unitaire (DA)', 'Montant (DA)'],
-                    ...Array.from(byProduct.entries()).map(([productName, row]) => {
-                        const unitPrice = row.costQty > 0 ? row.unitCostSum / row.costQty : 0
-                        const payment = row.totalQty * unitPrice
-                        return [
-                            productName,
-                            row.M || '',
-                            row.L || '',
-                            row.XL || '',
-                            row.XXL || '',
-                            row.XXXL || '',
-                            row.totalQty,
-                            Math.round(unitPrice * 100) / 100,
-                            Math.round(payment * 100) / 100
-                        ]
-                    })
+                    ['Nom produit', ...SIZE_COLS, 'Quantité totale', 'Prix unitaire (DA)', 'Montant (DA)', 'Payé (DA)', 'Reste (DA)'],
+                    ...dataRows.map(r => [r.productName, r.M, r.L, r.XL, r.XXL, r.XXXL, r.totalQty, r.unitPrice, r.payment, '', '']),
+                    [],
+                    ['TOTAL', '', '', '', '', '', totalQuantite, '', Math.round(totalMontant * 100) / 100, Math.round(totalPaye * 100) / 100, Math.round(totalReste * 100) / 100]
                 ]
                 const ws = XLSX.utils.aoa_to_sheet(sheetData)
+                ws['!cols'] = [{ wch: 22 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 6 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 12 }, { wch: 12 }]
                 const sheetName = (name || 'Atelier').replace(/[\s:*?\/\\\[\]]/g, '_').slice(0, 31)
                 XLSX.utils.book_append_sheet(wb, ws, sheetName)
             })
@@ -306,6 +350,7 @@ export default function AteliersPage() {
                                             <TableRow>
                                                 <TableHead className="w-12">#</TableHead>
                                                 <TableHead>Nom de l&apos;atelier</TableHead>
+                                                <TableHead className="w-24 text-right">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -313,6 +358,18 @@ export default function AteliersPage() {
                                                 <TableRow key={a.id}>
                                                     <TableCell className="text-muted-foreground">{i + 1}</TableCell>
                                                     <TableCell className="font-medium">{a.name}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                            onClick={() => handleDeleteAtelier(a.id, a.name)}
+                                                            disabled={deletingAtelierId === a.id}
+                                                            title="Supprimer l'atelier"
+                                                        >
+                                                            {deletingAtelierId === a.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                                        </Button>
+                                                    </TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>
@@ -386,9 +443,21 @@ export default function AteliersPage() {
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell className="text-right">
-                                                    <Button variant="outline" size="sm" onClick={() => handleOpenPaymentModal(reception)}>
-                                                        Gérer Paiement
-                                                    </Button>
+                                                    <div className="flex items-center justify-end gap-2">
+                                                        <Button variant="outline" size="sm" onClick={() => handleOpenPaymentModal(reception)}>
+                                                            Gérer Paiement
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                            onClick={() => handleDeleteReception(reception)}
+                                                            disabled={deletingReceptionId === reception.id}
+                                                            title="Supprimer la session"
+                                                        >
+                                                            {deletingReceptionId === reception.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                                        </Button>
+                                                    </div>
                                                 </TableCell>
                                             </TableRow>
                                         ))}

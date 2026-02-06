@@ -90,6 +90,7 @@ class ApiClient {
         throw validationError;
       }
 
+      if (response.status === 204) return undefined as T;
       const data = await response.json();
       
       // Log successful responses in development
@@ -345,6 +346,10 @@ class ApiClient {
     });
   }
 
+  async deleteAtelier(id: string) {
+    return this.request(`/ateliers/${id}`, { method: 'DELETE' });
+  }
+
   // Inventory Reception (atelierId required; backend computes totalCost)
   async createReception(data: {
     atelierId: string;
@@ -378,6 +383,10 @@ class ApiClient {
 
   async getReceptions() {
     return this.request('/inventory/receptions');
+  }
+
+  async deleteReception(id: string) {
+    return this.request(`/inventory/receptions/${id}`, { method: 'DELETE' });
   }
 }
 
@@ -526,10 +535,12 @@ export const api = {
     // Ateliers
     getAteliers: () => apiClient.getAteliers(),
     createAtelier: (data: { name: string }) => apiClient.createAtelier(data),
+    deleteAtelier: (id: string) => apiClient.deleteAtelier(id),
     // Stock Receptions (Arrivals) – atelierId required; backend computes totalCost
     createReception: (data: Parameters<typeof apiClient.createReception>[0]) =>
       apiClient.createReception(data),
     getReceptions: () => apiClient.getReceptions(),
+    deleteReception: (id: string) => apiClient.deleteReception(id),
     // Stock Movements
     createStockMovement: (data: {
       type: 'in' | 'out';
@@ -730,6 +741,7 @@ export const api = {
   // Ateliers (top-level for admin ateliers & inventory/smart)
   getAteliers: () => apiClient.getAteliers(),
   createAtelier: (data: { name: string }) => apiClient.createAtelier(data),
+  deleteAtelier: (id: string) => apiClient.deleteAtelier(id),
 
   // Inventory
   createReception: (data: Parameters<typeof apiClient.createReception>[0]) =>
@@ -737,6 +749,7 @@ export const api = {
   updateReception: (id: string, data: Parameters<typeof apiClient.updateReception>[1]) =>
     apiClient.updateReception(id, data),
   getReceptions: () => apiClient.getReceptions(),
+  deleteReception: (id: string) => apiClient.deleteReception(id),
   // Tracking validation (scoped per operationType: sortie, echange, retour)
   validateTracking: (trackingNumber: string, operationType: string) =>
     apiClient.request<{ valid: boolean; message?: string }>(

@@ -220,6 +220,21 @@ router.patch('/receptions/:id', async (req, res) => {
     }
 });
 
+// Delete reception (and its items by cascade)
+router.delete('/receptions/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        await prisma.stockReception.delete({ where: { id } });
+        res.status(204).send();
+    } catch (error) {
+        if (error.code === 'P2025') {
+            return res.status(404).json({ error: 'Réception introuvable' });
+        }
+        console.error('Delete reception error:', error);
+        res.status(500).json({ error: 'Failed to delete reception' });
+    }
+});
+
 // Get all receptions (with atelier relation)
 router.get('/receptions', async (req, res) => {
     try {

@@ -45,4 +45,23 @@ router.post('/', async (req, res) => {
     }
 });
 
+// DELETE atelier (only if no receptions)
+router.delete('/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const count = await prisma.stockReception.count({ where: { atelierId: id } });
+        if (count > 0) {
+            return res.status(400).json({ error: 'Impossible de supprimer : cet atelier a des réceptions. Supprimez d\'abord les réceptions ou réaffectez-les.' });
+        }
+        await prisma.atelier.delete({ where: { id } });
+        res.status(204).send();
+    } catch (error) {
+        if (error.code === 'P2025') {
+            return res.status(404).json({ error: 'Atelier introuvable' });
+        }
+        console.error('Delete atelier error:', error);
+        res.status(500).json({ error: 'Failed to delete atelier' });
+    }
+});
+
 module.exports = router;
