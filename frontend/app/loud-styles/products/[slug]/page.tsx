@@ -65,7 +65,7 @@ export default function LoudStylesProductPage() {
     async function fetchProduct() {
       try {
         setLoading(true)
-        const res = await fetch(`/api/products/slug/${slug}?brand=loud-styles`)
+        const res = await fetch(`/api/products/slug/${slug}?brand=loud-styles`, { cache: 'no-store' })
         
         if (!res.ok) {
           throw new Error('Failed to fetch product')

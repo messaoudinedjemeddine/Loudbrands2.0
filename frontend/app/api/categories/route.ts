@@ -34,8 +34,8 @@ export async function GET(request: NextRequest) {
     // Return the backend response as-is to preserve the { categories: [...] } format
     const result = NextResponse.json(data)
 
-    // Add cache headers for client-side caching (5 minutes)
-    result.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600')
+    // No-store so category images load on first visit (avoids grey images from stale cache)
+    result.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
 
     return result
   } catch (error) {

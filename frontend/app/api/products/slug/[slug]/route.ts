@@ -36,8 +36,8 @@ export async function GET(
     const data = await response.json()
     const result = NextResponse.json(data)
     
-    // Add cache headers
-    result.headers.set('Cache-Control', 'public, s-maxage=15, stale-while-revalidate=120')
+    // No-store so product images load on first visit (avoids grey images from stale cache)
+    result.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
     
     return result
   } catch (error) {

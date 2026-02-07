@@ -54,7 +54,7 @@ export default function LoudimProductPage() {
     async function fetchProduct() {
       try {
         setLoading(true)
-        const res = await fetch(`/api/products/slug/${slug}?brand=loudim`)
+        const res = await fetch(`/api/products/slug/${slug}?brand=loudim`, { cache: 'no-store' })
         
         if (!res.ok) {
           throw new Error('Failed to fetch product')

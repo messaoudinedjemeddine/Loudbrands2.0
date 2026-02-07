@@ -99,7 +99,7 @@ export default function LoudimPage() {
         setError(null)
 
         // Fetch LOUDIM products
-        const productsResponse = await fetch('/api/products?brand=loudim')
+        const productsResponse = await fetch('/api/products?brand=loudim', { cache: 'no-store' })
         if (!productsResponse.ok) {
           throw new Error('Failed to fetch products')
         }
@@ -116,7 +116,7 @@ export default function LoudimPage() {
         setFeaturedProducts(featured)
 
         // Fetch LOUDIM categories
-        const categoriesResponse = await fetch('/api/categories?brand=loudim')
+        const categoriesResponse = await fetch('/api/categories?brand=loudim', { cache: 'no-store' })
         if (!categoriesResponse.ok) {
           throw new Error('Failed to fetch categories')
         }

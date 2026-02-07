@@ -86,7 +86,7 @@ export default function HomePage() {
         setError(null)
 
         // Fetch featured products from both brands (first 4 products)
-        const productsResponse = await fetch('/api/products?limit=8')
+        const productsResponse = await fetch('/api/products?limit=8', { cache: 'no-store' })
         if (!productsResponse.ok) {
           throw new Error('Failed to fetch products')
         }
@@ -104,9 +104,7 @@ export default function HomePage() {
         setFeaturedProducts(featured)
 
         // Fetch categories from both brands (with caching)
-        const categoriesResponse = await fetch('/api/categories', {
-          next: { revalidate: 300 } // Cache for 5 minutes
-        })
+        const categoriesResponse = await fetch('/api/categories', { cache: 'no-store' })
         if (!categoriesResponse.ok) {
           throw new Error('Failed to fetch categories')
         }

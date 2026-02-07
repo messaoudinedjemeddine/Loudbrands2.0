@@ -136,8 +136,8 @@ export default function LoudStylesPage() {
 
         // Fetch products and categories in parallel – fetch enough to get Mikhwar Elite first
         const [productsResponse, categoriesResponse] = await Promise.all([
-          fetch('/api/products?brand=loud-styles&limit=24'),
-          fetch('/api/categories?brand=loud-styles')
+          fetch('/api/products?brand=loud-styles&limit=24', { cache: 'no-store' }),
+          fetch('/api/categories?brand=loud-styles', { cache: 'no-store' })
         ])
 
         // Process products – sort so Mikhwar Elite (6 products) appear first, then take first 4 for featured

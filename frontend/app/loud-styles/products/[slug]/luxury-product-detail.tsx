@@ -178,7 +178,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
         try {
           const accessoriesPromises = accessorySlugs.map(async (slug) => {
             try {
-              const res = await fetch(`/api/products/slug/${slug}?brand=loud-styles`)
+              const res = await fetch(`/api/products/slug/${slug}?brand=loud-styles`, { cache: 'no-store' })
               if (res.ok) {
                 const data = await res.json()
                 return data.product

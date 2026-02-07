@@ -1,6 +1,6 @@
 // Service Worker for caching and offline support
-const CACHE_NAME = 'loud-brands-v1';
-const RUNTIME_CACHE = 'loud-brands-runtime-v1';
+const CACHE_NAME = 'loud-brands-v2';
+const RUNTIME_CACHE = 'loud-brands-runtime-v2';
 
 // Assets to cache immediately on install
 const STATIC_ASSETS = [
@@ -53,45 +53,39 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Strategy: Cache First for static assets, Network First for API
+  // Products and categories APIs: never cache so images/URLs are always fresh (avoids grey images on first load)
+  if (url.pathname.startsWith('/api/products') || url.pathname.startsWith('/api/categories')) {
+    event.respondWith(fetch(request));
+    return;
+  }
+
+  // Other API routes: Network First with cache fallback
   if (url.pathname.startsWith('/api/')) {
-    // API routes: Network First with cache fallback
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Clone the response
           const responseToCache = response.clone();
-          
-          // Cache successful responses (but not partial responses - 206)
           if (response.status === 200 && response.status !== 206) {
             caches.open(RUNTIME_CACHE).then((cache) => {
-              cache.put(request, responseToCache).catch((err) => {
-                // Silently fail if caching fails (e.g., 206 partial response)
-                console.warn('Cache put failed:', err);
-              });
+              cache.put(request, responseToCache).catch((err) => console.warn('Cache put failed:', err));
             });
           }
-          
           return response;
         })
         .catch(() => {
-          // Network failed, try cache
           return caches.match(request).then((cachedResponse) => {
-            if (cachedResponse) {
-              return cachedResponse;
-            }
-            // Return offline response for API calls
+            if (cachedResponse) return cachedResponse;
             return new Response(
               JSON.stringify({ error: 'Offline', cached: true }),
-              {
-                status: 503,
-                headers: { 'Content-Type': 'application/json' },
-              }
+              { status: 503, headers: { 'Content-Type': 'application/json' } }
             );
           });
         })
     );
-  } else if (
+    return;
+  }
+
+  if (
     url.pathname.startsWith('/_next/static/') ||
     url.pathname.startsWith('/images/') ||
     url.pathname.startsWith('/logos/') ||
