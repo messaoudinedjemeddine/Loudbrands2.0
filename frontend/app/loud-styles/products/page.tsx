@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { Preloader } from '@/components/preloader'
 // Tree-shakeable framer-motion import - only import what we need
@@ -76,6 +76,7 @@ function LoudStylesProductsContent() {
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [selectedSizes, setSelectedSizes] = useState<string[]>([])
   const [isFilterOpen, setIsFilterOpen] = useState(false)
@@ -96,84 +97,100 @@ function LoudStylesProductsContent() {
   const sizes = Array.from(new Set(allSizes)).filter(Boolean)
 
   // Fetch all products (we'll filter and paginate client-side)
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const limit = 500 // Fetch up to 500 per request so we get all products in 1–2 calls
+      const params = new URLSearchParams({
+        brand: 'loud-styles',
+        limit: limit.toString(),
+        page: '1'
+      })
+
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim())
+      }
+
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 45000)
+      const productsRes = await fetch(`/api/products?${params.toString()}`, {
+        signal: controller.signal,
+        cache: 'no-store'
+      }).finally(() => clearTimeout(timeoutId))
+      
+      if (!productsRes.ok) {
+        const errorText = await productsRes.text().catch(() => '')
+        throw new Error(`Erreur HTTP ${productsRes.status}: ${errorText || 'Impossible de charger les produits'}`)
+      }
+      
+      const productsData = await productsRes.json()
+      if (productsData.error) {
+        throw new Error(productsData.error)
+      }
+
+      let productsArray: Product[] = Array.isArray(productsData) ? productsData : (productsData.products || [])
+      productsArray = dedupeById(productsArray)
+
+      const totalFromAPI = productsData.pagination?.total ?? 0
+      const totalPages = productsData.pagination?.pages ?? (totalFromAPI > 0 ? Math.ceil(totalFromAPI / limit) : 1)
+
+      // Fetch every remaining page until we have all products (no pagination UI – single list)
+      let page = 2
+      while (totalPages >= 2 && productsArray.length < (totalFromAPI || productsArray.length + 1)) {
+        const pageParams = new URLSearchParams(params)
+        pageParams.set('page', String(page))
+        try {
+          const pageController = new AbortController()
+          const pageTimeoutId = setTimeout(() => pageController.abort(), 30000)
+          const pageRes = await fetch(`/api/products?${pageParams.toString()}`, {
+            signal: pageController.signal,
+            cache: 'no-store'
+          }).finally(() => clearTimeout(pageTimeoutId))
+          if (!pageRes.ok) break
+          const pageData = await pageRes.json()
+          const pageProducts: Product[] = Array.isArray(pageData) ? pageData : (pageData.products || [])
+          if (pageProducts.length === 0) break
+          productsArray = dedupeById([...productsArray, ...pageProducts])
+          if (pageProducts.length < limit) break
+          page++
+          if (page > totalPages) break
+        } catch (err) {
+          console.error('Failed to fetch page', page, err)
+          break
+        }
+      }
+
+      setProducts(productsArray)
+      setFilteredProducts(productsArray)
+      setError(null)
+
+    } catch (error: any) {
+      let errorMsg = 'Erreur lors du chargement des produits'
+      if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
+        errorMsg = isRTL ? 'انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى.' : 'Request timeout. Please try again.'
+      } else if (error?.message) {
+        errorMsg = error.message
+      } else if (typeof error === 'string') {
+        errorMsg = error
+      }
+      console.error('Failed to fetch products:', error)
+      setError(errorMsg)
+      setProducts([])
+      setFilteredProducts([])
+      if (mounted) {
+        toast.error(errorMsg)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [searchQuery, isRTL, mounted])
+
   useEffect(() => {
     setMounted(true)
-
-    async function fetchData() {
-      try {
-        setLoading(true)
-
-        // Fetch all products with a high limit
-        const limit = 1000 // Fetch up to 1000 products
-        const params = new URLSearchParams({
-          brand: 'loud-styles',
-          limit: limit.toString(),
-          page: '1'
-        })
-
-        // If search query is active, use API filtering for better performance
-        if (searchQuery.trim()) {
-          params.append('search', searchQuery.trim())
-        }
-
-        const productsRes = await fetch(`/api/products?${params.toString()}`)
-        if (!productsRes.ok) {
-          throw new Error(`HTTP error! status: ${productsRes.status}`)
-        }
-        const productsData = await productsRes.json()
-        if (productsData.error) {
-          throw new Error(productsData.error)
-        }
-
-        let productsArray: Product[] = Array.isArray(productsData) ? productsData : (productsData.products || [])
-        productsArray = dedupeById(productsArray)
-
-        // Check if we need to fetch more pages
-        const total = productsData.pagination?.total ?? productsArray.length
-        const totalPagesFromAPI = productsData.pagination?.pages ?? Math.ceil(total / limit)
-
-        if (totalPagesFromAPI > 1 && productsArray.length < total) {
-          // Fetch remaining pages sequentially to preserve displayPriority order
-          const remainingPages = Array.from({ length: totalPagesFromAPI - 1 }, (_, i) => i + 2)
-          for (const page of remainingPages) {
-            const pageParams = new URLSearchParams(params)
-            pageParams.set('page', page.toString())
-            try {
-              const pageRes = await fetch(`/api/products?${pageParams.toString()}`)
-              if (pageRes.ok) {
-                const pageData = await pageRes.json()
-                const pageProducts: Product[] = Array.isArray(pageData) ? pageData : (pageData.products || [])
-                if (pageProducts.length > 0) {
-                  // Append products maintaining order (products are already sorted by displayPriority from API)
-                  productsArray = dedupeById([...productsArray, ...pageProducts])
-                }
-              }
-            } catch (error) {
-              if (process.env.NODE_ENV === 'development') {
-                console.error(`Failed to fetch page ${page}:`, error)
-              }
-            }
-          }
-        }
-
-        setProducts(productsArray)
-        // Initialize filteredProducts with all products immediately
-        setFilteredProducts(productsArray)
-
-      } catch (error) {
-        if (process.env.NODE_ENV === 'development') {
-          console.error('Failed to fetch data:', error)
-        }
-        // Set empty arrays to prevent the page from crashing
-        setProducts([])
-        setFilteredProducts([])
-      } finally {
-        setLoading(false)
-      }
-    }
-
     fetchData()
-  }, [searchQuery]) // Refetch when search changes (category and size filters are client-side)
+  }, [fetchData])
 
   // Initialize filters from URL parameters
   useEffect(() => {
@@ -292,11 +309,11 @@ function LoudStylesProductsContent() {
 
     return (
       <motion.div
-        initial={{ opacity: 0, y: 50, scale: 0.9 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
+        initial={{ opacity: 0, y: 36, scale: 0.96 }}
+        whileInView={{ opacity: 1, y: 0, scale: 1 }}
+        viewport={{ once: true, margin: '-40px 0px -40px 0px', amount: 0.1 }}
         transition={{
-          duration: 0.6,
-          delay: index * 0.1,
+          duration: 0.45,
           ease: [0.25, 0.46, 0.45, 0.94]
         }}
         whileHover={{
@@ -650,6 +667,33 @@ function LoudStylesProductsContent() {
         {/* Products Grid */}
         {loading ? (
           <ProductGridSkeleton count={12} />
+        ) : error ? (
+          <div className="text-center py-8 sm:py-16">
+            <div className="w-16 h-16 sm:w-24 sm:h-24 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+              <X className="w-8 h-8 sm:w-12 sm:h-12 text-red-600 dark:text-red-400" />
+            </div>
+            <h3 className="text-lg sm:text-xl font-semibold mb-2 text-center text-red-600 dark:text-red-400">
+              {isRTL ? 'خطأ في التحميل' : 'Error loading products'}
+            </h3>
+            <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6 text-center px-4 max-w-md mx-auto">
+              {error}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button 
+                onClick={() => {
+                  setError(null)
+                  setSearchQuery('')
+                  fetchData()
+                }}
+                className="bg-primary hover:bg-primary/90"
+              >
+                {isRTL ? 'إعادة المحاولة' : 'Retry'}
+              </Button>
+              <Button onClick={() => window.location.reload()} variant="outline">
+                {isRTL ? 'تحديث الصفحة' : 'Refresh Page'}
+              </Button>
+            </div>
+          </div>
         ) : filteredProducts.length === 0 ? (
           <div className="text-center py-8 sm:py-16">
             <div className="w-16 h-16 sm:w-24 sm:h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
@@ -670,6 +714,7 @@ function LoudStylesProductsContent() {
           </div>
         ) : (
           <div className="space-y-8">
+            {/* Single list of all products – no pagination; scroll to see all */}
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
               {filteredProducts.map((product, index) => (
                 <ProductCard key={product.id} product={product} index={index} />
@@ -684,7 +729,11 @@ function LoudStylesProductsContent() {
 
 export default function LoudStylesProductsPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-cream-100 via-warm-50 to-cream-200 dark:from-gray-800 dark:via-gray-700 dark:to-gray-800 flex items-center justify-center">
+        <ProductGridSkeleton count={12} />
+      </div>
+    }>
       <LoudStylesProductsContent />
     </Suspense>
   )
