@@ -1473,12 +1473,20 @@ Loudstyles`
                           <div className="flex items-start justify-between gap-3">
                             <div className="flex-1 space-y-2 min-w-0">
                               {/* Order Number and Status */}
-                              <div className="flex items-center space-x-2">
-                                <h4 className="font-semibold text-base">#{order.orderNumber}</h4>
-                                {status && (
-                                  <Badge variant={getStatusVariant(status) as any} className="text-xs">
-                                    {status}
-                                  </Badge>
+                              <div className="flex flex-col space-y-1">
+                                <div className="flex items-center space-x-2">
+                                  <h4 className="font-semibold text-base">#{order.orderNumber}</h4>
+                                  {status && (
+                                    <Badge variant={getStatusVariant(status) as any} className="text-xs">
+                                      {status}
+                                    </Badge>
+                                  )}
+                                </div>
+                                {order.trackingNumber && (
+                                  <div className="flex items-center text-xs text-muted-foreground">
+                                    <Tag className="w-3 h-3 mr-1" />
+                                    {order.trackingNumber}
+                                  </div>
                                 )}
                               </div>
 
