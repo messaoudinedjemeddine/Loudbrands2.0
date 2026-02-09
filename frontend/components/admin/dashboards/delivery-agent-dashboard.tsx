@@ -557,6 +557,11 @@ export function DeliveryAgentDashboard() {
       })
 
       setConfirmedShipments(confirmedShipmentsList)
+
+      console.log('📊 Updating stats with confirmed stats:', confirmedStats)
+      console.log('📊 Total confirmed orders:', list.length)
+      console.log('📊 Shipments found:', confirmedShipmentsList.length)
+
       setStats(prev => ({
         ...prev,
         confirmedStats,
