@@ -464,40 +464,112 @@ export function DeliveryAgentDashboard() {
     }
   }
 
-  // Phase 2: Fetch Yalidine status only for confirmed orders' trackings (rate-limited: ~4 req/sec)
+  // Phase 2: Fetch Yalidine status for confirmed orders (Bulk Fetch)
   const fetchYalidineStatusForConfirmed = async (ordersList?: Order[]) => {
     const list = ordersList ?? allConfirmedOrders.filter((o: Order) => o.callCenterStatus === 'CONFIRMED' && !!o.trackingNumber)
     if (list.length === 0) return
-    const trackings = list.map((o: Order) => o.trackingNumber!)
-    const results: any[] = []
-    for (let i = 0; i < trackings.length; i++) {
-      try {
-        const s = await yalidineAPI.getShipment(trackings[i])
-        if (s && (s.tracking || s.tracking_number)) results.push(normalizeShipment(s))
-      } catch (_) {
-        // skip failed
+
+    setLoading(true)
+
+    try {
+      // 1. Calculate earliest date from orders
+      // We go back 7 days from the oldest order to be safe (Yalidine might have slight delays in date sync or timezone diffs)
+      // If list is empty, we default to a recent date to avoid fetching too much
+      const dates = list.map(o => new Date(o.createdAt).getTime())
+      const minDateTimestamp = Math.min(...dates)
+      const minDate = new Date(minDateTimestamp)
+      minDate.setDate(minDate.getDate() - 7)
+      const dateCreationFilter = minDate.toISOString().split('T')[0]
+
+      console.log('📦 Bulk fetching shipments since:', dateCreationFilter)
+
+      // 2. Bulk fetch from Yalidine
+      // We use page_size=1000 to get as many as possible in one request
+      // We filter by date_creation to get only relevant recent shipments
+      const result = await yalidineAPI.getAllShipments({
+        date_creation: dateCreationFilter,
+        page: 1
+      })
+
+      const bulkShipments = result.data || []
+      console.log(`✅ Bulk fetched ${bulkShipments.length} shipments`)
+
+      // 3. Map fetched shipments to tracking numbers
+      const shipmentMap = new Map<string, any>()
+      bulkShipments.forEach((s: any) => {
+        const tracking = s.tracking || s.tracking_number
+        if (tracking) {
+          shipmentMap.set(tracking, normalizeShipment(s))
+        }
+      })
+
+      const confirmedShipmentsList: YalidineShipment[] = []
+
+      // 4. Update local state and stats
+      // Note: We only have data for shipments that were returned by the bulk fetch.
+      // If an order is very old and outside our date range, it might show "Unknown" status until we fetch it individually (fallback?)
+      // For now, we assume the date filter covers all relevant active orders.
+
+      const confirmedStats = {
+        enPreparation: 0,
+        centre: 0,
+        versWilaya: 0,
+        sortiEnLivraison: 0,
+        livre: 0,
+        echecLivraison: 0,
+        retourARetirer: 0,
+        retourneAuVendeur: 0,
+        echangeEchoue: 0,
+        tentativeEchouee: 0,
+        enAlerte: 0,
+        enAttenteClient: 0,
+        totalShipments: list.length // Total orders we are tracking
       }
-      if (i < trackings.length - 1) await new Promise(r => setTimeout(r, YALIDINE_DELAY_MS))
+
+      list.forEach((order) => {
+        const tracking = order.trackingNumber
+        if (!tracking) return
+
+        const shipmentData = shipmentMap.get(tracking)
+        if (shipmentData) {
+          confirmedShipmentsList.push(shipmentData)
+
+          // Update stats
+          const status = shipmentData.last_status // Already normalized by normalizeShipment
+
+          if (status === 'En préparation') confirmedStats.enPreparation++
+          else if (status === 'Centre') confirmedStats.centre++
+          else if (status === 'Vers Wilaya') confirmedStats.versWilaya++
+          else if (status === 'Sorti en livraison') confirmedStats.sortiEnLivraison++
+          else if (status === 'Livré') confirmedStats.livre++
+          else if (status === 'Echèc livraison') confirmedStats.echecLivraison++
+          else if (status === 'Retour à retirer') confirmedStats.retourARetirer++
+          else if (status === 'Retourné au vendeur') confirmedStats.retourneAuVendeur++
+          else if (status === 'Echange échoué') confirmedStats.echangeEchoue++
+          else if (status === 'Tentative échouée') confirmedStats.tentativeEchouee++
+          else if (status === 'En alerte') confirmedStats.enAlerte++
+          else if (status === 'En attente du client') confirmedStats.enAttenteClient++
+        } else {
+          // If not found in bulk, it counts as "Unknown" or just doesn't add to specific stats
+          // We could trigger individual fetch for missing ones here, but that risks 429 again.
+          // Better to assume if it's not in the last X days, it's old/archived.
+        }
+      })
+
+      setConfirmedShipments(confirmedShipmentsList)
+      setStats(prev => ({
+        ...prev,
+        confirmedStats,
+        // Update top stats with confirmed stats to make sure UI is consistent
+        ...confirmedStats
+      }))
+
+    } catch (err) {
+      console.error('❌ Error in bulk fetching confirmed shipments:', err)
+      toast.error('Failed to load shipment statuses')
+    } finally {
+      setLoading(false)
     }
-    setConfirmedShipments(results)
-    const shipmentMap = new Map<string, any>()
-    results.forEach((s: any) => { if (s.tracking) shipmentMap.set(s.tracking, s) })
-    const confirmedStats = {
-      enPreparation: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'En préparation').length,
-      centre: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Centre').length,
-      versWilaya: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Vers Wilaya').length,
-      sortiEnLivraison: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Sorti en livraison').length,
-      livre: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Livré').length,
-      echecLivraison: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Echec de livraison').length,
-      retourARetirer: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Retour à retirer').length,
-      retourneAuVendeur: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Retourné au vendeur').length,
-      echangeEchoue: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Echange échoué').length,
-      tentativeEchouee: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'Tentative échouée').length,
-      enAlerte: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'En alerte').length,
-      enAttenteClient: list.filter((o: Order) => shipmentMap.get(o.trackingNumber!)?.last_status === 'En attente du client').length,
-      totalShipments: results.length
-    }
-    setStats(prev => ({ ...prev, confirmedStats, ...confirmedStats }))
   }
 
   // Fetch global stats (fast)
@@ -519,13 +591,22 @@ export function DeliveryAgentDashboard() {
     // 1. Fetch fast global stats immediately
     fetchGlobalStats()
 
-    // 2. Fetch confirmed orders
-    fetchConfirmedOrdersOnly().then(orders => {
-      if (cancelled || !orders.length) return
-      // 3. Fetch specific status for confirmed orders
-      fetchYalidineStatusForConfirmed(orders)
-    })
-    return () => { cancelled = true }
+    // 2. Fetch confirmed orders initially
+    fetchConfirmedOrdersOnly()
+
+    // 3. Set up polling for confirmed orders (every 30 seconds)
+    // This allows the dashboard to reflect webhook updates from the backend without manual refresh
+    const interval = setInterval(() => {
+      if (!cancelled) {
+        console.log('🔄 Polling for order updates...')
+        fetchConfirmedOrdersOnly()
+      }
+    }, 30000)
+
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lazy load "All Parcels" and other tabs when user first switches to them (respects Yalidine quota)
@@ -555,8 +636,7 @@ export function DeliveryAgentDashboard() {
   const fetchDeliveryData = async () => {
     setOtherTabsDataLoaded(false)
     fetchGlobalStats() // Refresh global stats
-    const orders = await fetchConfirmedOrdersOnly()
-    if (orders.length > 0) await fetchYalidineStatusForConfirmed(orders)
+    await fetchConfirmedOrdersOnly() // Refresh orders from DB (webhook updates)
   }
 
 

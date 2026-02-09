@@ -157,6 +157,7 @@ app.use('/api/shipping', shippingRoutes);
 app.use('/api/inventory', require('./routes/inventory'));
 app.use('/api/ateliers', require('./routes/ateliers'));
 app.use('/api/notifications', require('./routes/notifications'));
+app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/api/sse', sseRoutes);
 
 // 404 handler

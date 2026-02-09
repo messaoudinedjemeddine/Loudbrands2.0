@@ -360,12 +360,12 @@ router.get('/communes', async (req, res) => {
         // Don't retry if quota is exceeded
         if (retryError.quotaExceeded) {
           console.error('❌ Quota exceeded - not retrying');
-          return res.status(429).json({ 
+          return res.status(429).json({
             error: 'Quota API dépassé',
             message: retryError.message || 'Votre accès à l\'API est temporairement désactivé. Veuillez réessayer plus tard.'
           });
         }
-        
+
         retryCount++;
         console.log(`⚠️ Retry ${retryCount}/${maxRetries} for communes request`);
 
@@ -429,12 +429,12 @@ router.get('/centers', async (req, res) => {
         // Don't retry if quota is exceeded
         if (retryError.quotaExceeded) {
           console.error('❌ Quota exceeded - not retrying');
-          return res.status(429).json({ 
+          return res.status(429).json({
             error: 'Quota API dépassé',
             message: retryError.message || 'Votre accès à l\'API est temporairement désactivé. Veuillez réessayer plus tard.'
           });
         }
-        
+
         retryCount++;
         console.log(`⚠️ Retry ${retryCount}/${maxRetries} for centers request`);
 
@@ -594,7 +594,12 @@ router.post('/create-shipment', async (req, res) => {
       return res.status(400).json({ error: 'Invalid input data', details: error.errors });
     }
     console.error('Error creating shipment:', error);
-    res.status(500).json({ error: 'Failed to create shipment' });
+    const status = error.quotaExceeded || (error.response && error.response.status === 429) ? 429 : 500;
+    res.status(status).json({
+      error: status === 429 ? 'Quota API dépassé' : 'Failed to create shipment',
+      message: error.message,
+      details: error.response?.data
+    });
   }
 });
 
@@ -618,7 +623,11 @@ router.get('/shipment/:tracking', async (req, res) => {
     }
   } catch (error) {
     console.error('Error fetching shipment:', error);
-    res.status(500).json({ error: 'Failed to fetch shipment details' });
+    const status = error.quotaExceeded || (error.response && error.response.status === 429) ? 429 : 500;
+    res.status(status).json({
+      error: status === 429 ? 'Quota API dépassé' : 'Failed to fetch shipment details',
+      message: error.message
+    });
   }
 });
 
@@ -817,6 +826,7 @@ router.get('/shipments', async (req, res) => {
       to_wilaya_name: req.query.to_wilaya_name,
       date_from: req.query.date_from,
       date_to: req.query.date_to,
+      date_creation: req.query.date_creation,
       tracking: req.query.tracking,
       customer_phone: req.query.customer_phone,
       limit: req.query.limit ? parseInt(req.query.limit) : 50,
@@ -860,12 +870,12 @@ router.get('/shipments', async (req, res) => {
         // Don't retry if quota is exceeded
         if (retryError.quotaExceeded) {
           console.error('❌ Quota exceeded - not retrying');
-          return res.status(429).json({ 
+          return res.status(429).json({
             error: 'Quota API dépassé',
             message: retryError.message || 'Votre accès à l\'API est temporairement désactivé. Veuillez réessayer plus tard.'
           });
         }
-        
+
         retryCount++;
         console.log(`⚠️ Retry ${retryCount}/${maxRetries} for shipments request`);
 
@@ -977,7 +987,11 @@ router.get('/shipments/stats', async (req, res) => {
       console.error('Response status:', error.response.status);
       console.error('Response data:', error.response.data);
     }
-    res.status(500).json({ error: 'Failed to fetch shipment statistics' });
+    const status = error.quotaExceeded || (error.response && error.response.status === 429) ? 429 : 500;
+    res.status(status).json({
+      error: status === 429 ? 'Quota API dépassé' : 'Failed to fetch shipment statistics',
+      message: error.message
+    });
   }
 });
 
