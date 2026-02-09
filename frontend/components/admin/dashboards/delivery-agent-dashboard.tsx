@@ -41,12 +41,12 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
-import { 
-  Pagination, 
-  PaginationContent, 
-  PaginationItem, 
-  PaginationLink, 
-  PaginationNext, 
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
   PaginationPrevious,
   PaginationEllipsis
 } from '@/components/ui/pagination'
@@ -452,10 +452,29 @@ export function DeliveryAgentDashboard() {
     setStats(prev => ({ ...prev, confirmedStats, ...confirmedStats }))
   }
 
+  // Fetch global stats (fast)
+  const fetchGlobalStats = async () => {
+    try {
+      const globalStats = await yalidineAPI.getShipmentStats()
+      setStats(prev => ({
+        ...prev,
+        ...globalStats
+      }))
+    } catch (err) {
+      console.error('Error fetching global stats:', err)
+    }
+  }
+
   useEffect(() => {
     let cancelled = false
+
+    // 1. Fetch fast global stats immediately
+    fetchGlobalStats()
+
+    // 2. Fetch confirmed orders
     fetchConfirmedOrdersOnly().then(orders => {
       if (cancelled || !orders.length) return
+      // 3. Fetch specific status for confirmed orders
       fetchYalidineStatusForConfirmed(orders)
     })
     return () => { cancelled = true }
@@ -487,6 +506,7 @@ export function DeliveryAgentDashboard() {
 
   const fetchDeliveryData = async () => {
     setOtherTabsDataLoaded(false)
+    fetchGlobalStats() // Refresh global stats
     const orders = await fetchConfirmedOrdersOnly()
     if (orders.length > 0) await fetchYalidineStatusForConfirmed(orders)
   }
@@ -640,7 +660,7 @@ https://loudbrandss.com/track-order?tracking=${trackingNumber}
 
     // Use confirmed shipments if requested (for confirmed tab), otherwise use regular shipments
     const shipmentsToSearch = useConfirmedShipments ? confirmedShipments : yalidineShipments
-    
+
     // Find the corresponding Yalidine shipment
     const yalidineShipment = shipmentsToSearch.find(shipment =>
       shipment.tracking === order.trackingNumber
@@ -678,7 +698,7 @@ https://loudbrandss.com/track-order?tracking=${trackingNumber}
     const shipment = yalidineShipments.find(s => s.tracking === order.trackingNumber)
     const tracking = order.trackingNumber || 'N/A'
     const customerName = order.customerName
-    
+
     // Format articles with emojis and better organization
     const articles = order.items.map(i => {
       const sizeStr = i.size ? ` (${i.size})` : ''
@@ -722,7 +742,7 @@ Loudstyles`
         if (wilaya) addressParts.push(wilaya)
         deliveryInfo = `📍 Adresse: ${addressParts.join(', ')}`
       }
-      
+
       message = `مرحبا ${customerName} 🌸
 نعلمك أن طلبيتك:
 ${articles}
@@ -783,7 +803,7 @@ Loudstyles`
         if (commune) addressParts.push(commune)
         if (wilaya) addressParts.push(wilaya)
         const addressInfo = `📍 Adresse: ${addressParts.join(', ')}`
-        
+
         message = `مرحبا ${customerName} 🌸
 بخصوص طلبيتك:
 ${articles}
@@ -890,7 +910,7 @@ Loudstyles`
         if (wilaya) addressParts.push(wilaya)
         deliveryInfo = `📍 Adresse: ${addressParts.join(', ')}`
       }
-      
+
       message = `مرحبا ${customerName} 🌸
 نعلمك أن طلبيتك:
 ${articles}
@@ -951,7 +971,7 @@ Loudstyles`
         if (commune) addressParts.push(commune)
         if (wilaya) addressParts.push(wilaya)
         const addressInfo = `📍 Adresse: ${addressParts.join(', ')}`
-        
+
         message = `مرحبا ${customerName} 🌸
 بخصوص طلبيتك:
 ${articles}
@@ -1163,50 +1183,50 @@ Loudstyles`
                 }
               }} className="mb-6">
                 <TabsList className="flex w-full overflow-x-auto pb-2 justify-start h-auto gap-2">
-                  <TabsTrigger 
-                    value="all" 
+                  <TabsTrigger
+                    value="all"
                     className="flex-shrink-0"
                   >
                     All ({stats.confirmedOrders})
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="En préparation" 
+                  <TabsTrigger
+                    value="En préparation"
                     className="flex-shrink-0 bg-blue-600 text-white data-[state=active]:bg-blue-700"
                   >
                     En préparation ({stats.confirmedStats?.enPreparation || 0})
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="Sorti en livraison" 
+                  <TabsTrigger
+                    value="Sorti en livraison"
                     className="flex-shrink-0 bg-indigo-600 text-white data-[state=active]:bg-indigo-700"
                   >
                     Sorti en livraison ({stats.confirmedStats?.sortiEnLivraison || 0})
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="En attente du client" 
+                  <TabsTrigger
+                    value="En attente du client"
                     className="flex-shrink-0 bg-amber-500 text-white data-[state=active]:bg-amber-600"
                   >
                     En attente du client ({stats.confirmedStats?.enAttenteClient || 0})
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="Tentative échouée" 
+                  <TabsTrigger
+                    value="Tentative échouée"
                     className="flex-shrink-0 bg-red-600 text-white animate-pulse-slow data-[state=active]:bg-red-700"
                   >
                     Tentative échouée ({stats.confirmedStats?.tentativeEchouee || 0})
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="En alerte" 
+                  <TabsTrigger
+                    value="En alerte"
                     className="flex-shrink-0 bg-orange-600 text-white animate-pulse-slow data-[state=active]:bg-orange-700"
                   >
                     En alerte ({stats.confirmedStats?.enAlerte || 0})
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="Echèc livraison" 
+                  <TabsTrigger
+                    value="Echèc livraison"
                     className="flex-shrink-0 bg-red-700 text-white animate-pulse-slow data-[state=active]:bg-red-800"
                   >
                     Echec livraison ({stats.confirmedStats?.echecLivraison || 0})
                   </TabsTrigger>
-                  <TabsTrigger 
-                    value="Livré" 
+                  <TabsTrigger
+                    value="Livré"
                     className="flex-shrink-0 bg-green-600 text-white data-[state=active]:bg-green-700"
                   >
                     Livré ({stats.confirmedStats?.livre || 0})
@@ -1232,8 +1252,8 @@ Loudstyles`
                 </div>
                 <div className="flex items-center gap-2">
                   <Label className="text-sm text-muted-foreground">Orders per page:</Label>
-                  <Select 
-                    value={confirmedItemsPerPage.toString()} 
+                  <Select
+                    value={confirmedItemsPerPage.toString()}
                     onValueChange={(value) => {
                       setConfirmedItemsPerPage(Number(value))
                       setConfirmedCurrentPage(1) // Reset to first page when changing items per page
@@ -1256,10 +1276,10 @@ Loudstyles`
               {(() => {
                 // For confirmed tab, use all confirmed orders that have a tracking number
                 // Filter orders based on both tab and dropdown filter
-                let filteredOrders = allConfirmedOrders.filter(order => 
+                let filteredOrders = allConfirmedOrders.filter(order =>
                   order.callCenterStatus === 'CONFIRMED' && !!order.trackingNumber
                 )
-                
+
                 // Apply tab filter if not 'all' - use confirmedShipments for accurate matching
                 if (confirmedTabFilter !== 'all') {
                   if (confirmedTabFilter === 'Echèc livraison') {
@@ -1269,15 +1289,15 @@ Loudstyles`
                       return status === 'Echèc livraison' || status === 'Echec de livraison'
                     })
                   } else {
-                    filteredOrders = filteredOrders.filter(order => 
+                    filteredOrders = filteredOrders.filter(order =>
                       getYalidineStatusForOrder(order, true) === confirmedTabFilter // Use confirmed shipments
                     )
                   }
                 }
-                
+
                 // Apply dropdown filter if not 'all' and tab is 'all'
                 if (confirmedStatusFilter !== 'all' && confirmedTabFilter === 'all') {
-                  filteredOrders = filteredOrders.filter(order => 
+                  filteredOrders = filteredOrders.filter(order =>
                     getYalidineStatusForOrder(order, true) === confirmedStatusFilter // Use confirmed shipments
                   )
                 }
@@ -1313,180 +1333,180 @@ Loudstyles`
 
                     {/* Orders */}
                     {paginatedOrders.map((order) => {
-                    const status = getYalidineStatusForOrder(order, true) // Use confirmed shipments
-                    const whatsappLink = getDeliveryAgentWhatsAppLink(order, status)
-                    // Find Yalidine shipment for this order to get wilaya and commune names
-                    const shipment = confirmedShipments.find(s => s.tracking === order.trackingNumber)
-                    const wilayaName = shipment?.to_wilaya_name || order.city?.name || ''
-                    const communeName = shipment?.to_commune_name || ''
+                      const status = getYalidineStatusForOrder(order, true) // Use confirmed shipments
+                      const whatsappLink = getDeliveryAgentWhatsAppLink(order, status)
+                      // Find Yalidine shipment for this order to get wilaya and commune names
+                      const shipment = confirmedShipments.find(s => s.tracking === order.trackingNumber)
+                      const wilayaName = shipment?.to_wilaya_name || order.city?.name || ''
+                      const communeName = shipment?.to_commune_name || ''
 
-                    return (
-                      <div key={order.id} className="border rounded-lg p-3 space-y-2">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex-1 space-y-2 min-w-0">
-                            {/* Order Number and Status */}
-                            <div className="flex items-center space-x-2">
-                              <h4 className="font-semibold text-base">#{order.orderNumber}</h4>
-                              {status && (
-                                <Badge variant={getStatusVariant(status) as any} className="text-xs">
-                                  {status}
-                                </Badge>
+                      return (
+                        <div key={order.id} className="border rounded-lg p-3 space-y-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 space-y-2 min-w-0">
+                              {/* Order Number and Status */}
+                              <div className="flex items-center space-x-2">
+                                <h4 className="font-semibold text-base">#{order.orderNumber}</h4>
+                                {status && (
+                                  <Badge variant={getStatusVariant(status) as any} className="text-xs">
+                                    {status}
+                                  </Badge>
+                                )}
+                              </div>
+
+                              {/* Client Information */}
+                              <div className="bg-muted/50 p-2 rounded-lg">
+                                <div className="flex items-center space-x-4">
+                                  <div>
+                                    <p className="text-xs font-medium text-muted-foreground">Client</p>
+                                    <p className="font-semibold text-sm">{order.customerName}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-medium text-muted-foreground">Téléphone</p>
+                                    <p className="font-semibold text-sm">{order.customerPhone}</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Order Summary */}
+                              <div className="bg-muted/30 p-2 rounded-lg space-y-1">
+                                <p className="text-xs font-medium text-muted-foreground mb-1">Résumé de la commande:</p>
+                                <div className="space-y-0.5">
+                                  {order.items.map((item) => {
+                                    const itemTotal = item.price * item.quantity
+                                    const sizeStr = item.size ? ` [${item.size}]` : ''
+                                    return (
+                                      <div key={item.id} className="flex justify-between text-xs">
+                                        <span>
+                                          {item.quantity}x {item.product.name}{sizeStr}
+                                        </span>
+                                        <span className="font-medium">{itemTotal.toLocaleString()} DA</span>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                                <div className="border-t pt-1 mt-1 space-y-0.5">
+                                  <div className="flex flex-col gap-0.5 text-xs">
+                                    <div className="flex justify-between items-start">
+                                      <div className="flex-1">
+                                        {order.deliveryType === 'HOME_DELIVERY' ? (
+                                          <>
+                                            <div className="flex items-center gap-1 text-muted-foreground">
+                                              <span className="text-base">🏠</span>
+                                              <span className="text-xs">Livraison à domicile:</span>
+                                            </div>
+                                            <div className="text-muted-foreground mt-0.5 ml-5 space-y-0.5 text-xs">
+                                              {wilayaName && <div>Wilaya: {wilayaName}</div>}
+                                              {communeName && <div>Commune: {communeName}</div>}
+                                              {order.deliveryAddress && <div>Adresse: {order.deliveryAddress}</div>}
+                                              {!wilayaName && !communeName && !order.deliveryAddress && (
+                                                <div>Adresse non spécifiée</div>
+                                              )}
+                                            </div>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <div className="flex items-center gap-1 text-muted-foreground">
+                                              <span className="text-base">🏢</span>
+                                              <span className="text-xs">Bureau Yalidine:</span>
+                                            </div>
+                                            <div className="text-muted-foreground mt-0.5 ml-5 text-xs">
+                                              {order.deliveryDesk?.name || order.deliveryAddress || 'Bureau non spécifié'}
+                                            </div>
+                                          </>
+                                        )}
+                                      </div>
+                                      <span className="font-medium ml-2 text-xs">{order.deliveryFee.toLocaleString()} DA</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex justify-between text-xs pt-0.5 border-t">
+                                    <span className="font-medium">Total:</span>
+                                    <span className="font-semibold text-green-600">{order.total.toLocaleString()} DA</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Yalidine Tracking */}
+                              {order.trackingNumber && (
+                                <div className="text-xs">
+                                  <span className="font-medium">Yalidine Tracking:</span>
+                                  <span className="ml-2 font-mono bg-blue-50 px-1.5 py-0.5 rounded text-blue-700 text-xs">
+                                    {order.trackingNumber}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Notes Display - Orange and Animated */}
+                              {order.notes && (
+                                <motion.div
+                                  className="bg-orange-50 border-2 border-orange-300 p-2 rounded-lg shadow-md"
+                                  initial={{ scale: 1 }}
+                                  animate={{
+                                    scale: [1, 1.02, 1],
+                                    boxShadow: [
+                                      '0 0 0px rgba(251, 146, 60, 0.4)',
+                                      '0 0 10px rgba(251, 146, 60, 0.6)',
+                                      '0 0 0px rgba(251, 146, 60, 0.4)'
+                                    ]
+                                  }}
+                                  transition={{
+                                    duration: 2,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                  }}
+                                >
+                                  <p className="text-xs font-medium text-orange-800 mb-0.5">Notes:</p>
+                                  <p className="text-xs text-orange-900 whitespace-pre-wrap">{order.notes}</p>
+                                </motion.div>
                               )}
                             </div>
 
-                            {/* Client Information */}
-                            <div className="bg-muted/50 p-2 rounded-lg">
-                              <div className="flex items-center space-x-4">
-                                <div>
-                                  <p className="text-xs font-medium text-muted-foreground">Client</p>
-                                  <p className="font-semibold text-sm">{order.customerName}</p>
-                                </div>
-                                <div>
-                                  <p className="text-xs font-medium text-muted-foreground">Téléphone</p>
-                                  <p className="font-semibold text-sm">{order.customerPhone}</p>
-                                </div>
-                              </div>
+                            {/* Action Buttons - Right Side */}
+                            <div className="flex flex-col items-end space-y-1.5 ml-3 flex-shrink-0">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-xs h-7 px-2"
+                                      onClick={() => {
+                                        setSelectedOrder(order)
+                                        setShowNotesDialog(true)
+                                        setNoteInput('')
+                                      }}
+                                    >
+                                      <Edit className="w-3 h-3 mr-1" />
+                                      {order.notes ? 'Modifier Note' : 'Ajouter Note'}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  {order.notes && (
+                                    <TooltipContent side="left" className="max-w-md">
+                                      <div className="space-y-1">
+                                        <p className="font-semibold text-sm mb-2">Détails des Notes:</p>
+                                        <p className="text-xs whitespace-pre-wrap">{order.notes}</p>
+                                      </div>
+                                    </TooltipContent>
+                                  )}
+                                </Tooltip>
+                              </TooltipProvider>
+
+                              {whatsappLink && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => window.open(whatsappLink, '_blank')}
+                                  className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200 text-xs h-7 px-2"
+                                >
+                                  <MessageCircle className="w-3 h-3 mr-1" />
+                                  WhatsApp
+                                </Button>
+                              )}
                             </div>
-
-                            {/* Order Summary */}
-                            <div className="bg-muted/30 p-2 rounded-lg space-y-1">
-                              <p className="text-xs font-medium text-muted-foreground mb-1">Résumé de la commande:</p>
-                              <div className="space-y-0.5">
-                                {order.items.map((item) => {
-                                  const itemTotal = item.price * item.quantity
-                                  const sizeStr = item.size ? ` [${item.size}]` : ''
-                                  return (
-                                    <div key={item.id} className="flex justify-between text-xs">
-                                      <span>
-                                        {item.quantity}x {item.product.name}{sizeStr}
-                                      </span>
-                                      <span className="font-medium">{itemTotal.toLocaleString()} DA</span>
-                                    </div>
-                                  )
-                                })}
-                              </div>
-                              <div className="border-t pt-1 mt-1 space-y-0.5">
-                                <div className="flex flex-col gap-0.5 text-xs">
-                                  <div className="flex justify-between items-start">
-                                    <div className="flex-1">
-                                      {order.deliveryType === 'HOME_DELIVERY' ? (
-                                        <>
-                                          <div className="flex items-center gap-1 text-muted-foreground">
-                                            <span className="text-base">🏠</span>
-                                            <span className="text-xs">Livraison à domicile:</span>
-                                          </div>
-                                          <div className="text-muted-foreground mt-0.5 ml-5 space-y-0.5 text-xs">
-                                            {wilayaName && <div>Wilaya: {wilayaName}</div>}
-                                            {communeName && <div>Commune: {communeName}</div>}
-                                            {order.deliveryAddress && <div>Adresse: {order.deliveryAddress}</div>}
-                                            {!wilayaName && !communeName && !order.deliveryAddress && (
-                                              <div>Adresse non spécifiée</div>
-                                            )}
-                                          </div>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <div className="flex items-center gap-1 text-muted-foreground">
-                                            <span className="text-base">🏢</span>
-                                            <span className="text-xs">Bureau Yalidine:</span>
-                                          </div>
-                                          <div className="text-muted-foreground mt-0.5 ml-5 text-xs">
-                                            {order.deliveryDesk?.name || order.deliveryAddress || 'Bureau non spécifié'}
-                                          </div>
-                                        </>
-                                      )}
-                                    </div>
-                                    <span className="font-medium ml-2 text-xs">{order.deliveryFee.toLocaleString()} DA</span>
-                                  </div>
-                                </div>
-                                <div className="flex justify-between text-xs pt-0.5 border-t">
-                                  <span className="font-medium">Total:</span>
-                                  <span className="font-semibold text-green-600">{order.total.toLocaleString()} DA</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Yalidine Tracking */}
-                            {order.trackingNumber && (
-                              <div className="text-xs">
-                                <span className="font-medium">Yalidine Tracking:</span>
-                                <span className="ml-2 font-mono bg-blue-50 px-1.5 py-0.5 rounded text-blue-700 text-xs">
-                                  {order.trackingNumber}
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Notes Display - Orange and Animated */}
-                            {order.notes && (
-                              <motion.div 
-                                className="bg-orange-50 border-2 border-orange-300 p-2 rounded-lg shadow-md"
-                                initial={{ scale: 1 }}
-                                animate={{ 
-                                  scale: [1, 1.02, 1],
-                                  boxShadow: [
-                                    '0 0 0px rgba(251, 146, 60, 0.4)',
-                                    '0 0 10px rgba(251, 146, 60, 0.6)',
-                                    '0 0 0px rgba(251, 146, 60, 0.4)'
-                                  ]
-                                }}
-                                transition={{ 
-                                  duration: 2,
-                                  repeat: Infinity,
-                                  ease: "easeInOut"
-                                }}
-                              >
-                                <p className="text-xs font-medium text-orange-800 mb-0.5">Notes:</p>
-                                <p className="text-xs text-orange-900 whitespace-pre-wrap">{order.notes}</p>
-                              </motion.div>
-                            )}
-                          </div>
-
-                          {/* Action Buttons - Right Side */}
-                          <div className="flex flex-col items-end space-y-1.5 ml-3 flex-shrink-0">
-                            <TooltipProvider>
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-xs h-7 px-2"
-                                    onClick={() => {
-                                      setSelectedOrder(order)
-                                      setShowNotesDialog(true)
-                                      setNoteInput('')
-                                    }}
-                                  >
-                                    <Edit className="w-3 h-3 mr-1" />
-                                    {order.notes ? 'Modifier Note' : 'Ajouter Note'}
-                                  </Button>
-                                </TooltipTrigger>
-                                {order.notes && (
-                                  <TooltipContent side="left" className="max-w-md">
-                                    <div className="space-y-1">
-                                      <p className="font-semibold text-sm mb-2">Détails des Notes:</p>
-                                      <p className="text-xs whitespace-pre-wrap">{order.notes}</p>
-                                    </div>
-                                  </TooltipContent>
-                                )}
-                              </Tooltip>
-                            </TooltipProvider>
-
-                            {whatsappLink && (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => window.open(whatsappLink, '_blank')}
-                                className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200 text-xs h-7 px-2"
-                              >
-                                <MessageCircle className="w-3 h-3 mr-1" />
-                                WhatsApp
-                              </Button>
-                            )}
                           </div>
                         </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })}
 
                     {/* Pagination Controls */}
                     {totalPages > 1 && (
@@ -1494,7 +1514,7 @@ Loudstyles`
                         <Pagination>
                           <PaginationContent>
                             <PaginationItem>
-                              <PaginationPrevious 
+                              <PaginationPrevious
                                 href="#"
                                 onClick={(e) => {
                                   e.preventDefault()
@@ -1505,7 +1525,7 @@ Loudstyles`
                                 className={confirmedCurrentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
                               />
                             </PaginationItem>
-                            
+
                             {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
                               // Show first page, last page, current page, and pages around current
                               if (
@@ -1540,9 +1560,9 @@ Loudstyles`
                               }
                               return null
                             })}
-                            
+
                             <PaginationItem>
-                              <PaginationNext 
+                              <PaginationNext
                                 href="#"
                                 onClick={(e) => {
                                   e.preventDefault()

@@ -125,8 +125,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
       window.addEventListener('resize', checkMobile)
       return () => window.removeEventListener('resize', checkMobile)
     }
-    
-    return () => {} // Return empty cleanup function if window is undefined
+
+    return () => { } // Return empty cleanup function if window is undefined
   }, [product])
 
   useEffect(() => {
@@ -147,10 +147,10 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   // Fetch color variants for Victoria Dress
   useEffect(() => {
     const isVictoriaDress = product?.slug?.includes('victoria-dress')
-    
+
     if (isVictoriaDress && mounted && product?.slug) {
       const currentColor = product.slug.includes('black') ? 'black' : product.slug.includes('red') ? 'red' : null
-      
+
       // Define color variants for Victoria Dress
       const variants = [
         { slug: 'victoria-dress-black', color: 'black', name: 'أسود', nameEn: 'Black', hexColor: '#000000' },
@@ -159,7 +159,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
         ...variant,
         isCurrent: variant.slug === product.slug
       }))
-      
+
       setColorVariants(variants)
     } else {
       setColorVariants([])
@@ -169,12 +169,12 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   // Fetch related accessories for yennayer-dress
   useEffect(() => {
     const isYennayerDress = product?.slug === 'yennayer-dress'
-    
+
     if (isYennayerDress && mounted) {
       const fetchAccessories = async () => {
         setLoadingAccessories(true)
         const accessorySlugs = ['pack-yennayer', 'accessoires-yennayer', 'djbine-yennayer']
-        
+
         try {
           const accessoriesPromises = accessorySlugs.map(async (slug) => {
             try {
@@ -189,16 +189,16 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
               return null
             }
           })
-          
+
           const accessories = (await Promise.all(accessoriesPromises)).filter(Boolean)
           setRelatedAccessories(accessories)
-          
+
           // Show popup after 3 seconds if accessories are loaded and not dismissed in this session
           if (accessories.length > 0 && !accessoryPopupDismissed) {
             const timer = setTimeout(() => {
               setShowAccessoryPopup(true)
             }, 3000)
-            
+
             return () => clearTimeout(timer)
           }
         } catch (error) {
@@ -207,7 +207,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
           setLoadingAccessories(false)
         }
       }
-      
+
       fetchAccessories()
     }
   }, [product?.slug, mounted])
@@ -216,7 +216,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   const handleAddAccessoryToCart = (accessory: Product) => {
     const categorySlug = accessory?.category?.slug?.toLowerCase() || '';
     const isAccessoryAccessoires = categorySlug.includes('accessoire') || categorySlug.includes('accessories');
-    
+
     addItem({
       id: accessory.id,
       name: isRTL ? accessory.nameAr || accessory.name : accessory.name,
@@ -486,7 +486,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
           animate="visible"
           style={{ minHeight: '600px' }}
         >
-          <div className="grid lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-12 max-w-7xl mx-auto items-start" style={{ minHeight: '500px' }}>
+          <div className="grid lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-12 max-w-7xl mx-auto items-start w-full" style={{ minHeight: '500px' }}>
             {/* Image Gallery - Left Side */}
             <motion.div
               className="lg:order-1 flex-shrink-0 w-full"
@@ -688,18 +688,16 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       <Link
                         key={variant.slug}
                         href={`/loud-styles/products/${variant.slug}?brand=loud-styles`}
-                        className={`group relative flex items-center gap-2 sm:gap-3 transition-all duration-300 ${
-                          variant.isCurrent
+                        className={`group relative flex items-center gap-2 sm:gap-3 transition-all duration-300 ${variant.isCurrent
                             ? 'opacity-100'
                             : 'opacity-60 hover:opacity-100'
-                        }`}
+                          }`}
                       >
                         <div
-                          className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 transition-all duration-300 ${
-                            variant.isCurrent
+                          className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 transition-all duration-300 ${variant.isCurrent
                               ? 'border-primary shadow-lg scale-110'
                               : 'border-border hover:border-primary/50 cursor-pointer'
-                          }`}
+                            }`}
                           style={{
                             backgroundColor: variant.hexColor || (variant.color === 'black' ? '#000000' : '#722F37')
                           }}
@@ -710,11 +708,10 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                             </div>
                           )}
                         </div>
-                        <span className={`text-sm sm:text-base font-medium ${
-                          variant.isCurrent
+                        <span className={`text-sm sm:text-base font-medium ${variant.isCurrent
                             ? 'text-primary font-semibold'
                             : 'text-foreground'
-                        }`}>
+                          }`}>
                           {isRTL ? variant.name : variant.nameEn}
                         </span>
                       </Link>
@@ -748,7 +745,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                   {!isOrderable && product.isLaunch && product.launchAt && (
                     <div className="mb-2 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
                       <p className="text-sm text-orange-800 dark:text-orange-200">
-                        {isRTL 
+                        {isRTL
                           ? 'يرجى الانتظار حتى انتهاء العد التنازلي لاختيار المقاس'
                           : 'Please wait for the countdown to finish before selecting a size'
                         }
@@ -760,12 +757,11 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       <motion.button
                         key={size}
                         disabled={!isOrderable}
-                        className={`group relative px-3 py-2 sm:px-4 sm:py-2.5 lg:px-6 lg:py-3 rounded-md sm:rounded-lg border-2 transition-all duration-300 font-medium text-sm sm:text-base ${
-                          !isOrderable
+                        className={`group relative px-3 py-2 sm:px-4 sm:py-2.5 lg:px-6 lg:py-3 rounded-md sm:rounded-lg border-2 transition-all duration-300 font-medium text-sm sm:text-base ${!isOrderable
                             ? 'opacity-50 cursor-not-allowed border-muted bg-muted/50'
                             : selectedSize === size
-                            ? 'border-primary bg-primary text-primary-foreground shadow-elegant'
-                            : 'border-border hover:border-primary/50 bg-background hover:bg-muted/50'
+                              ? 'border-primary bg-primary text-primary-foreground shadow-elegant'
+                              : 'border-border hover:border-primary/50 bg-background hover:bg-muted/50'
                           }`}
                         onClick={() => {
                           if (isOrderable) {
@@ -795,7 +791,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     ))}
                     {/* Size Guide Button - styled like size buttons */}
                     <motion.button
-                      className="group relative px-3 py-2 sm:px-4 sm:py-2.5 lg:px-6 lg:py-3 rounded-md sm:rounded-lg border-2 transition-all duration-300 font-medium text-sm sm:text-base border-border hover:border-primary/50 bg-background hover:bg-muted/50"
+                      className="group relative px-3 py-2 sm:px-4 sm:py-2.5 lg:px-6 lg:py-3 rounded-md sm:rounded-lg border-2 transition-all duration-300 font-medium text-sm sm:text-base border-[#d4af37] text-[#d4af37] hover:bg-[#d4af37] hover:text-white bg-background"
                       onClick={() => setShowSizeGuide(!showSizeGuide)}
                       whileHover={{ scale: 1.05 }}
                       whileTap={{ scale: 0.95 }}
@@ -815,204 +811,197 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       </DialogHeader>
                       <div className="p-4 sm:p-6">
 
-                            {/* Size Selection Buttons */}
-                            <div className="mb-6">
-                              <p className="text-sm text-muted-foreground mb-3">
-                                {isRTL ? 'المقاس المعروض.' : 'Size displayed.'}
-                              </p>
-                              <div className="flex flex-wrap gap-2">
-                                {displaySizes.map((size) => {
-                                  const isSelected = selectedSize === size || (!selectedSize && size === displaySizes[0])
-                                  return (
-                                    <button
-                                      key={size}
-                                      onClick={() => setSelectedSize(size)}
-                                      className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                                        isSelected
-                                          ? 'bg-black text-white border-2 border-black'
-                                          : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-gray-400'
-                                      }`}
-                                    >
-                                      {size}
-                                    </button>
-                                  )
-                                })}
+                        {/* Size Selection Buttons */}
+                        <div className="mb-6">
+                          <p className="text-sm text-muted-foreground mb-3">
+                            {isRTL ? 'المقاس المعروض.' : 'Size displayed.'}
+                          </p>
+                          <div className="flex flex-wrap gap-2">
+                            {displaySizes.map((size) => {
+                              const isSelected = selectedSize === size || (!selectedSize && size === displaySizes[0])
+                              return (
+                                <button
+                                  key={size}
+                                  onClick={() => setSelectedSize(size)}
+                                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${isSelected
+                                      ? 'bg-black text-white border-2 border-black'
+                                      : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-gray-400'
+                                    }`}
+                                >
+                                  {size}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Dress Figure and Size Chart - Vertical Layout */}
+                        <div className="flex flex-col gap-8 items-center">
+                          {/* Body Figure with Temu measurements */}
+                          <div className="relative flex flex-col items-center justify-center w-full">
+                            <div className="relative w-full max-w-[264px] mx-auto flex justify-center">
+                              {/* Use Temu body image from public folder - image already has measurement lines */}
+                              {/* Image dimensions: 264x561 */}
+                              <div className="relative w-full">
+                                <img
+                                  src="/temu-body-size.png"
+                                  alt={isRTL ? 'رسم توضيحي للجسم' : 'Body measurement guide'}
+                                  className="w-full h-auto object-contain"
+                                />
+                                {/* Overlay measurement numbers only - positioned on existing lines */}
+                                {/* Coordinates: Bust(85,181), Waist(85,228), Hips(85,288), Height(208,280) */}
+                                <svg
+                                  viewBox="0 0 264 561"
+                                  className="absolute inset-0 w-full h-full pointer-events-none"
+                                  xmlns="http://www.w3.org/2000/svg"
+                                  preserveAspectRatio="xMidYMid meet"
+                                >
+                                  {/* Bust Measurement Range - exact coordinates (85, 181) */}
+                                  <circle cx="85" cy="181" r="18" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
+                                  <text x="85" y="185" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                    {(() => {
+                                      const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
+                                      // For shoes, don't show body measurements (not applicable)
+                                      if (isShoes) return 'N/A'
+                                      const sizeData: Record<string, string> = {
+                                        'M': '86-94',
+                                        'L': '95-101',
+                                        'XL': '101-107',
+                                        'XXL': '107-113',
+                                        'XXXL': '113-119'
+                                      }
+                                      return sizeData[currentSize] || '86-94'
+                                    })()}
+                                  </text>
+
+                                  {/* Waist Measurement Range - exact coordinates (85, 228) */}
+                                  <circle cx="85" cy="228" r="18" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
+                                  <text x="85" y="232" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                    {(() => {
+                                      const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
+                                      // For shoes, don't show body measurements (not applicable)
+                                      if (isShoes) return 'N/A'
+                                      const sizeData: Record<string, string> = {
+                                        'M': '66-74',
+                                        'L': '75-81',
+                                        'XL': '81-87',
+                                        'XXL': '87-93',
+                                        'XXXL': '93-99'
+                                      }
+                                      return sizeData[currentSize] || '66-74'
+                                    })()}
+                                  </text>
+
+                                  {/* Hips Measurement Range - exact coordinates (85, 288) */}
+                                  <circle cx="85" cy="288" r="18" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
+                                  <text x="85" y="292" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                    {(() => {
+                                      const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
+                                      // For shoes, don't show body measurements (not applicable)
+                                      if (isShoes) return 'N/A'
+                                      const sizeData: Record<string, string> = {
+                                        'M': '91-99',
+                                        'L': '100-106',
+                                        'XL': '106-112',
+                                        'XXL': '112-118',
+                                        'XXXL': '118-124'
+                                      }
+                                      return sizeData[currentSize] || '91-99'
+                                    })()}
+                                  </text>
+
+                                  {/* Height Measurement Range - exact coordinates (208, 280) */}
+                                  <circle cx="208" cy="280" r="17" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
+                                  <text x="208" y="284" textAnchor="middle" fill="white" fontSize="9" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
+                                    {(() => {
+                                      const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
+                                      // For shoes, don't show body measurements (not applicable)
+                                      if (isShoes) return 'N/A'
+                                      const sizeData: Record<string, string> = {
+                                        'M': '165-175',
+                                        'L': '175-180',
+                                        'XL': '175-180',
+                                        'XXL': '180-185',
+                                        'XXXL': '180-185'
+                                      }
+                                      return sizeData[currentSize] || '165-175'
+                                    })()}
+                                  </text>
+                                </svg>
                               </div>
                             </div>
+                          </div>
 
-                            {/* Dress Figure and Size Chart - Vertical Layout */}
-                            <div className="flex flex-col gap-8 items-center">
-                              {/* Body Figure with Temu measurements */}
-                              <div className="relative flex flex-col items-center justify-center w-full">
-                                <div className="relative w-full max-w-[264px] mx-auto flex justify-center">
-                                  {/* Use Temu body image from public folder - image already has measurement lines */}
-                                  {/* Image dimensions: 264x561 */}
-                                  <div className="relative w-full">
-                                    <img
-                                      src="/temu-body-size.png"
-                                      alt={isRTL ? 'رسم توضيحي للجسم' : 'Body measurement guide'}
-                                      className="w-full h-auto object-contain"
-                                    />
-                                    {/* Overlay measurement numbers only - positioned on existing lines */}
-                                    {/* Coordinates: Bust(85,181), Waist(85,228), Hips(85,288), Height(208,280) */}
-                                    <svg
-                                      viewBox="0 0 264 561"
-                                      className="absolute inset-0 w-full h-full pointer-events-none"
-                                      xmlns="http://www.w3.org/2000/svg"
-                                      preserveAspectRatio="xMidYMid meet"
-                                    >
-                                      {/* Bust Measurement Range - exact coordinates (85, 181) */}
-                                      <circle cx="85" cy="181" r="18" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
-                                      <text x="85" y="185" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-                                        {(() => {
-                                          const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
-                                          // For shoes, don't show body measurements (not applicable)
-                                          if (isShoes) return 'N/A'
-                                          const sizeData: Record<string, string> = {
-                                            'M': '86-94',
-                                            'L': '95-101',
-                                            'XL': '101-107',
-                                            'XXL': '107-113',
-                                            'XXXL': '113-119'
-                                          }
-                                          return sizeData[currentSize] || '86-94'
-                                        })()}
-                                      </text>
-                                      
-                                      {/* Waist Measurement Range - exact coordinates (85, 228) */}
-                                      <circle cx="85" cy="228" r="18" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
-                                      <text x="85" y="232" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-                                        {(() => {
-                                          const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
-                                          // For shoes, don't show body measurements (not applicable)
-                                          if (isShoes) return 'N/A'
-                                          const sizeData: Record<string, string> = {
-                                            'M': '66-74',
-                                            'L': '75-81',
-                                            'XL': '81-87',
-                                            'XXL': '87-93',
-                                            'XXXL': '93-99'
-                                          }
-                                          return sizeData[currentSize] || '66-74'
-                                        })()}
-                                      </text>
-                                      
-                                      {/* Hips Measurement Range - exact coordinates (85, 288) */}
-                                      <circle cx="85" cy="288" r="18" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
-                                      <text x="85" y="292" textAnchor="middle" fill="white" fontSize="10" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-                                        {(() => {
-                                          const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
-                                          // For shoes, don't show body measurements (not applicable)
-                                          if (isShoes) return 'N/A'
-                                          const sizeData: Record<string, string> = {
-                                            'M': '91-99',
-                                            'L': '100-106',
-                                            'XL': '106-112',
-                                            'XXL': '112-118',
-                                            'XXXL': '118-124'
-                                          }
-                                          return sizeData[currentSize] || '91-99'
-                                        })()}
-                                      </text>
-                                      
-                                      {/* Height Measurement Range - exact coordinates (208, 280) */}
-                                      <circle cx="208" cy="280" r="17" fill="#d4af37" opacity="0.95" stroke="white" strokeWidth="2" />
-                                      <text x="208" y="284" textAnchor="middle" fill="white" fontSize="9" fontWeight="bold" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.5)' }}>
-                                        {(() => {
-                                          const currentSize = selectedSize || displaySizes[0] || (isShoes ? '36' : 'M')
-                                          // For shoes, don't show body measurements (not applicable)
-                                          if (isShoes) return 'N/A'
-                                          const sizeData: Record<string, string> = {
-                                            'M': '165-175',
-                                            'L': '175-180',
-                                            'XL': '175-180',
-                                            'XXL': '180-185',
-                                            'XXXL': '180-185'
-                                          }
-                                          return sizeData[currentSize] || '165-175'
-                                        })()}
-                                      </text>
-                                    </svg>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* Size Chart Table - Below body image */}
-                              <div className="w-full max-w-2xl mx-auto">
-                                <div className="rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-x-auto">
-                                  <table className="w-full border-collapse">
-                                    <thead>
-                                      <tr className="bg-gray-50 dark:bg-gray-800">
-                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
-                                          المقاس
-                                        </th>
-                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
-                                          الصدر
-                                        </th>
-                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
-                                          الخصر
-                                        </th>
-                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
-                                          الورك
-                                        </th>
-                                        <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
-                                          الطول
-                                        </th>
+                          {/* Size Chart Table - Below body image */}
+                          <div className="w-full max-w-2xl mx-auto">
+                            <div className="rounded-xl border border-gray-200 dark:border-gray-700 shadow-lg overflow-x-auto">
+                              <table className="w-full border-collapse">
+                                <thead>
+                                  <tr className="bg-gray-50 dark:bg-gray-800">
+                                    <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
+                                      المقاس
+                                    </th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
+                                      الصدر
+                                    </th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
+                                      الخصر
+                                    </th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
+                                      الورك
+                                    </th>
+                                    <th className="px-3 py-2 text-right text-xs font-semibold text-foreground">
+                                      الطول
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {[
+                                    { size: 'M', chest: '86-94', waist: '66-74', hips: '91-99', height: '165-175' }, // Combined S/M
+                                    { size: 'L', chest: '95-101', waist: '75-81', hips: '100-106', height: '175-180' },
+                                    { size: 'XL', chest: '101-107', waist: '81-87', hips: '106-112', height: '175-180' },
+                                    { size: 'XXL', chest: '107-113', waist: '87-93', hips: '112-118', height: '180-185' },
+                                    { size: 'XXXL', chest: '113-119', waist: '93-99', hips: '118-124', height: '180-185' }
+                                  ].filter(item => displaySizes.includes(item.size)).map((item, index) => {
+                                    const isSelected = selectedSize === item.size || (!selectedSize && index === 0)
+                                    return (
+                                      <tr
+                                        key={item.size}
+                                        className={`transition-colors ${isSelected
+                                            ? 'bg-[#d4af37]/20 border-l-4 border-[#d4af37]'
+                                            : index % 2 === 0
+                                              ? 'bg-white dark:bg-gray-900'
+                                              : 'bg-gray-50 dark:bg-gray-800'
+                                          }`}
+                                      >
+                                        <td className={`px-3 py-2 text-right text-xs font-medium ${isSelected ? 'text-[#d4af37] font-bold' : 'text-foreground'
+                                          }`}>
+                                          {item.size}
+                                        </td>
+                                        <td className={`px-3 py-2 text-right text-xs ${isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
+                                          }`}>
+                                          {item.chest}
+                                        </td>
+                                        <td className={`px-3 py-2 text-right text-xs ${isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
+                                          }`}>
+                                          {item.waist}
+                                        </td>
+                                        <td className={`px-3 py-2 text-right text-xs ${isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
+                                          }`}>
+                                          {item.hips}
+                                        </td>
+                                        <td className={`px-3 py-2 text-right text-xs ${isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
+                                          }`}>
+                                          {item.height}
+                                        </td>
                                       </tr>
-                                    </thead>
-                                    <tbody>
-                                      {[
-                                        { size: 'M', chest: '86-94', waist: '66-74', hips: '91-99', height: '165-175' }, // Combined S/M
-                                        { size: 'L', chest: '95-101', waist: '75-81', hips: '100-106', height: '175-180' },
-                                        { size: 'XL', chest: '101-107', waist: '81-87', hips: '106-112', height: '175-180' },
-                                        { size: 'XXL', chest: '107-113', waist: '87-93', hips: '112-118', height: '180-185' },
-                                        { size: 'XXXL', chest: '113-119', waist: '93-99', hips: '118-124', height: '180-185' }
-                                      ].filter(item => displaySizes.includes(item.size)).map((item, index) => {
-                                        const isSelected = selectedSize === item.size || (!selectedSize && index === 0)
-                                        return (
-                                          <tr 
-                                            key={item.size}
-                                            className={`transition-colors ${
-                                              isSelected 
-                                                ? 'bg-[#d4af37]/20 border-l-4 border-[#d4af37]' 
-                                                : index % 2 === 0 
-                                                  ? 'bg-white dark:bg-gray-900' 
-                                                  : 'bg-gray-50 dark:bg-gray-800'
-                                            }`}
-                                          >
-                                            <td className={`px-3 py-2 text-right text-xs font-medium ${
-                                              isSelected ? 'text-[#d4af37] font-bold' : 'text-foreground'
-                                            }`}>
-                                              {item.size}
-                                            </td>
-                                            <td className={`px-3 py-2 text-right text-xs ${
-                                              isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
-                                            }`}>
-                                              {item.chest}
-                                            </td>
-                                            <td className={`px-3 py-2 text-right text-xs ${
-                                              isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
-                                            }`}>
-                                              {item.waist}
-                                            </td>
-                                            <td className={`px-3 py-2 text-right text-xs ${
-                                              isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
-                                            }`}>
-                                              {item.hips}
-                                            </td>
-                                            <td className={`px-3 py-2 text-right text-xs ${
-                                              isSelected ? 'text-[#d4af37] font-semibold' : 'text-muted-foreground'
-                                            }`}>
-                                              {item.height}
-                                            </td>
-                                          </tr>
-                                        )
-                                      })}
-                                    </tbody>
-                                  </table>
-                                </div>
-                              </div>
+                                    )
+                                  })}
+                                </tbody>
+                              </table>
                             </div>
+                          </div>
+                        </div>
 
                         {/* Disclaimer */}
                         <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -1067,7 +1056,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                 {!isOrderable && product.isLaunch && product.launchAt && (
                   <div className="mb-2 p-3 bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg">
                     <p className="text-sm text-orange-800 dark:text-orange-200">
-                      {isRTL 
+                      {isRTL
                         ? 'يرجى الانتظار حتى انتهاء العد التنازلي لإضافة المنتج للسلة أو الشراء'
                         : 'Please wait for the countdown to finish before adding to cart or purchasing'
                       }
@@ -1094,7 +1083,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                         toast.error(isRTL ? 'يرجى الانتظار حتى انتهاء العد التنازلي' : 'Please wait for the countdown to finish')
                         return
                       }
-                      
+
                       // Only require size if product has sizes and is not accessoires
                       if (!isAccessoires && product.sizes && product.sizes.length > 0 && !selectedSize) {
                         toast.error(isRTL ? 'يرجى اختيار المقاس' : 'Please select a size')
@@ -1292,7 +1281,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
-              transition={{ 
+              transition={{
                 type: 'spring',
                 damping: 25,
                 stiffness: 200
@@ -1300,8 +1289,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
             >
               <motion.div
                 className="bg-white border-2 border-[#d4af37] shadow-2xl rounded-2xl p-3 sm:p-4 md:p-6 pointer-events-auto mx-auto"
-                style={{ 
-                  width: '100%', 
+                style={{
+                  width: '100%',
                   maxWidth: isMobile ? '100%' : '600px',
                   minWidth: isMobile ? 'auto' : '500px'
                 }}
@@ -1313,7 +1302,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                 {/* Header with close button */}
                 <div className="flex items-center justify-between mb-3 sm:mb-4">
                   <div className="flex-1">
-                    <motion.h2 
+                    <motion.h2
                       className="text-sm sm:text-base md:text-lg font-bold text-gray-900 mb-1"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -1321,13 +1310,13 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     >
                       {isRTL ? '✨ أكمل إطلالتك ✨' : '✨ Complete Your Look ✨'}
                     </motion.h2>
-                    <motion.p 
+                    <motion.p
                       className="text-gray-600 text-xs sm:text-sm"
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: 0.3 }}
                     >
-                      {isRTL 
+                      {isRTL
                         ? 'إكسسوارات مطابقة'
                         : 'Matching accessories'
                       }
@@ -1351,7 +1340,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                   {relatedAccessories.slice(0, 3).map((accessory, index) => {
                     // Get image URL - handle different possible formats
                     let imageUrl = '/placeholder.svg'
-                    
+
                     // The API returns images as an array of strings
                     if (accessory.images && Array.isArray(accessory.images) && accessory.images.length > 0) {
                       // Get first image (should be a string URL)
@@ -1367,17 +1356,17 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                         // Handle case where it's an object with url property
                         imageUrl = (firstImage as any).url || '/placeholder.svg'
                       }
-                    } 
+                    }
                     // Fallback: check for image property (single image)
                     else if ((accessory as any).image && typeof (accessory as any).image === 'string') {
                       imageUrl = (accessory as any).image.trim()
                     }
-                    
+
                     // Final validation - ensure we have a valid URL
                     if (!imageUrl || imageUrl.trim() === '' || imageUrl === '/placeholder.svg') {
                       imageUrl = '/placeholder.svg'
                     }
-                    
+
                     // Debug logging (remove in production if needed)
                     if (process.env.NODE_ENV === 'development') {
                       console.log('Accessory image debug:', {
@@ -1387,74 +1376,69 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                         hasImages: Array.isArray(accessory.images) && accessory.images.length > 0
                       })
                     }
-                    
+
                     return (
-                    <motion.div
-                      key={accessory.id}
-                      className={`group relative ${isMobile ? 'flex-shrink-0 snap-center' : ''}`}
-                      style={{ minWidth: isMobile ? '120px' : 'auto', maxWidth: isMobile ? '140px' : 'auto' }}
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.4 + index * 0.1 }}
-                      whileHover={{ scale: 1.05 }}
-                    >
-                      {/* Circular Card */}
-                      <div className={`bg-gray-50 rounded-full overflow-hidden border-2 border-[#d4af37] hover:border-[#d4af37]/80 transition-all duration-300 p-2 flex flex-col items-center justify-center mx-auto ${
-                        isMobile ? 'w-24 h-24' : 'w-28 h-28 sm:w-32 sm:h-32'
-                      }`}>
-                        {/* Circular Product Image */}
-                        <div className={`relative rounded-full overflow-hidden bg-white ${
-                          isMobile ? 'w-16 h-16' : 'w-20 h-20 sm:w-24 sm:h-24'
-                        }`}>
-                          <img
-                            src={imageUrl}
-                            alt={isRTL ? accessory.nameAr || accessory.name : accessory.name}
-                            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
-                            onError={(e) => {
-                              const target = e.target as HTMLImageElement
-                              console.error('Image failed to load:', imageUrl, 'for accessory:', accessory.name)
-                              if (target.src !== '/placeholder.svg') {
-                                target.src = '/placeholder.svg'
-                              }
-                            }}
-                            onLoad={() => {
-                              if (process.env.NODE_ENV === 'development') {
-                                console.log('Image loaded successfully:', imageUrl, 'for accessory:', accessory.name)
-                              }
-                            }}
-                            loading="lazy"
-                          />
+                      <motion.div
+                        key={accessory.id}
+                        className={`group relative ${isMobile ? 'flex-shrink-0 snap-center' : ''}`}
+                        style={{ minWidth: isMobile ? '120px' : 'auto', maxWidth: isMobile ? '140px' : 'auto' }}
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.4 + index * 0.1 }}
+                        whileHover={{ scale: 1.05 }}
+                      >
+                        {/* Circular Card */}
+                        <div className={`bg-gray-50 rounded-full overflow-hidden border-2 border-[#d4af37] hover:border-[#d4af37]/80 transition-all duration-300 p-2 flex flex-col items-center justify-center mx-auto ${isMobile ? 'w-24 h-24' : 'w-28 h-28 sm:w-32 sm:h-32'
+                          }`}>
+                          {/* Circular Product Image */}
+                          <div className={`relative rounded-full overflow-hidden bg-white ${isMobile ? 'w-16 h-16' : 'w-20 h-20 sm:w-24 sm:h-24'
+                            }`}>
+                            <img
+                              src={imageUrl}
+                              alt={isRTL ? accessory.nameAr || accessory.name : accessory.name}
+                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                              onError={(e) => {
+                                const target = e.target as HTMLImageElement
+                                console.error('Image failed to load:', imageUrl, 'for accessory:', accessory.name)
+                                if (target.src !== '/placeholder.svg') {
+                                  target.src = '/placeholder.svg'
+                                }
+                              }}
+                              onLoad={() => {
+                                if (process.env.NODE_ENV === 'development') {
+                                  console.log('Image loaded successfully:', imageUrl, 'for accessory:', accessory.name)
+                                }
+                              }}
+                              loading="lazy"
+                            />
+                          </div>
                         </div>
-                      </div>
-                      
-                      {/* Product Info Below Circle */}
-                      <div className={`mt-2 text-center ${isMobile ? 'w-full' : 'w-full'}`}>
-                        <h3 className={`font-semibold text-gray-900 line-clamp-2 mb-1 ${
-                          isMobile ? 'text-[10px]' : 'text-xs sm:text-sm'
-                        }`}>
-                          {isRTL ? accessory.nameAr || accessory.name : accessory.name}
-                        </h3>
-                        <span className={`font-bold text-[#d4af37] block mb-1.5 ${
-                          isMobile ? 'text-[10px]' : 'text-xs sm:text-sm'
-                        }`}>
-                          {accessory.price.toLocaleString()} DA
-                        </span>
-                        <Button
-                          size="sm"
-                          className={`w-full bg-[#d4af37] text-white hover:bg-[#d4af37]/90 font-semibold ${
-                            isMobile 
-                              ? 'text-[10px] h-6 px-2' 
-                              : 'text-xs h-7 sm:h-8 px-3'
-                          }`}
-                          onClick={() => {
-                            handleAddAccessoryToCart(accessory)
-                          }}
-                        >
-                          <ShoppingCart className={`${isMobile ? 'w-3 h-3' : 'w-3.5 h-3.5 sm:w-4 sm:h-4'} mr-1`} />
-                          {isRTL ? 'أضف' : 'Add'}
-                        </Button>
-                      </div>
-                    </motion.div>
+
+                        {/* Product Info Below Circle */}
+                        <div className={`mt-2 text-center ${isMobile ? 'w-full' : 'w-full'}`}>
+                          <h3 className={`font-semibold text-gray-900 line-clamp-2 mb-1 ${isMobile ? 'text-[10px]' : 'text-xs sm:text-sm'
+                            }`}>
+                            {isRTL ? accessory.nameAr || accessory.name : accessory.name}
+                          </h3>
+                          <span className={`font-bold text-[#d4af37] block mb-1.5 ${isMobile ? 'text-[10px]' : 'text-xs sm:text-sm'
+                            }`}>
+                            {accessory.price.toLocaleString()} DA
+                          </span>
+                          <Button
+                            size="sm"
+                            className={`w-full bg-[#d4af37] text-white hover:bg-[#d4af37]/90 font-semibold ${isMobile
+                                ? 'text-[10px] h-6 px-2'
+                                : 'text-xs h-7 sm:h-8 px-3'
+                              }`}
+                            onClick={() => {
+                              handleAddAccessoryToCart(accessory)
+                            }}
+                          >
+                            <ShoppingCart className={`${isMobile ? 'w-3 h-3' : 'w-3.5 h-3.5 sm:w-4 sm:h-4'} mr-1`} />
+                            {isRTL ? 'أضف' : 'Add'}
+                          </Button>
+                        </div>
+                      </motion.div>
                     )
                   })}
                 </div>

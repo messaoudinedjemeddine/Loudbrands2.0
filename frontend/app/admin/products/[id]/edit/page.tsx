@@ -251,6 +251,10 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         ? rawSlug.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/(^-|-$)/g, '')
         : productData.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
 
+      // Find category ID from name
+      const selectedCategoryObj = categories.find(c => c.name === productData.category)
+      const categoryId = selectedCategoryObj?.id
+
       await api.admin.updateProduct(unwrappedParams.id, {
         name: productData.name,
         nameAr: productData.nameAr,
@@ -260,6 +264,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         costPrice: productData.costPrice,
         oldPrice: productData.oldPrice,
         category: productData.category,
+        categoryId: categoryId, // Send categoryId for backend update
         reference: productData.reference,
         stock: productData.stock,
         isOnSale: productData.isOnSale,
@@ -269,7 +274,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
         displayPriority: productData.displayPriority ?? null,
         slug: slug,
         images: productData.images,
-        sizes: productData.sizes
+        sizes: isAccessories ? [] : productData.sizes // clear sizes if accessories
       })
 
       // Invalidate products cache so primary picture and list update immediately on client

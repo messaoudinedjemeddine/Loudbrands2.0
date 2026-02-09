@@ -89,7 +89,7 @@ router.post('/receptions', async (req, res) => {
             // Find product by reference
             const product = await prisma.product.findUnique({
                 where: { reference: item.reference },
-                include: { 
+                include: {
                     sizes: true,
                     category: true // Include category to check if it's an accessory
                 }
@@ -103,10 +103,10 @@ router.post('/receptions', async (req, res) => {
 
             // Check if product is an accessory
             const categorySlug = product.category?.slug?.toLowerCase() || '';
-            const isAccessoire = categorySlug.includes('accessoire') || 
-                                categorySlug.includes('accessories') ||
-                                !product.sizes || 
-                                product.sizes.length === 0;
+            const isAccessoire = categorySlug.includes('accessoire') ||
+                categorySlug.includes('accessories') ||
+                !product.sizes ||
+                product.sizes.length === 0;
 
             if (isAccessoire) {
                 // For accessories, update product stock directly (no size-based stock)
@@ -220,18 +220,94 @@ router.patch('/receptions/:id', async (req, res) => {
     }
 });
 
-// Delete reception (and its items by cascade)
+// Delete reception (and revert stock)
 router.delete('/receptions/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        await prisma.stockReception.delete({ where: { id } });
-        res.status(204).send();
-    } catch (error) {
-        if (error.code === 'P2025') {
+
+        // 1. Fetch reception with items to know what to revert
+        const reception = await prisma.stockReception.findUnique({
+            where: { id },
+            include: { items: true }
+        });
+
+        if (!reception) {
             return res.status(404).json({ error: 'Réception introuvable' });
         }
+
+        // 2. Revert stock for each item
+        await prisma.$transaction(async (tx) => {
+            for (const item of reception.items) {
+                if (!item.reference) continue;
+
+                const product = await tx.product.findUnique({
+                    where: { reference: item.reference },
+                    include: { sizes: true, category: true }
+                });
+
+                if (!product) {
+                    console.log(`[RevertStock] Product not found for reversion: ${item.reference}`);
+                    continue;
+                }
+
+                // Determine if accessory (same logic as create)
+                const categorySlug = product.category?.slug?.toLowerCase() || '';
+                const isAccessoire = categorySlug.includes('accessoire') ||
+                    categorySlug.includes('accessories') ||
+                    !product.sizes ||
+                    product.sizes.length === 0;
+
+                if (isAccessoire) {
+                    // Revert accessory stock
+                    const oldStock = product.stock || 0;
+                    const newStock = Math.max(0, oldStock - item.quantity); // Prevent negative stock
+
+                    console.log(`[RevertStock] Reverting accessory ${item.reference}: ${oldStock} -> ${newStock}`);
+
+                    await tx.product.update({
+                        where: { id: product.id },
+                        data: { stock: newStock }
+                    });
+                } else {
+                    // Revert sized product stock
+                    if (!item.size) continue;
+
+                    const targetSize = item.size.trim().toLowerCase();
+                    const sizeObj = product.sizes.find(s => s.size.trim().toLowerCase() === targetSize);
+
+                    if (sizeObj) {
+                        const oldStock = sizeObj.stock;
+                        const newStock = Math.max(0, oldStock - item.quantity);
+
+                        console.log(`[RevertStock] Reverting ${item.reference} [${sizeObj.size}]: ${oldStock} -> ${newStock}`);
+
+                        await tx.productSize.update({
+                            where: { id: sizeObj.id },
+                            data: { stock: newStock }
+                        });
+
+                        // Update total product stock
+                        const totalStock = await tx.productSize.aggregate({
+                            where: { productId: product.id },
+                            _sum: { stock: true }
+                        });
+
+                        await tx.product.update({
+                            where: { id: product.id },
+                            data: { stock: totalStock._sum.stock || 0 }
+                        });
+                    }
+                }
+            }
+
+            // 3. Delete the reception (cascade deletes items)
+            await tx.stockReception.delete({ where: { id } });
+        });
+
+        res.status(204).send();
+    } catch (error) {
         console.error('Delete reception error:', error);
-        res.status(500).json({ error: 'Failed to delete reception' });
+        res.status(500).json({ error: 'Failed to delete reception and revert stock' });
     }
 });
 
