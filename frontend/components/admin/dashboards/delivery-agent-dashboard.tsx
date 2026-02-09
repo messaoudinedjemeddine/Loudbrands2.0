@@ -247,7 +247,7 @@ export function DeliveryAgentDashboard() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const pathname = usePathname()
-  const defaultTab = searchParams.get('tab') || 'confirmed'
+  const defaultTab = searchParams.get('tab') || 'parcels'
 
   const [activeTab, setActiveTab] = useState(defaultTab)
   const [otherTabsDataLoaded, setOtherTabsDataLoaded] = useState(false)
