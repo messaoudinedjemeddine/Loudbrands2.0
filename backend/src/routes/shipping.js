@@ -189,7 +189,7 @@ module.exports = router;
 
 // Simple in-memory cache for API responses
 const cache = new Map();
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes for dynamic data
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes for dynamic data (optimized to reduce API quota usage)
 const STATIC_CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours for static data (wilayas change rarely)
 
 // Cache helper function

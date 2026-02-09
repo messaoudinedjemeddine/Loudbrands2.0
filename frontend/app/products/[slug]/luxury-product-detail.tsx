@@ -502,7 +502,7 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
                   {displaySizes.map((size, index) => (
                     <motion.button
                       key={`${size}-${index}`}
-                      className={`group relative px-6 py-3 rounded-lg border-2 transition-all duration-300 font-medium ${selectedSize === size
+                      className={`group relative px-6 py-3 min-h-[44px] min-w-[60px] md:min-h-0 md:min-w-0 rounded-lg border-2 transition-all duration-300 font-medium text-base md:text-sm ${selectedSize === size
                         ? 'border-primary bg-primary text-primary-foreground shadow-elegant'
                         : 'border-border hover:border-primary/50 bg-background hover:bg-muted/50'
                         }`}
@@ -541,20 +541,20 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
                     variant="outline"
                     size="icon"
                     onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="h-10 w-10"
+                    className="h-12 w-12 md:h-10 md:w-10"
                   >
-                    <Minus className="w-4 h-4" />
+                    <Minus className="w-5 h-5 md:w-4 md:h-4" />
                   </Button>
-                  <span className="text-lg font-medium min-w-[3rem] text-center">
+                  <span className="text-xl md:text-lg font-medium min-w-[3rem] text-center">
                     {quantity}
                   </span>
                   <Button
                     variant="outline"
                     size="icon"
                     onClick={() => setQuantity(quantity + 1)}
-                    className="h-10 w-10"
+                    className="h-12 w-12 md:h-10 md:w-10"
                   >
-                    <Plus className="w-4 h-4" />
+                    <Plus className="w-5 h-5 md:w-4 md:h-4" />
                   </Button>
                 </div>
               </motion.div>
@@ -569,7 +569,7 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Button
                     size="lg"
-                    className="h-14 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold shadow-elegant hover:shadow-luxury transition-all duration-300"
+                    className="h-14 md:h-12 text-base md:text-sm bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-primary-foreground font-semibold shadow-elegant hover:shadow-luxury transition-all duration-300"
                     onClick={handleAddToCart}
                     disabled={product.sizes && product.sizes.length > 0 && !selectedSize}
                   >
@@ -579,7 +579,7 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
                   <Button
                     size="lg"
                     variant="outline"
-                    className="h-14 border-2 border-foreground text-foreground hover:bg-foreground hover:text-background font-semibold shadow-elegant transition-all duration-300"
+                    className="h-14 md:h-12 text-base md:text-sm border-2 border-foreground text-foreground hover:bg-foreground hover:text-background font-semibold shadow-elegant transition-all duration-300"
                     disabled={product.sizes && product.sizes.length > 0 && !selectedSize}
                     onClick={() => {
                       if (product.sizes && product.sizes.length > 0 && !selectedSize) {
@@ -611,7 +611,7 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
 
             {/* Service Highlights */}
             <motion.div
-              className="grid grid-cols-3 gap-4 pt-6 border-t border-border"
+              className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-6 border-t border-border"
               variants={itemVariants}
             >
               <div className="text-center space-y-2 p-4 rounded-lg bg-background/50">

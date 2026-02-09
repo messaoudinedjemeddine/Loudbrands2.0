@@ -587,27 +587,72 @@ export function DeliveryAgentDashboard() {
 
   useEffect(() => {
     let cancelled = false
+    let pollingInterval: NodeJS.Timeout | null = null
 
     // 1. Fetch fast global stats immediately
     fetchGlobalStats()
 
-    // 2. Fetch confirmed orders initially
-    fetchConfirmedOrdersOnly()
-
-    // 3. Set up polling for confirmed orders (every 30 seconds)
-    // This allows the dashboard to reflect webhook updates from the backend without manual refresh
-    const interval = setInterval(() => {
-      if (!cancelled) {
-        console.log('🔄 Polling for order updates...')
-        fetchConfirmedOrdersOnly()
+    // 2. Fetch confirmed orders initially AND THEN fetch Yalidine status
+    fetchConfirmedOrdersOnly().then((orders) => {
+      if (!cancelled && orders.length > 0) {
+        // Fetch Yalidine status for these orders
+        fetchYalidineStatusForConfirmed(orders)
       }
-    }, 30000)
+    })
+
+    // 3. Set up polling for confirmed orders (every 60 seconds - optimized to reduce API quota usage)
+    const startPolling = () => {
+      if (pollingInterval) return // Already polling
+
+      pollingInterval = setInterval(() => {
+        if (!cancelled && document.visibilityState === 'visible') {
+          console.log('🔄 Polling for order updates...')
+          fetchConfirmedOrdersOnly().then((orders) => {
+            if (!cancelled && orders.length > 0) {
+              fetchYalidineStatusForConfirmed(orders)
+            }
+          })
+        } else if (document.visibilityState === 'hidden') {
+          console.log('⏸️ Polling paused - tab not visible')
+        }
+      }, 60000) // Increased from 30s to 60s to reduce API calls by 50%
+    }
+
+    const stopPolling = () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval)
+        pollingInterval = null
+      }
+    }
+
+    // 4. Add visibility change listener to pause/resume polling
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('👁️ Tab visible - resuming polling')
+        // Fetch immediately when tab becomes visible
+        fetchConfirmedOrdersOnly().then((orders) => {
+          if (!cancelled && orders.length > 0) {
+            fetchYalidineStatusForConfirmed(orders)
+          }
+        })
+        startPolling()
+      } else {
+        console.log('🙈 Tab hidden - pausing polling')
+        stopPolling()
+      }
+    }
+
+    // Start polling and add visibility listener
+    startPolling()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
 
     return () => {
       cancelled = true
-      clearInterval(interval)
+      stopPolling()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
 
   // Lazy load "All Parcels" and other tabs when user first switches to them (respects Yalidine quota)
   const loadOtherTabsData = async () => {
@@ -636,7 +681,10 @@ export function DeliveryAgentDashboard() {
   const fetchDeliveryData = async () => {
     setOtherTabsDataLoaded(false)
     fetchGlobalStats() // Refresh global stats
-    await fetchConfirmedOrdersOnly() // Refresh orders from DB (webhook updates)
+    const orders = await fetchConfirmedOrdersOnly() // Refresh orders from DB (webhook updates)
+    if (orders.length > 0) {
+      await fetchYalidineStatusForConfirmed(orders)
+    }
   }
 
 
@@ -786,22 +834,26 @@ https://loudbrandss.com/track-order?tracking=${trackingNumber}
   const getYalidineStatusForOrder = (order: Order, useConfirmedShipments = false) => {
     if (!order.trackingNumber) return null
 
-    // For confirmed tab, we rely on the DB status (updated by webhook)
-    if (useConfirmedShipments) {
-      // If status is missing but tracking exists, show 'Pending' instead of Unknown/Null
-      if (!order.deliveryStatus) return 'Pending Sync'
-      return normalizeYalidineStatus(order.deliveryStatus)
-    }
-
     // Use confirmed shipments if requested (for confirmed tab), otherwise use regular shipments
-    const shipmentsToSearch = useConfirmedShipments ? [] : yalidineShipments
+    const shipmentsToSearch = useConfirmedShipments ? confirmedShipments : yalidineShipments
 
     // Find the corresponding Yalidine shipment
     const yalidineShipment = shipmentsToSearch.find(shipment =>
       shipment.tracking === order.trackingNumber
     )
 
-    return yalidineShipment ? yalidineShipment.last_status : null
+    // If we found a Yalidine shipment, use its status
+    if (yalidineShipment) {
+      return yalidineShipment.last_status
+    }
+
+    // Fallback: If no Yalidine data but we have DB status (from webhook), use that
+    if (order.deliveryStatus) {
+      return normalizeYalidineStatus(order.deliveryStatus)
+    }
+
+    // If no data at all, show pending
+    return 'Pending Sync'
   }
 
   if (loading) {
