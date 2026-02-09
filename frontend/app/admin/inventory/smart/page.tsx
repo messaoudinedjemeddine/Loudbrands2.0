@@ -96,19 +96,61 @@ const STORAGE_KEY_RETOUR = 'scanned-yalidine-retour'
 const parseYalidineProductList = (productList: string) => {
     if (!productList) return []
 
-    const items: any[] = []
+    // 1. Try existing newline-based parsing first (it's stricter and preferred if formatted correctly)
     const lines = productList.split('\n').filter(line => line.trim())
+    const legacyItems: any[] = []
+    let legacyMatchCount = 0
 
     for (const line of lines) {
-        // Regex to match "2x Product Name (Size)"
+        // Regex to match "2x Product Name (Size)" (Legacy format)
         const match = line.trim().match(/^(\d+)x\s+(.+?)(?:\s+\(([^)]+)\))?$/)
         if (match) {
             const quantity = parseInt(match[1])
             const productName = match[2].trim()
             const size = match[3]?.trim() || ''
 
-            items.push({
+            legacyItems.push({
                 originalLine: line.trim(),
+                quantity,
+                productName,
+                size
+            })
+            legacyMatchCount++
+        }
+    }
+
+    // If we matched lines successfully using the old format, return them
+    // We require at least some matches to consider it a legacy format success
+    if (legacyMatchCount > 0 && legacyMatchCount >= lines.length / 2) {
+        return legacyItems
+    }
+
+    // 2. Try New Single-Line Parsing (for "Product (Size)1x Product (Size)1x..." format)
+    const items: any[] = []
+
+    // Regex: 
+    // ([^(]+?)    -> Group 1: Product Name (lazy, anything until opening paren)
+    // \s*         -> Optional whitespace
+    // \(([^)]+)\) -> Group 2: Size (inside parens)
+    // \s*         -> Optional whitespace
+    // (\d+x)?     -> Group 3: Optional Quantity (digits followed by 'x')
+    const regex = /([^(]+?)\s*\(([^)]+)\)\s*(\d+x)?/g
+
+    let match
+    while ((match = regex.exec(productList)) !== null) {
+        const productName = match[1].trim()
+        const size = match[2].trim()
+        const quantityStr = match[3] // "1x", "2x" or undefined
+
+        let quantity = 1
+        if (quantityStr) {
+            quantity = parseInt(quantityStr.replace('x', '')) || 1
+        }
+
+        // Basic noise filter: product name should be reasonable length
+        if (productName && productName.length > 2 && size) {
+            items.push({
+                originalLine: match[0].trim(),
                 quantity,
                 productName,
                 size
@@ -124,10 +166,10 @@ const isShoeProduct = (product: any): boolean => {
     if (!product) return false
     const categorySlug = product.category?.slug?.toLowerCase() || ''
     const categoryName = product.category?.name?.toLowerCase() || ''
-    return categorySlug.includes('shoe') || 
-           categorySlug.includes('chaussure') || 
-           categoryName.includes('shoe') || 
-           categoryName.includes('chaussure')
+    return categorySlug.includes('shoe') ||
+        categorySlug.includes('chaussure') ||
+        categoryName.includes('shoe') ||
+        categoryName.includes('chaussure')
 }
 
 // Helper function to check if a size is a valid shoe size
@@ -146,10 +188,10 @@ const isRegularSize = (size: string): boolean => {
 // If size is provided, filter products to match the size type (shoes vs regular products)
 const filterProductsBySizeType = (products: any[], size: string): any[] => {
     if (!size) return products // No size provided, return all products
-    
+
     const isShoeSize = isValidShoeSize(size)
     const isRegularProductSize = isRegularSize(size)
-    
+
     if (isShoeSize) {
         // Size is a shoe size (36-41), only return shoes
         return products.filter((p: any) => isShoeProduct(p))
@@ -157,7 +199,7 @@ const filterProductsBySizeType = (products: any[], size: string): any[] => {
         // Size is a regular product size (M, L, XL, XXL, XXXL), exclude shoes
         return products.filter((p: any) => !isShoeProduct(p))
     }
-    
+
     // Unknown size type, return all products
     return products
 }
@@ -169,14 +211,14 @@ const filterProductsBySizeType = (products: any[], size: string): any[] => {
 // 3. Have the shortest name (to avoid matching "Chassures X" when searching for "X")
 const findBestMatchingProduct = (products: any[], searchName: string, requiredSize?: string): any | null => {
     if (products.length === 0) return null
-    
+
     const searchLower = searchName.toLowerCase().trim()
-    
+
     // Score products based on match quality
     const scoredProducts = products.map((product: any) => {
         const productNameLower = product.name.toLowerCase()
         let score = 0
-        
+
         // Check if product has the required size
         if (requiredSize) {
             const hasSize = product.sizes?.some((s: any) => s.size === requiredSize)
@@ -187,7 +229,7 @@ const findBestMatchingProduct = (products: any[], searchName: string, requiredSi
                 return { product, score: -1000 }
             }
         }
-        
+
         // Exact name match gets highest priority
         if (productNameLower === searchLower) {
             score += 500
@@ -204,7 +246,7 @@ const findBestMatchingProduct = (products: any[], searchName: string, requiredSi
         else if (searchLower.includes(productNameLower)) {
             score += 50
         }
-        
+
         // Prefer shorter product names (to avoid matching "Chassures X" when searching for "X")
         // This helps when "Djabadour El Hemma Bordeau" matches both:
         // - "Djabadour El Hemma Bordeau" (shorter, better)
@@ -214,15 +256,15 @@ const findBestMatchingProduct = (products: any[], searchName: string, requiredSi
         if (nameLength <= searchLength + 5) { // Product name is close to search length
             score += 20
         }
-        
+
         return { product, score }
     })
-    
+
     // Filter out products with negative scores (missing required size)
     const validProducts = scoredProducts.filter((item: any) => item.score >= 0)
-    
+
     if (validProducts.length === 0) return null
-    
+
     // Sort by score (highest first) and return the best match
     validProducts.sort((a: any, b: any) => b.score - a.score)
     return validProducts[0].product
@@ -271,7 +313,7 @@ export default function InventorySmartPage() {
     const addToHistory = async (movement: StockMovement) => {
         // Add to local state immediately for UI responsiveness (keep same cap as fetch so all sorties show)
         setHistory(prev => [movement, ...prev].slice(0, HISTORY_LIMIT))
-        
+
         // Save to backend
         try {
             await api.admin.createStockMovement({
@@ -404,15 +446,15 @@ function LabelsSection() {
             toast.error('Produit introuvable')
             return
         }
-        
+
         setGeneratingId(product.id)
         try {
             // Check if product is an accessory (no sizes or category is accessoires)
             const categorySlug = product?.category?.slug?.toLowerCase() || ''
-            const isAccessoire = categorySlug.includes('accessoire') || 
-                                categorySlug.includes('accessories') ||
-                                !product.sizes || 
-                                product.sizes.length === 0
+            const isAccessoire = categorySlug.includes('accessoire') ||
+                categorySlug.includes('accessories') ||
+                !product.sizes ||
+                product.sizes.length === 0
 
             // User Request: 11cm width x 15cm height
             const doc = new jsPDF({
@@ -484,7 +526,7 @@ function LabelsSection() {
                 const categorySlug = product.category?.slug?.toLowerCase() || ''
                 const isShoes = categorySlug.includes('shoe') || categorySlug.includes('chaussure') || product.category?.name?.toLowerCase().includes('shoe') || product.category?.name?.toLowerCase().includes('chaussure')
                 const allSizes = isShoes ? ['36', '37', '38', '39', '40', '41'] : ['M', 'L', 'XL', 'XXL', 'XXXL']
-                
+
                 for (const sizeLabel of allSizes) {
                     // Determine x,y based on grid
                     const x = col * colWidth
@@ -560,7 +602,7 @@ function LabelsSection() {
         }
     }
 
-    const filteredProducts = products.filter(p => 
+    const filteredProducts = products.filter(p =>
         p != null && p != undefined
     ).filter(p =>
         !searchQuery ||
@@ -640,11 +682,11 @@ function LabelsSection() {
                                             <div className="flex gap-1.5 mt-1.5 flex-wrap">
                                                 {(() => {
                                                     const categorySlug = product.category?.slug?.toLowerCase() || ''
-                                                    const isAccessoire = categorySlug.includes('accessoire') || 
-                                                                        categorySlug.includes('accessories') ||
-                                                                        !product.sizes || 
-                                                                        product.sizes.length === 0
-                                                    
+                                                    const isAccessoire = categorySlug.includes('accessoire') ||
+                                                        categorySlug.includes('accessories') ||
+                                                        !product.sizes ||
+                                                        product.sizes.length === 0
+
                                                     if (isAccessoire) {
                                                         return (
                                                             <Badge variant="secondary" className="text-xs px-1.5 py-0">
@@ -729,11 +771,11 @@ function LabelsSection() {
                         <DialogDescription>
                             {(() => {
                                 const categorySlug = selectedProduct?.category?.slug?.toLowerCase() || ''
-                                const isAccessoire = categorySlug.includes('accessoire') || 
-                                                    categorySlug.includes('accessories') ||
-                                                    !selectedProduct?.sizes || 
-                                                    selectedProduct.sizes.length === 0
-                                return isAccessoire 
+                                const isAccessoire = categorySlug.includes('accessoire') ||
+                                    categorySlug.includes('accessories') ||
+                                    !selectedProduct?.sizes ||
+                                    selectedProduct.sizes.length === 0
+                                return isAccessoire
                                     ? `Format du code-barres : ${selectedProduct?.reference} (Accessoire - Stock total: ${selectedProduct?.stock || 0})`
                                     : `Format du code-barres : ${selectedProduct?.reference}-TAILLE`
                             })()}
@@ -742,10 +784,10 @@ function LabelsSection() {
                     <div className="space-y-4">
                         {(() => {
                             const categorySlug = selectedProduct?.category?.slug?.toLowerCase() || ''
-                            const isAccessoire = categorySlug.includes('accessoire') || 
-                                                categorySlug.includes('accessories') ||
-                                                !selectedProduct?.sizes || 
-                                                selectedProduct?.sizes.length === 0
+                            const isAccessoire = categorySlug.includes('accessoire') ||
+                                categorySlug.includes('accessories') ||
+                                !selectedProduct?.sizes ||
+                                selectedProduct?.sizes.length === 0
 
                             if (isAccessoire) {
                                 // Show single preview for accessory with total stock
@@ -800,7 +842,7 @@ function LabelsSection() {
                                     const barcodeValue = `${selectedProduct.reference}-${sizeLabel}`
                                     const sizeData = selectedProduct?.sizes?.find((s: any) => s.size === sizeLabel)
                                     const stock = sizeData?.stock || 0
-                                    
+
                                     return (
                                         <div key={sizeLabel} className="border rounded-lg p-4">
                                             <div className="flex items-center gap-4 mb-4">
@@ -867,7 +909,7 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
     }, [])
 
     useEffect(() => {
-        api.getAteliers().then((res: any) => setAteliers(res.ateliers || [])).catch(() => {})
+        api.getAteliers().then((res: any) => setAteliers(res.ateliers || [])).catch(() => { })
     }, [])
 
     const handleScan = async (e: React.FormEvent) => {
@@ -885,22 +927,22 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
             let response = await api.products.getAll({ search: barcodeValue, limit: 100 }) as any
             let products = response.products || []
             let product = products.find((p: any) => p.reference === barcodeValue)
-            
+
             // If not found, try broader search
             if (!product) {
                 response = await api.products.getAll({ limit: 1000 }) as any
                 products = response.products || []
                 product = products.find((p: any) => p.reference === barcodeValue)
             }
-            
+
             if (product) {
                 // Check if it's an accessory FIRST
                 const categorySlug = product.category?.slug?.toLowerCase() || ''
-                const isAccessoire = categorySlug.includes('accessoire') || 
-                                    categorySlug.includes('accessories') ||
-                                    !product.sizes || 
-                                    product.sizes.length === 0
-                
+                const isAccessoire = categorySlug.includes('accessoire') ||
+                    categorySlug.includes('accessories') ||
+                    !product.sizes ||
+                    product.sizes.length === 0
+
                 if (isAccessoire) {
                     // It's an accessory - use reference only, no size
                     reference = barcodeValue
@@ -912,7 +954,7 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                     if (parts.length >= 2) {
                         const possibleSize = parts[parts.length - 1]
                         const possibleReference = parts.slice(0, -1).join('-')
-                        
+
                         if (possibleReference === product.reference) {
                             // Accept the size even if it doesn't exist in product.sizes (stock can be 0)
                             // For shoes, accept shoe sizes (36-41). For regular products, accept any size
@@ -940,7 +982,7 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                 if (parts.length >= 2) {
                     const possibleSize = parts[parts.length - 1]
                     const possibleReference = parts.slice(0, -1).join('-')
-                    
+
                     // Search for product by reference
                     if (!product) {
                         // Try searching with the possible reference
@@ -948,15 +990,15 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                         products = response.products || []
                     }
                     product = products.find((p: any) => p.reference === possibleReference)
-                    
+
                     if (product) {
                         // Check if product is an accessory
                         const categorySlug = product.category?.slug?.toLowerCase() || ''
-                        const isAccessoire = categorySlug.includes('accessoire') || 
-                                            categorySlug.includes('accessories') ||
-                                            !product.sizes || 
-                                            product.sizes.length === 0
-                        
+                        const isAccessoire = categorySlug.includes('accessoire') ||
+                            categorySlug.includes('accessories') ||
+                            !product.sizes ||
+                            product.sizes.length === 0
+
                         if (isAccessoire) {
                             // It's an accessory - ignore the size part, use reference only
                             reference = product.reference
@@ -968,19 +1010,19 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                         }
                     } else {
                         // Product not found - try searching by partial match
-                        product = products.find((p: any) => 
+                        product = products.find((p: any) =>
                             p.reference?.toLowerCase().includes(barcodeValue.toLowerCase()) ||
                             barcodeValue.toLowerCase().includes(p.reference?.toLowerCase())
                         )
-                        
+
                         if (product) {
                             // Check if it's an accessory
                             const categorySlug = product.category?.slug?.toLowerCase() || ''
-                            const isAccessoire = categorySlug.includes('accessoire') || 
-                                                categorySlug.includes('accessories') ||
-                                                !product.sizes || 
-                                                product.sizes.length === 0
-                            
+                            const isAccessoire = categorySlug.includes('accessoire') ||
+                                categorySlug.includes('accessories') ||
+                                !product.sizes ||
+                                product.sizes.length === 0
+
                             if (isAccessoire && product.reference === barcodeValue) {
                                 reference = product.reference
                                 size = null
@@ -997,14 +1039,14 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                     // Single part - could be accessory reference
                     // Search for exact match
                     product = products.find((p: any) => p.reference === barcodeValue)
-                    
+
                     if (product) {
                         const categorySlug = product.category?.slug?.toLowerCase() || ''
-                        const isAccessoire = categorySlug.includes('accessoire') || 
-                                            categorySlug.includes('accessories') ||
-                                            !product.sizes || 
-                                            product.sizes.length === 0
-                        
+                        const isAccessoire = categorySlug.includes('accessoire') ||
+                            categorySlug.includes('accessories') ||
+                            !product.sizes ||
+                            product.sizes.length === 0
+
                         if (isAccessoire) {
                             reference = barcodeValue
                             size = null
@@ -1257,12 +1299,12 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
 }
 
 // Error Modal Component
-function ErrorModal({ 
-    isOpen, 
-    onClose, 
-    title, 
-    errors 
-}: { 
+function ErrorModal({
+    isOpen,
+    onClose,
+    title,
+    errors
+}: {
     isOpen: boolean
     onClose: () => void
     title: string
@@ -1392,7 +1434,7 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
 
             // STEP 1: Validate ALL items first before processing any
             const validationErrors: Array<{ item: any; message: string; productName: string }> = []
-            const validatedItems: Array<{ 
+            const validatedItems: Array<{
                 item: any
                 product: any
                 barcode: string
@@ -1431,10 +1473,10 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
 
                     // Check if product is an accessory
                     const categorySlug = product.category?.slug?.toLowerCase() || ''
-                    const isAccessoire = categorySlug.includes('accessoire') || 
-                                        categorySlug.includes('accessories') ||
-                                        !product.sizes || 
-                                        product.sizes.length === 0
+                    const isAccessoire = categorySlug.includes('accessoire') ||
+                        categorySlug.includes('accessories') ||
+                        !product.sizes ||
+                        product.sizes.length === 0
 
                     let barcode: string
                     let oldStock: number
@@ -1444,7 +1486,7 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                         // Handle accessories - no size needed
                         barcode = product.reference
                         oldStock = product.stock || 0
-                        
+
                         // Check Stock for accessories
                         if (oldStock < item.quantity) {
                             validationErrors.push({
@@ -1459,11 +1501,11 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                     } else {
                         // Handle products with sizes
                         const isShoes = isShoeProduct(product)
-                        
+
                         // For shoes, accept shoe sizes (36-41) even if not in product.sizes yet
                         // For regular products, size must exist in product.sizes
                         let sizeObj = product.sizes?.find((s: any) => s.size === item.size)
-                        
+
                         if (!sizeObj) {
                             // If it's a shoe and the size is a valid shoe size, create a virtual size object
                             if (isShoes && isValidShoeSize(item.size)) {
@@ -1517,7 +1559,7 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                     isOpen: true,
                     errors: validationErrors
                 })
-                
+
                 setScanLogs(validationErrors.map(e => ({
                     status: 'error',
                     message: `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`,
@@ -1612,53 +1654,53 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                         Sortie Stock - Scan Automatique
                     </CardTitle>
                 </CardHeader>
-            <CardContent className="flex-1 flex flex-col overflow-hidden">
-                <div className="w-full max-w-2xl mx-auto space-y-6">
-                    {/* Yalidine Barcode Input */}
-                    <form onSubmit={handleYalidineScan} className="space-y-4">
-                        <div className="space-y-2">
-                            <Label className="text-lg">Scanner le Code-Barres Yalidine</Label>
-                            <Input
-                                ref={inputRef}
-                                value={yalidineBarcode}
-                                onChange={(e) => setYalidineBarcode(e.target.value)}
-                                placeholder="Scanner ici..."
-                                className="h-20 text-2xl text-center font-mono placeholder:text-muted-foreground/50"
-                                disabled={isLoading}
-                                autoFocus
-                            />
-                        </div>
-                        <Button type="submit" className="w-full h-12 text-lg" disabled={isLoading || !yalidineBarcode.trim()}>
-                            {isLoading ? (
-                                <>
-                                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                                    Traitement en cours...
-                                </>
-                            ) : (
-                                <>
-                                    <Scan className="h-5 w-5 mr-2" />
-                                    Traiter le Ticket
-                                </>
-                            )}
-                        </Button>
-                    </form>
+                <CardContent className="flex-1 flex flex-col overflow-hidden">
+                    <div className="w-full max-w-2xl mx-auto space-y-6">
+                        {/* Yalidine Barcode Input */}
+                        <form onSubmit={handleYalidineScan} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label className="text-lg">Scanner le Code-Barres Yalidine</Label>
+                                <Input
+                                    ref={inputRef}
+                                    value={yalidineBarcode}
+                                    onChange={(e) => setYalidineBarcode(e.target.value)}
+                                    placeholder="Scanner ici..."
+                                    className="h-20 text-2xl text-center font-mono placeholder:text-muted-foreground/50"
+                                    disabled={isLoading}
+                                    autoFocus
+                                />
+                            </div>
+                            <Button type="submit" className="w-full h-12 text-lg" disabled={isLoading || !yalidineBarcode.trim()}>
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                        Traitement en cours...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Scan className="h-5 w-5 mr-2" />
+                                        Traiter le Ticket
+                                    </>
+                                )}
+                            </Button>
+                        </form>
 
-                    {/* Scan Logs */}
-                    {scanLogs.length > 0 && (
-                        <Card className="bg-muted/50">
-                            <CardBody logs={scanLogs} />
-                        </Card>
-                    )}
-                </div>
-                <div className="flex-1 overflow-hidden mt-6 border-t pt-4">
-                    <HistoryTable
-                        data={history.filter(h => h.type === 'out' && !h.notes?.startsWith('Echange'))}
-                        title="Dernières Sorties"
-                        showFilters={false}
-                    />
-                </div>
-            </CardContent>
-        </Card>
+                        {/* Scan Logs */}
+                        {scanLogs.length > 0 && (
+                            <Card className="bg-muted/50">
+                                <CardBody logs={scanLogs} />
+                            </Card>
+                        )}
+                    </div>
+                    <div className="flex-1 overflow-hidden mt-6 border-t pt-4">
+                        <HistoryTable
+                            data={history.filter(h => h.type === 'out' && !h.notes?.startsWith('Echange'))}
+                            title="Dernières Sorties"
+                            showFilters={false}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
         </>
     )
 }
@@ -2116,7 +2158,7 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
 
             // STEP 1: Validate ALL items first before processing any
             const validationErrors: Array<{ item: any; message: string; productName: string }> = []
-            const validatedItems: Array<{ 
+            const validatedItems: Array<{
                 item: any
                 product: any
                 barcode: string
@@ -2152,10 +2194,10 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
 
                     // Check if product is an accessory
                     const categorySlug = product.category?.slug?.toLowerCase() || ''
-                    const isAccessoire = categorySlug.includes('accessoire') || 
-                                        categorySlug.includes('accessories') ||
-                                        !product.sizes || 
-                                        product.sizes.length === 0
+                    const isAccessoire = categorySlug.includes('accessoire') ||
+                        categorySlug.includes('accessories') ||
+                        !product.sizes ||
+                        product.sizes.length === 0
 
                     let barcode: string
                     let oldStock: number
@@ -2165,7 +2207,7 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                         // Handle accessories - no size needed
                         barcode = product.reference
                         oldStock = product.stock || 0
-                        
+
                         // Check Stock for accessories
                         if (oldStock < item.quantity) {
                             validationErrors.push({
@@ -2180,11 +2222,11 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                     } else {
                         // Handle products with sizes
                         const isShoes = isShoeProduct(product)
-                        
+
                         // For shoes, accept shoe sizes (36-41) even if not in product.sizes yet
                         // For regular products, size must exist in product.sizes
                         let sizeObj = product.sizes?.find((s: any) => s.size === item.size)
-                        
+
                         if (!sizeObj) {
                             // If it's a shoe and the size is a valid shoe size, create a virtual size object
                             if (isShoes && isValidShoeSize(item.size)) {
@@ -2238,7 +2280,7 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                     isOpen: true,
                     errors: validationErrors
                 })
-                
+
                 setScanLogs(validationErrors.map(e => ({
                     status: 'error',
                     message: `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`,
@@ -2275,16 +2317,16 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                     }
                     onStockRemoved(movement)
 
-                    logs.push({ 
-                        status: 'success', 
-                        message: `Échangé: ${validated.item.quantity}x ${validated.product.name}${validated.size ? ` (${validated.size})` : ''}`, 
-                        item: validated.item 
+                    logs.push({
+                        status: 'success',
+                        message: `Échangé: ${validated.item.quantity}x ${validated.product.name}${validated.size ? ` (${validated.size})` : ''}`,
+                        item: validated.item
                     })
                 } catch (err: any) {
-                    logs.push({ 
-                        status: 'error', 
-                        message: `خطأ في النظام للمنتج "${validated.product.name}": ${err.message}`, 
-                        item: validated.item 
+                    logs.push({
+                        status: 'error',
+                        message: `خطأ في النظام للمنتج "${validated.product.name}": ${err.message}`,
+                        item: validated.item
                     })
                 }
             }
@@ -2332,34 +2374,34 @@ function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement
                         En scannant un ticket ECH-XXXXXX, les articles sont ajoutés au stock (entrée).
                     </CardDescription>
                 </CardHeader>
-            <CardContent className="flex-1 flex flex-col gap-4">
-                <form onSubmit={handleScan} className="space-y-4">
-                    <Label>Scanner Ticket Échange (ECH-XXXXXX)</Label>
-                    <Input
-                        ref={inputRef}
-                        value={barcode}
-                        onChange={(e) => setBarcode(e.target.value)}
-                        placeholder="ECH-..."
-                        className="h-16 text-xl text-center font-mono"
-                        disabled={isLoading}
-                        autoFocus
-                    />
-                    <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="animate-spin" /> : 'Valider Échange'}
-                    </Button>
-                </form>
+                <CardContent className="flex-1 flex flex-col gap-4">
+                    <form onSubmit={handleScan} className="space-y-4">
+                        <Label>Scanner Ticket Échange (ECH-XXXXXX)</Label>
+                        <Input
+                            ref={inputRef}
+                            value={barcode}
+                            onChange={(e) => setBarcode(e.target.value)}
+                            placeholder="ECH-..."
+                            className="h-16 text-xl text-center font-mono"
+                            disabled={isLoading}
+                            autoFocus
+                        />
+                        <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={isLoading}>
+                            {isLoading ? <Loader2 className="animate-spin" /> : 'Valider Échange'}
+                        </Button>
+                    </form>
 
-                {scanLogs.length > 0 && <CardBody logs={scanLogs} />}
+                    {scanLogs.length > 0 && <CardBody logs={scanLogs} />}
 
-                <div className="flex-1 overflow-hidden mt-6 border-t pt-4">
-                    <HistoryTable
-                        data={history.filter(h => h.notes?.includes('Echange'))}
-                        title="Historique des Échanges"
-                        showFilters={false}
-                    />
-                </div>
-            </CardContent>
-        </Card>
+                    <div className="flex-1 overflow-hidden mt-6 border-t pt-4">
+                        <HistoryTable
+                            data={history.filter(h => h.notes?.includes('Echange'))}
+                            title="Historique des Échanges"
+                            showFilters={false}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
         </>
     )
 }
@@ -2501,10 +2543,10 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
 
                 // Check if product is an accessory
                 const categorySlug = product.category?.slug?.toLowerCase() || ''
-                const isAccessoire = categorySlug.includes('accessoire') || 
-                                    categorySlug.includes('accessories') ||
-                                    !product.sizes || 
-                                    product.sizes.length === 0
+                const isAccessoire = categorySlug.includes('accessoire') ||
+                    categorySlug.includes('accessories') ||
+                    !product.sizes ||
+                    product.sizes.length === 0
 
                 if (isAccessoire) {
                     // Handle accessories - no size needed
@@ -2518,11 +2560,11 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                 } else {
                     // Handle products with sizes
                     const isShoes = isShoeProduct(product)
-                    
+
                     // For shoes, accept shoe sizes (36-41) even if not in product.sizes yet
                     // For regular products, size must exist in product.sizes
                     let sizeObj = product.sizes?.find((s: any) => s.size === item.size)
-                    
+
                     if (!sizeObj) {
                         // If it's a shoe and the size is a valid shoe size, accept it
                         if (isShoes && isValidShoeSize(item.size)) {
@@ -2554,7 +2596,7 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                     isOpen: true,
                     errors: validationErrors
                 })
-                
+
                 setScanLogs(validationErrors.map(e => ({
                     status: 'error',
                     message: `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`,
@@ -2602,7 +2644,7 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                 markBarcodeAsScanned(trackingKey)
                 toast.success('Retour stocké avec succès !')
                 setTracking('')
-                
+
                 setScanLogs(validatedItems.map(item => ({
                     status: 'success',
                     message: `Retour: ${item.quantity}x ${item.productName}${item.size ? ` (${item.size})` : ' (Accessoire)'}`,
@@ -2642,34 +2684,34 @@ function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: Sto
                         Retour (Entrée Stock)
                     </CardTitle>
                 </CardHeader>
-            <CardContent className="flex-1 flex flex-col gap-4">
-                <form onSubmit={handleScan} className="space-y-4">
-                    <Label>Scanner Tracking Retour</Label>
-                    <Input
-                        ref={inputRef}
-                        value={tracking}
-                        onChange={(e) => setTracking(e.target.value)}
-                        placeholder="Yalidine Tracking..."
-                        className="h-16 text-xl text-center font-mono"
-                        disabled={isLoading}
-                        autoFocus
-                    />
-                    <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
-                        {isLoading ? <Loader2 className="animate-spin" /> : 'Valider Retour'}
-                    </Button>
-                </form>
+                <CardContent className="flex-1 flex flex-col gap-4">
+                    <form onSubmit={handleScan} className="space-y-4">
+                        <Label>Scanner Tracking Retour</Label>
+                        <Input
+                            ref={inputRef}
+                            value={tracking}
+                            onChange={(e) => setTracking(e.target.value)}
+                            placeholder="Yalidine Tracking..."
+                            className="h-16 text-xl text-center font-mono"
+                            disabled={isLoading}
+                            autoFocus
+                        />
+                        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+                            {isLoading ? <Loader2 className="animate-spin" /> : 'Valider Retour'}
+                        </Button>
+                    </form>
 
-                {scanLogs.length > 0 && <CardBody logs={scanLogs} />}
+                    {scanLogs.length > 0 && <CardBody logs={scanLogs} />}
 
-                <div className="flex-1 overflow-hidden mt-6 border-t pt-4">
-                    <HistoryTable
-                        data={history.filter(h => h.notes?.includes('Retour'))}
-                        title="Historique des Retours"
-                        showFilters={false}
-                    />
-                </div>
-            </CardContent>
-        </Card>
+                    <div className="flex-1 overflow-hidden mt-6 border-t pt-4">
+                        <HistoryTable
+                            data={history.filter(h => h.notes?.includes('Retour'))}
+                            title="Historique des Retours"
+                            showFilters={false}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
         </>
     )
 }
