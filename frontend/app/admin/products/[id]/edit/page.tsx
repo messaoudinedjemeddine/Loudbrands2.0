@@ -134,7 +134,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
   const fetchProduct = useCallback(async () => {
     try {
       const data = await api.admin.getProduct(unwrappedParams.id) as any
-      
+
       // Transform images - handle different formats
       let transformedImages: Array<{ url: string; alt?: string }> = []
       if (data.images && Array.isArray(data.images) && data.images.length > 0) {
@@ -151,7 +151,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
             }
           })
       }
-      
+
       // Transform the API response to match our Product interface
       const transformedData: Product = {
         id: data.id,
@@ -229,19 +229,19 @@ export default function EditProductPage({ params }: EditProductPageProps) {
 
   // Calculate sum of all size stocks
   const totalSizeStock = productData.sizes.reduce((sum, size) => sum + (size.stock || 0), 0)
-  
+
   // Check if total stock matches sum of size stocks (only for non-accessories)
   const stockMismatch = !isAccessories && productData.sizes.length > 0 && productData.stock !== totalSizeStock
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     // Validate stock match before submitting
     if (stockMismatch) {
       toast.error(`Total stock (${productData.stock}) does not match the sum of size quantities (${totalSizeStock}). Please adjust the values.`)
       return
     }
-    
+
     setIsLoading(true)
 
     try {
@@ -313,11 +313,10 @@ export default function EditProductPage({ params }: EditProductPageProps) {
             <div>
               <div className="flex items-center gap-3">
                 <h1 className="text-3xl font-bold">Edit Product</h1>
-                <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                  inventoryEnabled 
-                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' 
+                <div className={`px-3 py-1 rounded-full text-xs font-medium ${inventoryEnabled
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400'
                     : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400'
-                }`}>
+                  }`}>
                   Inventaire {inventoryEnabled ? 'ON' : 'OFF'}
                 </div>
               </div>
@@ -439,7 +438,10 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                     id="oldPrice"
                     type="number"
                     value={productData.oldPrice || ''}
-                    onChange={(e) => handleInputChange('oldPrice', parseFloat(e.target.value) || undefined)}
+                    onChange={(e) => {
+                      const val = e.target.value
+                      handleInputChange('oldPrice', val === '' ? null : parseFloat(val))
+                    }}
                   />
                   <p className="text-xs text-muted-foreground">Previous selling price (for discounts)</p>
                 </div>
@@ -637,7 +639,7 @@ export default function EditProductPage({ params }: EditProductPageProps) {
                     {stockMismatch && (
                       <div className="p-3 bg-red-50 border border-red-200 rounded-md">
                         <p className="text-sm text-red-700">
-                          <strong>Warning:</strong> The total stock must equal the sum of all size quantities. 
+                          <strong>Warning:</strong> The total stock must equal the sum of all size quantities.
                           Please adjust either the total stock or individual size quantities to match.
                         </p>
                       </div>
@@ -667,9 +669,9 @@ export default function EditProductPage({ params }: EditProductPageProps) {
             <Button variant="outline" type="button" onClick={() => router.push('/admin/products')}>
               Cancel
             </Button>
-            <Button 
-              type="submit" 
-              disabled={isLoading || stockMismatch} 
+            <Button
+              type="submit"
+              disabled={isLoading || stockMismatch}
               className="elegant-gradient"
               title={stockMismatch ? 'Total stock must match sum of size quantities' : ''}
             >
