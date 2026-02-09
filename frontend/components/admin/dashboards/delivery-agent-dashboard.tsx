@@ -786,8 +786,15 @@ https://loudbrandss.com/track-order?tracking=${trackingNumber}
   const getYalidineStatusForOrder = (order: Order, useConfirmedShipments = false) => {
     if (!order.trackingNumber) return null
 
+    // For confirmed tab, we rely on the DB status (updated by webhook)
+    if (useConfirmedShipments) {
+      // If status is missing but tracking exists, show 'Pending' instead of Unknown/Null
+      if (!order.deliveryStatus) return 'Pending Sync'
+      return normalizeYalidineStatus(order.deliveryStatus)
+    }
+
     // Use confirmed shipments if requested (for confirmed tab), otherwise use regular shipments
-    const shipmentsToSearch = useConfirmedShipments ? confirmedShipments : yalidineShipments
+    const shipmentsToSearch = useConfirmedShipments ? [] : yalidineShipments
 
     // Find the corresponding Yalidine shipment
     const yalidineShipment = shipmentsToSearch.find(shipment =>
