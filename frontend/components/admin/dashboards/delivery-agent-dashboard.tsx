@@ -387,7 +387,7 @@ export function DeliveryAgentDashboard() {
     }
   }
 
-  // Phase 1: Fast load – confirmed orders only (no Yalidine calls). Returns list for phase 2.
+  // Phase 1: Fast load – confirmed orders only. Calculates stats immediately from DB data.
   const fetchConfirmedOrdersOnly = async (): Promise<Order[]> => {
     try {
       setLoading(true)
@@ -395,17 +395,65 @@ export function DeliveryAgentDashboard() {
       const confirmedOrdersData = await api.admin.getOrders({ limit: 10000, confirmedOnly: 'true' })
       const list = (confirmedOrdersData as any).orders || (confirmedOrdersData as Order[])
       const withTracking = list.filter((o: Order) => o.callCenterStatus === 'CONFIRMED' && !!o.trackingNumber)
+
       setAllConfirmedOrders(list)
       setOrders(list)
+
+      // Calculate stats immediately from the fetched orders (DB status)
+      // This is instant and doesn't require 800+ API calls to Yalidine
+      const newConfirmedStats = {
+        enPreparation: 0,
+        centre: 0,
+        versWilaya: 0,
+        sortiEnLivraison: 0,
+        livre: 0,
+        echecLivraison: 0,
+        retourARetirer: 0,
+        retourneAuVendeur: 0,
+        echangeEchoue: 0,
+        tentativeEchouee: 0,
+        enAlerte: 0,
+        enAttenteClient: 0,
+        totalShipments: withTracking.length
+      }
+
+      withTracking.forEach((order: Order) => {
+        const status = normalizeYalidineStatus(order.deliveryStatus)
+        // Map status to stats keys
+        if (status === 'En préparation' || status === 'Pas encore ramassé' || status === 'Prêt à expédier') newConfirmedStats.enPreparation++
+        else if (status === 'Centre' || status === 'Expédié' || status === 'Transfert' || status === 'En localisation') newConfirmedStats.centre++
+        else if (status === 'Vers Wilaya' || status === 'Reçu à Wilaya' || status === 'Arrivée à Wilaya') newConfirmedStats.versWilaya++
+        else if (status === 'Sorti en livraison') newConfirmedStats.sortiEnLivraison++
+        else if (status === 'Livré') newConfirmedStats.livre++
+        else if (status === 'Echèc livraison' || status === 'Echec de livraison') newConfirmedStats.echecLivraison++
+        else if (status === 'Retour à retirer' || status === 'Retour vers centre' || status === 'Retourné au centre') newConfirmedStats.retourARetirer++
+        else if (status === 'Retourné au vendeur' || status === 'Retour vers vendeur') newConfirmedStats.retourneAuVendeur++
+        else if (status === 'Echange échoué') newConfirmedStats.echangeEchoue++
+        else if (status === 'Tentative échouée') newConfirmedStats.tentativeEchouee++
+        else if (status === 'En alerte') newConfirmedStats.enAlerte++
+        else if (status === 'En attente du client' || status === 'En attente') newConfirmedStats.enAttenteClient++
+      })
+
       setStats(prev => ({
         ...prev,
         confirmedOrders: withTracking.length,
-        confirmedStats: prev.confirmedStats || {
-          enPreparation: 0, centre: 0, versWilaya: 0, sortiEnLivraison: 0, livre: 0,
-          echecLivraison: 0, retourARetirer: 0, retourneAuVendeur: 0, echangeEchoue: 0,
-          tentativeEchouee: 0, enAlerte: 0, enAttenteClient: 0, totalShipments: 0
-        }
+        // Update top-level stats for the tabs to work immediately
+        enPreparation: newConfirmedStats.enPreparation,
+        centre: newConfirmedStats.centre,
+        versWilaya: newConfirmedStats.versWilaya,
+        sortiEnLivraison: newConfirmedStats.sortiEnLivraison,
+        livre: newConfirmedStats.livre,
+        echecLivraison: newConfirmedStats.echecLivraison,
+        retourARetirer: newConfirmedStats.retourARetirer,
+        retourneAuVendeur: newConfirmedStats.retourneAuVendeur,
+        echangeEchoue: newConfirmedStats.echangeEchoue,
+        tentativeEchouee: newConfirmedStats.tentativeEchouee,
+        enAlerte: newConfirmedStats.enAlerte,
+        enAttenteClient: newConfirmedStats.enAttenteClient,
+        // Also update specific confirmedStats object
+        confirmedStats: newConfirmedStats
       }))
+
       return list
     } catch (err) {
       console.error('Error fetching confirmed orders:', err)
