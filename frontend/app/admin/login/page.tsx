@@ -111,7 +111,7 @@ export default function AdminLoginPage() {
           router.push('/confirmatrice/dashboard')
           break
         case 'AGENT_LIVRAISON':
-          router.push('/admin/dashboard/agent_livraison?tab=confirmed')
+          router.push('/admin/dashboard/agent_livraison?tab=parcels')
           break
         case 'STOCK_MANAGER':
           router.push('/admin/ateliers')
