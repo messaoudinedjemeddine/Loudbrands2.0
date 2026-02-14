@@ -1345,17 +1345,7 @@ function ErrorModal({
     )
 }
 
-// Stock Out Section
-<StockResolutionModal
-    isOpen={resolutionModal.isOpen}
-    onClose={() => setResolutionModal({ isOpen: false, items: [], tracking: '' })}
-    items={resolutionModal.items}
-    tracking={resolutionModal.tracking}
-    onConfirm={handleApplyResolution}
-/>
-        </>
-    )
-}
+
 
 function CardBody({ logs }: { logs: any[] }) {
     return (
