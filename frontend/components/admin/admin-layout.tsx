@@ -45,6 +45,7 @@ const getNavigationByRole = (role: string) => {
         { name: 'Inventaire', href: '/admin/inventory', icon: Package },
         { name: 'Inventaire Intelligent', href: '/admin/inventory/smart', icon: Package },
         { name: 'Commandes', href: '/admin/orders', icon: ShoppingCart },
+        { name: 'Commandes Gros', href: '/admin/wholesale', icon: ShoppingCart },
         { name: 'Catégories', href: '/admin/categories', icon: Tag },
         { name: 'Utilisateurs', href: '/admin/users', icon: Users },
         { name: 'Ateliers', href: '/admin/ateliers', icon: Building2 },

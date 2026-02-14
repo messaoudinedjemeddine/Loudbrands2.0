@@ -280,11 +280,7 @@ html, body {
   [dir="rtl"] .ml-auto {
     margin-left: auto;
   }
-  
-  [dir="rtl"] .mr-auto {
-    margin-right: unset;
-    margin-left: auto;
-  }
+  /* Removed harmful mr-auto override that breaks mx-auto centering */
   
   /* Border radius for RTL */
   [dir="rtl"] .rounded-l-lg {

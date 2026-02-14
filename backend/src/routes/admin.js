@@ -75,6 +75,130 @@ router.get('/dashboard/stats', async (req, res) => {
   }
 });
 
+// Create new order (Admin/Wholesale) - Supports custom pricing
+router.post('/orders', async (req, res) => {
+  try {
+    const orderData = req.body;
+    console.log('Admin creating order:', orderData);
+
+    // Basic validation
+    if (!orderData.items || orderData.items.length === 0) {
+      return res.status(400).json({ error: 'Items are required' });
+    }
+    if (!orderData.wilayaId) {
+      return res.status(400).json({ error: 'Wilaya is required' });
+    }
+
+    // Get wilaya info
+    const wilayaInfo = getWilayaById(parseInt(orderData.wilayaId));
+    if (!wilayaInfo) {
+      return res.status(400).json({ error: 'Invalid wilaya ID' });
+    }
+
+    // Find or create city
+    let city = await prisma.city.findFirst({
+      where: { name: wilayaInfo.name }
+    });
+
+    if (!city) {
+      city = await prisma.city.create({
+        data: {
+          name: wilayaInfo.name,
+          nameAr: wilayaInfo.nameAr,
+          code: wilayaInfo.code,
+          deliveryFee: 0,
+          isActive: true
+        }
+      });
+    }
+
+    // Generate order number
+    const lastOrder = await prisma.order.findFirst({
+      orderBy: { createdAt: 'desc' },
+      where: { orderNumber: { startsWith: 'ORD-' } }
+    });
+
+    let nextNum = 100;
+    if (lastOrder && lastOrder.orderNumber) {
+      const match = lastOrder.orderNumber.match(/ORD-(\d+)/);
+      if (match) {
+        nextNum = parseInt(match[1]) + 1;
+      }
+    }
+    const orderNumber = `ORD-${String(nextNum).padStart(6, '0')}`;
+
+    // Process items and calculate totals
+    let subtotal = 0;
+    const orderItems = [];
+
+    for (const item of orderData.items) {
+      const product = await prisma.product.findUnique({
+        where: { id: item.productId }
+      });
+
+      if (!product) {
+        return res.status(400).json({ error: `Product not found: ${item.productId}` });
+      }
+
+      // Use provided wholesale price, or fallback to product price
+      const itemPrice = parseFloat(item.price);
+      if (isNaN(itemPrice)) {
+        return res.status(400).json({ error: `Invalid price for product: ${product.name}` });
+      }
+
+      const itemTotal = itemPrice * item.quantity;
+      subtotal += itemTotal;
+
+      orderItems.push({
+        productId: item.productId,
+        quantity: item.quantity,
+        price: itemPrice, // Store the custom wholesale price
+        size: item.size || null,
+        sizeId: item.sizeId || null
+      });
+    }
+
+    const deliveryFee = orderData.deliveryFee !== undefined ? parseFloat(orderData.deliveryFee) : 0;
+    const total = subtotal + deliveryFee;
+
+    // Create the order
+    const order = await prisma.order.create({
+      data: {
+        orderNumber,
+        customerName: orderData.customerName,
+        customerPhone: orderData.customerPhone,
+        customerEmail: orderData.customerEmail,
+        deliveryType: orderData.deliveryType || 'HOME_DELIVERY',
+        deliveryAddress: orderData.deliveryAddress,
+        deliveryFee,
+        subtotal,
+        total,
+        notes: orderData.notes ? `[WHOLESALE] ${orderData.notes}` : '[WHOLESALE]',
+        cityId: city.id,
+        callCenterStatus: 'CONFIRMED', // Wholesale orders are usually pre-confirmed
+        deliveryDetails: {
+          wilayaId: String(orderData.wilayaId),
+          wilayaName: wilayaInfo.name,
+          communeName: orderData.communeName
+        },
+        items: {
+          create: orderItems
+        }
+      },
+      include: {
+        items: true,
+        city: true
+      }
+    });
+
+    res.status(201).json(order);
+
+  } catch (error) {
+    console.error('Create admin order error:', error);
+    res.status(500).json({ error: 'Failed to create wholesale order' });
+  }
+});
+
 // Recent orders
 router.get('/dashboard/recent-orders', async (req, res) => {
   try {
@@ -790,7 +914,7 @@ router.patch('/orders/:id/status', async (req, res) => {
     // Handle delivery desk - for PICKUP orders, map Yalidine centerId to deliveryDeskId
     let finalDeliveryDeskId = deliveryDeskId;
     const effectiveDeliveryType = deliveryType || currentOrder.deliveryType;
-    
+
     if (effectiveDeliveryType === 'PICKUP' && deliveryDetails && typeof deliveryDetails === 'object' && deliveryDetails.centerId && !finalDeliveryDeskId) {
       // If we have a centerId in deliveryDetails but no deliveryDeskId, map it
       try {
@@ -893,7 +1017,7 @@ router.patch('/orders/:id/status', async (req, res) => {
     // If canceling order (changing to CANCELED)
     if (newStatus === 'CANCELED' && oldStatus !== 'CANCELED') {
       console.log(`❌ Canceling order ${id} (${oldStatus} → CANCELED)`);
-      
+
       // No stock restoration needed since we don't decrement on confirmation
 
       // Delete Yalidine tracking information
@@ -918,7 +1042,7 @@ router.patch('/orders/:id/status', async (req, res) => {
     }
 
     console.log('📝 Updating order with data:', JSON.stringify(updateData, null, 2));
-    
+
     const order = await prisma.order.update({
       where: { id },
       data: updateData,
@@ -961,7 +1085,7 @@ router.patch('/orders/:id/status', async (req, res) => {
       code: error.code,
       meta: error.meta
     });
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Failed to update order status',
       details: error.message || 'Unknown error',
       code: error.code || 'UNKNOWN_ERROR'
@@ -2753,7 +2877,7 @@ router.get('/analytics/comprehensive', async (req, res) => {
           }
           if (categoryInfo) break;
         }
-        
+
         return {
           categoryId: cat.categoryId,
           categoryName: categoryInfo?.name || 'Unknown',
@@ -2851,7 +2975,7 @@ router.get('/analytics/time-series', async (req, res) => {
 
     // Group by date
     const dailyData = {};
-    
+
     // Initialize all 30 days
     for (let i = 0; i < 30; i++) {
       const date = new Date(thirtyDaysAgo);
@@ -2872,7 +2996,7 @@ router.get('/analytics/time-series', async (req, res) => {
         if (dailyData[dateKey]) {
           dailyData[dateKey].orders += 1;
           dailyData[dateKey].revenue += order.subtotal || 0;
-          
+
           // Calculate profit for this order
           let orderProfit = 0;
           if (order.items && order.items.length > 0) {
@@ -2912,7 +3036,7 @@ router.get('/analytics/orders-timeline', async (req, res) => {
     const { period = 'days' } = req.query; // days, weeks, months
 
     let startDate = new Date();
-    
+
     // Set start date based on period
     if (period === 'days') {
       startDate.setDate(startDate.getDate() - 30); // Last 30 days
@@ -2957,7 +3081,7 @@ router.get('/analytics/orders-timeline', async (req, res) => {
     // Initialize all periods
     const currentDate = new Date(startDate);
     const endDate = new Date();
-    
+
     while (currentDate <= endDate) {
       let dateKey = '';
       let label = '';
@@ -3014,7 +3138,7 @@ router.get('/analytics/orders-timeline', async (req, res) => {
       const data = timelineData[key];
       const total = data.newOrders + data.confirmedOrders;
       const confirmationRate = total > 0 ? ((data.confirmedOrders / total) * 100) : 0;
-      
+
       return {
         ...data,
         totalOrders: total,

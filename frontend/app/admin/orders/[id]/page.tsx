@@ -36,7 +36,7 @@ import {
   X,
   Plus,
   MessageSquare,
-  DollarSign
+
 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -175,8 +175,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const [productSearch, setProductSearch] = useState('')
   const [loadingProducts, setLoadingProducts] = useState(false)
   const [noteInput, setNoteInput] = useState('')
-  const [showWholesalePriceDialog, setShowWholesalePriceDialog] = useState(false)
-  const [wholesalePrice, setWholesalePrice] = useState('')
+
 
   // Dirty state trackers
   const isDeliveryDirty = order ? (
@@ -255,7 +254,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
     try {
       setIsLoadingShipping(true)
-      
+
       // Always load centers first - we need them for PICKUP
       const centersData = await yalidineAPI.getCenters(parseInt(wilayaId))
       setCenters(centersData.data || [])
@@ -476,7 +475,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       // For HOME_DELIVERY, explicitly send undefined to disconnect delivery desk
       const deliveryDeskId = deliveryData.deliveryType === 'HOME_DELIVERY'
         ? undefined
-        : (deliveryData.deliveryType === 'PICKUP' 
+        : (deliveryData.deliveryType === 'PICKUP'
           ? (deliveryData.deliveryDeskId && !deliveryData.centerId ? deliveryData.deliveryDeskId : undefined)
           : undefined)
 
@@ -797,69 +796,17 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     setOrderItems(prev => prev.map(item =>
       item.id === itemId
         ? {
-            ...item,
-            pieces: (item.pieces || []).map(piece =>
-              piece.id === pieceId ? { ...piece, size } : piece
-            )
-          }
+          ...item,
+          pieces: (item.pieces || []).map(piece =>
+            piece.id === pieceId ? { ...piece, size } : piece
+          )
+        }
         : item
     ))
   }
 
   // Update all items with wholesale price (total price for all articles)
-  const applyWholesalePrice = () => {
-    if (isReadOnly) {
-      toast.error('Impossible de modifier une commande confirmée')
-      return
-    }
 
-    const totalWholesalePrice = parseFloat(wholesalePrice)
-    if (isNaN(totalWholesalePrice) || totalWholesalePrice < 0) {
-      toast.error('Veuillez entrer un prix valide')
-      return
-    }
-
-    if (orderItems.length === 0) {
-      toast.error('Aucun article dans la commande')
-      return
-    }
-
-    // Calculate total quantity of all items
-    const totalQuantity = orderItems.reduce((sum, item) => sum + item.quantity, 0)
-    
-    if (totalQuantity === 0) {
-      toast.error('Aucune quantité dans les articles')
-      return
-    }
-
-    // Calculate price per article (divide total wholesale price by total quantity)
-    const pricePerArticle = totalWholesalePrice / totalQuantity
-
-    // Update all items with the calculated price per article
-    const updatedItems = orderItems.map(item => ({
-      ...item,
-      price: pricePerArticle
-    }))
-    setOrderItems(updatedItems)
-
-    // Calculate new subtotal (should equal the wholesale price entered)
-    const newSubtotal = totalWholesalePrice
-    // Calculate new total (subtotal + delivery fee)
-    const newTotal = newSubtotal + (order?.deliveryFee || 0)
-
-    // Update order state with new subtotal and total
-    if (order) {
-      setOrder(prev => prev ? {
-        ...prev,
-        subtotal: newSubtotal,
-        total: newTotal
-      } : null)
-    }
-
-    toast.success(`Prix gros appliqué: ${totalWholesalePrice.toLocaleString()} DA (total pour tous les articles)`)
-    setShowWholesalePriceDialog(false)
-    setWholesalePrice('')
-  }
 
   // Add new item to order
   const addNewItem = () => {
@@ -880,7 +827,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
     // Check if product is an accessory (only check category, not sizes)
     const isAccessoires = product.category?.slug?.toLowerCase().includes('accessoire') ||
-                         product.category?.slug?.toLowerCase().includes('accessories')
+      product.category?.slug?.toLowerCase().includes('accessories')
 
     // Only require size for non-accessory products
     if (!isAccessoires && (!newItem.size || newItem.size.trim() === '')) {
@@ -956,7 +903,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       // Skip validation for accessoires products
       const isAccessoires = isProductAccessoires(item.product.id)
       if (isAccessoires) return false
-      
+
       if (item.pieces && item.pieces.length > 0) {
         return item.pieces.some(piece => !piece.size || piece.size.trim() === '')
       }
@@ -1376,18 +1323,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                   ))}
 
                   {/* Prix Gros Button */}
-                  {!isReadOnly && orderItems.length > 0 && (
-                    <div className="pt-4 border-t">
-                      <Button
-                        variant="outline"
-                        onClick={() => setShowWholesalePriceDialog(true)}
-                        className="w-full"
-                      >
-                        <DollarSign className="w-4 h-4 mr-2" />
-                        Prix Gros
-                      </Button>
-                    </div>
-                  )}
+
 
                   {/* Always show Add New Item Form unless ReadOnly */}
                   {!isReadOnly && (
@@ -1514,25 +1450,25 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                         </div>
                         {(() => {
                           const selectedProduct = availableProducts.find(p => p.id === newItem.productId)
-                          
+
                           // Only hide for accessories (check category, not sizes)
                           const isAccessoires = selectedProduct ? (
                             selectedProduct.category?.slug?.toLowerCase().includes('accessoire') ||
                             selectedProduct.category?.slug?.toLowerCase().includes('accessories')
                           ) : false
-                          
+
                           if (isAccessoires) {
                             return null // Don't show size selector for accessoires
                           }
-                          
+
                           // Always show size selector if product is selected
                           if (!selectedProduct) {
                             return null
                           }
-                          
+
                           // Standard sizes dropdown
                           const standardSizes = ['M', 'L', 'XL', 'XXL', 'XXXL']
-                          
+
                           // Show dropdown with standard sizes
                           return (
                             <Select
@@ -1710,8 +1646,8 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                       >
                         <SelectTrigger>
                           <SelectValue placeholder={
-                            deliveryData.deliveryType === 'PICKUP' 
-                              ? "Sélectionner une commune (avec bureau)" 
+                            deliveryData.deliveryType === 'PICKUP'
+                              ? "Sélectionner une commune (avec bureau)"
                               : "Sélectionner une commune"
                           } />
                         </SelectTrigger>
@@ -1723,7 +1659,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                             </div>
                           ) : communes.length === 0 ? (
                             <div className="p-4 text-center text-muted-foreground text-sm">
-                              {deliveryData.deliveryType === 'PICKUP' 
+                              {deliveryData.deliveryType === 'PICKUP'
                                 ? 'Aucune commune avec bureau Yalidine dans cette wilaya'
                                 : 'Aucune commune disponible'}
                             </div>
@@ -1762,7 +1698,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                             </div>
                           ) : (
                             centers
-                              .filter(center => 
+                              .filter(center =>
                                 center.wilaya_id.toString() === deliveryData.wilayaId &&
                                 center.commune_id.toString() === deliveryData.communeId
                               )
@@ -1801,7 +1737,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                       const currentFee = order?.deliveryFee || 0
                       const newFee = getDeliveryFee()
                       // Always calculate subtotal from current orderItems (reflects wholesale price changes immediately)
-                      const subtotal = orderItems.length > 0 
+                      const subtotal = orderItems.length > 0
                         ? orderItems.reduce((sum, item) => sum + (item.quantity * item.price), 0)
                         : (order?.subtotal || 0)
                       const currentTotal = subtotal + currentFee
@@ -1906,70 +1842,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       </div>
 
       {/* Wholesale Price Dialog */}
-      <Dialog open={showWholesalePriceDialog} onOpenChange={setShowWholesalePriceDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Prix Gros</DialogTitle>
-            <DialogDescription>
-              Entrez le prix total pour tous les articles de la commande (sans les frais de livraison).
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="wholesale-price">Prix Total (DA)</Label>
-              <Input
-                id="wholesale-price"
-                type="number"
-                min="0"
-                step="0.01"
-                value={wholesalePrice}
-                onChange={(e) => setWholesalePrice(e.target.value)}
-                placeholder="Entrez le prix total pour tous les articles"
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    applyWholesalePrice()
-                  }
-                }}
-              />
-            </div>
-            {orderItems.length > 0 && (() => {
-              const totalQuantity = orderItems.reduce((sum, item) => sum + item.quantity, 0)
-              const oldSubtotal = orderItems.reduce((sum, item) => sum + (item.quantity * item.price), 0)
-              const newSubtotal = wholesalePrice && !isNaN(parseFloat(wholesalePrice)) ? parseFloat(wholesalePrice) : 0
-              
-              return (
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between items-center p-2 bg-muted/50 rounded-md">
-                    <span className="text-muted-foreground">Ancien sous-total:</span>
-                    <span className="font-medium line-through text-muted-foreground">{oldSubtotal.toLocaleString()} DA</span>
-                  </div>
-                  {wholesalePrice && !isNaN(parseFloat(wholesalePrice)) && (
-                    <div className="flex justify-between items-center p-2 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-800">
-                      <span className="text-green-700 dark:text-green-300 font-medium">Nouveau sous-total:</span>
-                      <span className="font-bold text-green-700 dark:text-green-300">{newSubtotal.toLocaleString()} DA</span>
-                    </div>
-                  )}
-                  <div className="text-xs text-muted-foreground pt-1">
-                    Total quantité: {totalQuantity} article{totalQuantity > 1 ? 's' : ''}
-                  </div>
-                </div>
-              )
-            })()}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => {
-              setShowWholesalePriceDialog(false)
-              setWholesalePrice('')
-            }}>
-              Annuler
-            </Button>
-            <Button onClick={applyWholesalePrice} disabled={!wholesalePrice || isNaN(parseFloat(wholesalePrice)) || parseFloat(wholesalePrice) < 0}>
-              <Save className="w-4 h-4 mr-2" />
-              Appliquer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+
     </AdminLayout >
   )
 }

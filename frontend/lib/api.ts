@@ -77,7 +77,7 @@ class ApiClient {
         const errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`;
         const validationError = new Error(errorMessage);
         (validationError as any).response = { data: errorData, status: response.status };
-        
+
         // Log detailed error information
         console.error('❌ API Error:', {
           url,
@@ -86,13 +86,13 @@ class ApiClient {
           error: errorData,
           endpoint
         });
-        
+
         throw validationError;
       }
 
       if (response.status === 204) return undefined as T;
       const data = await response.json();
-      
+
       // Log successful responses in development
       if (process.env.NODE_ENV === 'development') {
         console.log('✅ API Response:', {
@@ -101,7 +101,7 @@ class ApiClient {
           dataKeys: Object.keys(data)
         });
       }
-      
+
       return data;
     } catch (error) {
       // Enhanced error logging
@@ -442,6 +442,10 @@ export const api = {
     }) => apiClient.request(`/admin/products${params ? `?${new URLSearchParams({ ...params, limit: params.limit?.toString() || '1000' } as any).toString()}` : '?limit=1000'}`, { cache: 'no-store' }),
     getOrders: (params?: Parameters<typeof apiClient.getAdminOrders>[0]) =>
       apiClient.getAdminOrders(params),
+    createOrder: (data: any) => apiClient.request('/admin/orders', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }),
     updateOrderStatus: (
       orderId: string,
       status: Parameters<typeof apiClient.updateOrderStatus>[1]

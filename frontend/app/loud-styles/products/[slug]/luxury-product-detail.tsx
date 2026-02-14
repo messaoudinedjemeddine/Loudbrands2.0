@@ -440,9 +440,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
     <React.Fragment>
       <LoudStylesNavbar />
       <div
-        className="min-h-screen bg-gradient-to-br from-cream-50 via-warm-50 to-cream-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 overflow-x-hidden"
+        className="min-h-screen bg-gradient-to-br from-cream-50 via-warm-50 to-cream-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 overflow-x-hidden w-full max-w-[100vw]"
         dir={isRTL ? 'rtl' : 'ltr'}
-        style={{ minHeight: '100vh', width: '100%' }}
+        style={{ minHeight: '100vh' }}
       >
         {/* Header with Back Button */}
         <motion.div
@@ -480,25 +480,22 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
         </motion.div>
 
         <motion.div
-          className="container mx-auto px-3 sm:px-4 py-3 sm:py-4 lg:py-8"
+          className="w-full max-w-7xl mx-auto px-4 sm:px-4 py-3 sm:py-4 lg:py-8 layout-content-container"
           variants={containerVariants}
           initial="hidden"
           animate="visible"
-          style={{ minHeight: '600px' }}
         >
-          <div className="grid lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-12 max-w-7xl mx-auto items-start w-full" style={{ minHeight: '500px' }}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-12 max-w-7xl mx-auto items-start w-full">
             {/* Image Gallery - Left Side */}
             <motion.div
               className="lg:order-1 flex-shrink-0 w-full"
               variants={itemVariants}
-              style={{ minHeight: '400px' }}
             >
-              <div className="relative w-full" style={{ minHeight: '400px' }}>
+              <div className="relative w-full">
                 {/* Main Image - Optimized for LCP - Render immediately without animation delay */}
                 <div
                   className="relative aspect-square bg-background dark:bg-gray-800 rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden border-2 border-transparent shadow-elegant dark:shadow-2xl w-full product-detail-image group transform-gpu"
                   style={{
-                    minHeight: '400px',
                     width: '100%',
                     willChange: 'transform'
                   }}
@@ -689,14 +686,14 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                         key={variant.slug}
                         href={`/loud-styles/products/${variant.slug}?brand=loud-styles`}
                         className={`group relative flex items-center gap-2 sm:gap-3 transition-all duration-300 ${variant.isCurrent
-                            ? 'opacity-100'
-                            : 'opacity-60 hover:opacity-100'
+                          ? 'opacity-100'
+                          : 'opacity-60 hover:opacity-100'
                           }`}
                       >
                         <div
                           className={`w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 transition-all duration-300 ${variant.isCurrent
-                              ? 'border-primary shadow-lg scale-110'
-                              : 'border-border hover:border-primary/50 cursor-pointer'
+                            ? 'border-primary shadow-lg scale-110'
+                            : 'border-border hover:border-primary/50 cursor-pointer'
                             }`}
                           style={{
                             backgroundColor: variant.hexColor || (variant.color === 'black' ? '#000000' : '#722F37')
@@ -709,8 +706,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                           )}
                         </div>
                         <span className={`text-sm sm:text-base font-medium ${variant.isCurrent
-                            ? 'text-primary font-semibold'
-                            : 'text-foreground'
+                          ? 'text-primary font-semibold'
+                          : 'text-foreground'
                           }`}>
                           {isRTL ? variant.name : variant.nameEn}
                         </span>
@@ -758,10 +755,10 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                         key={size}
                         disabled={!isOrderable}
                         className={`group relative px-3 py-2 sm:px-4 sm:py-2.5 lg:px-6 lg:py-3 rounded-md sm:rounded-lg border-2 transition-all duration-300 font-medium text-sm sm:text-base ${!isOrderable
-                            ? 'opacity-50 cursor-not-allowed border-muted bg-muted/50'
-                            : selectedSize === size
-                              ? 'border-primary bg-primary text-primary-foreground shadow-elegant'
-                              : 'border-border hover:border-primary/50 bg-background hover:bg-muted/50'
+                          ? 'opacity-50 cursor-not-allowed border-muted bg-muted/50'
+                          : selectedSize === size
+                            ? 'border-primary bg-primary text-primary-foreground shadow-elegant'
+                            : 'border-border hover:border-primary/50 bg-background hover:bg-muted/50'
                           }`}
                         onClick={() => {
                           if (isOrderable) {
@@ -824,8 +821,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                   key={size}
                                   onClick={() => setSelectedSize(size)}
                                   className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${isSelected
-                                      ? 'bg-black text-white border-2 border-black'
-                                      : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-gray-400'
+                                    ? 'bg-black text-white border-2 border-black'
+                                    : 'bg-white text-gray-700 border-2 border-gray-300 hover:border-gray-400'
                                     }`}
                                 >
                                   {size}
@@ -968,10 +965,10 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                                       <tr
                                         key={item.size}
                                         className={`transition-colors ${isSelected
-                                            ? 'bg-[#d4af37]/20 border-l-4 border-[#d4af37]'
-                                            : index % 2 === 0
-                                              ? 'bg-white dark:bg-gray-900'
-                                              : 'bg-gray-50 dark:bg-gray-800'
+                                          ? 'bg-[#d4af37]/20 border-l-4 border-[#d4af37]'
+                                          : index % 2 === 0
+                                            ? 'bg-white dark:bg-gray-900'
+                                            : 'bg-gray-50 dark:bg-gray-800'
                                           }`}
                                       >
                                         <td className={`px-3 py-2 text-right text-xs font-medium ${isSelected ? 'text-[#d4af37] font-bold' : 'text-foreground'
@@ -1147,13 +1144,11 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
 
           {/* Additional Information Below - Fixed grid to prevent CLS */}
           <motion.div
-            className="max-w-7xl mx-auto mt-6 sm:mt-8 lg:mt-16"
+            className="max-w-7xl mx-auto mt-6 sm:mt-8 lg:mt-16 layout-content-container"
             variants={itemVariants}
-            style={{ minHeight: '300px' }}
           >
             <div
               className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 lg:gap-8"
-              style={{ minHeight: '250px' }}
             >
               {/* Craftsmanship Card */}
               <Card
@@ -1427,8 +1422,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                           <Button
                             size="sm"
                             className={`w-full bg-[#d4af37] text-white hover:bg-[#d4af37]/90 font-semibold ${isMobile
-                                ? 'text-[10px] h-6 px-2'
-                                : 'text-xs h-7 sm:h-8 px-3'
+                              ? 'text-[10px] h-6 px-2'
+                              : 'text-xs h-7 sm:h-8 px-3'
                               }`}
                             onClick={() => {
                               handleAddAccessoryToCart(accessory)
