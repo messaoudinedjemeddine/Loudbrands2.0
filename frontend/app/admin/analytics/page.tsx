@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { 
+import {
   DollarSign,
   TrendingUp,
   TrendingDown,
@@ -236,18 +236,20 @@ export default function AdminAnalyticsPage() {
 
   const fetchStockProducts = async () => {
     try {
-      const response = await api.admin.getInventory({ limit: 10000 }) as { products: Array<{
-        id: string
-        name: string
-        nameAr?: string
-        reference: string
-        costPrice: number
-        price: number
-        stock: number
-      }> }
-      
+      const response = await api.admin.getInventory({ limit: 10000 }) as {
+        products: Array<{
+          id: string
+          name: string
+          nameAr?: string
+          reference: string
+          costPrice: number
+          price: number
+          stock: number
+        }>
+      }
+
       const products = response.products || []
-      
+
       // Calculate product metrics
       const productsWithMetrics = products.map(product => {
         const costPrice = product.costPrice || 0
@@ -256,7 +258,7 @@ export default function AdminAnalyticsPage() {
         const profitPerPiece = price - costPrice
         const totalProfit = profitPerPiece * stock
         const margin = price > 0 ? ((profitPerPiece / price) * 100) : 0
-        
+
         return {
           id: product.id,
           name: product.name,
@@ -270,14 +272,14 @@ export default function AdminAnalyticsPage() {
           margin
         }
       })
-      
+
       setStockProducts(productsWithMetrics)
-      
+
       // Calculate total metrics
       const totalStockValue = productsWithMetrics.reduce((sum, p) => sum + (p.price * p.stock), 0)
       const totalStockCost = productsWithMetrics.reduce((sum, p) => sum + (p.costPrice * p.stock), 0)
       const totalStockProfit = productsWithMetrics.reduce((sum, p) => sum + p.totalProfit, 0)
-      
+
       setStockMetrics({
         totalStockValue,
         totalStockCost,
@@ -391,7 +393,7 @@ export default function AdminAnalyticsPage() {
     if (!timeSeries) return []
     const days = parseInt(revenuePeriod)
     const data = timeSeries.slice(-days)
-    
+
     switch (activeTab) {
       case 'orders':
         return data.map(d => ({ date: d.date, value: d.orders, label: 'Commandes' }))
@@ -425,7 +427,7 @@ export default function AdminAnalyticsPage() {
         <div className="flex items-center justify-center min-h-[400px]">
           <div className="text-center">
             <p className="text-red-500 mb-4">{error}</p>
-            <button 
+            <button
               onClick={fetchAnalyticsData}
               className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
             >
@@ -485,8 +487,8 @@ export default function AdminAnalyticsPage() {
                     </span>
                   </div>
                   <div className="flex-1 ml-4">
-                    <Sparkline 
-                      data={metrics.revenue.sparkline} 
+                    <Sparkline
+                      data={metrics.revenue.sparkline}
                       color={metrics.revenue.isPositive ? '#10b981' : '#ef4444'}
                       isPositive={metrics.revenue.isPositive}
                     />
@@ -527,8 +529,8 @@ export default function AdminAnalyticsPage() {
                     </span>
                   </div>
                   <div className="flex-1 ml-4">
-                    <Sparkline 
-                      data={metrics.orders.sparkline} 
+                    <Sparkline
+                      data={metrics.orders.sparkline}
                       color={metrics.orders.isPositive ? '#10b981' : '#ef4444'}
                       isPositive={metrics.orders.isPositive}
                     />
@@ -569,8 +571,8 @@ export default function AdminAnalyticsPage() {
                     </span>
                   </div>
                   <div className="flex-1 ml-4">
-                    <Sparkline 
-                      data={metrics.profit.sparkline} 
+                    <Sparkline
+                      data={metrics.profit.sparkline}
                       color={metrics.profit.isPositive ? '#10b981' : '#ef4444'}
                       isPositive={metrics.profit.isPositive}
                     />
@@ -611,8 +613,8 @@ export default function AdminAnalyticsPage() {
                     </span>
                   </div>
                   <div className="flex-1 ml-4">
-                    <Sparkline 
-                      data={metrics.stock.sparkline} 
+                    <Sparkline
+                      data={metrics.stock.sparkline}
                       color={metrics.stock.isPositive ? '#10b981' : '#ef4444'}
                       isPositive={metrics.stock.isPositive}
                     />
@@ -669,13 +671,13 @@ export default function AdminAnalyticsPage() {
                   <AreaChart data={filteredRevenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <defs>
                       <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey="date" 
+                    <XAxis
+                      dataKey="date"
                       tick={{ fontSize: 11 }}
                       tickFormatter={(value) => {
                         const date = new Date(value)
@@ -683,7 +685,7 @@ export default function AdminAnalyticsPage() {
                       }}
                     />
                     <YAxis tick={{ fontSize: 11 }} width={60} />
-                    <ChartTooltip 
+                    <ChartTooltip
                       content={<ChartTooltipContent />}
                       labelFormatter={(value) => {
                         const date = new Date(value)
@@ -732,7 +734,7 @@ export default function AdminAnalyticsPage() {
                         </p>
                       </div>
                       <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="h-full bg-yellow-500 rounded-full transition-all"
                           style={{ width: '75%' }}
                         />
@@ -748,7 +750,7 @@ export default function AdminAnalyticsPage() {
                         </p>
                       </div>
                       <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div 
+                        <div
                           className="h-full bg-orange-500 rounded-full transition-all"
                           style={{ width: '60%' }}
                         />
@@ -767,28 +769,28 @@ export default function AdminAnalyticsPage() {
                 >
                   <AreaChart data={tabData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <defs>
-                      <linearGradient 
-                        id={`color${activeTab}`} 
-                        x1="0" 
-                        y1="0" 
-                        x2="0" 
+                      <linearGradient
+                        id={`color${activeTab}`}
+                        x1="0"
+                        y1="0"
+                        x2="0"
                         y2="1"
                       >
-                        <stop 
-                          offset="5%" 
-                          stopColor={activeTab === 'orders' ? '#10b981' : activeTab === 'revenue' ? '#3b82f6' : '#8b5cf6'} 
+                        <stop
+                          offset="5%"
+                          stopColor={activeTab === 'orders' ? '#10b981' : activeTab === 'revenue' ? '#3b82f6' : '#8b5cf6'}
                           stopOpacity={0.3}
                         />
-                        <stop 
-                          offset="95%" 
-                          stopColor={activeTab === 'orders' ? '#10b981' : activeTab === 'revenue' ? '#3b82f6' : '#8b5cf6'} 
+                        <stop
+                          offset="95%"
+                          stopColor={activeTab === 'orders' ? '#10b981' : activeTab === 'revenue' ? '#3b82f6' : '#8b5cf6'}
                           stopOpacity={0}
                         />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey="date" 
+                    <XAxis
+                      dataKey="date"
                       tick={{ fontSize: 11 }}
                       tickFormatter={(value) => {
                         const date = new Date(value)
@@ -796,7 +798,7 @@ export default function AdminAnalyticsPage() {
                       }}
                     />
                     <YAxis tick={{ fontSize: 11 }} width={60} />
-                    <ChartTooltip 
+                    <ChartTooltip
                       content={<ChartTooltipContent />}
                       labelFormatter={(value) => {
                         const date = new Date(value)
@@ -824,50 +826,51 @@ export default function AdminAnalyticsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.7 }}
-            className="lg:col-span-1"
           >
-            <Card className="shadow-sm">
-              <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardTitle className="text-lg font-semibold">PRODUITS POPULAIRES</CardTitle>
-                <Select defaultValue="today">
-                  <SelectTrigger className="w-[100px] h-8">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="today">Aujourd'hui</SelectItem>
-                    <SelectItem value="week">Cette Semaine</SelectItem>
-                    <SelectItem value="month">Ce Mois</SelectItem>
-                  </SelectContent>
-                </Select>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {analytics.topProducts.slice(0, 5).map((product, index) => (
-                    <div key={product.productId} className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100 flex-shrink-0">
-                          <img
-                            src={product.image}
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/placeholder.svg'
-                            }}
-                          />
+            <div className="lg:col-span-1">
+              <Card className="shadow-sm">
+                <CardHeader className="flex flex-row items-center justify-between pb-2">
+                  <CardTitle className="text-lg font-semibold">PRODUITS POPULAIRES</CardTitle>
+                  <Select defaultValue="today">
+                    <SelectTrigger className="w-[100px] h-8">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="today">Aujourd'hui</SelectItem>
+                      <SelectItem value="week">Cette Semaine</SelectItem>
+                      <SelectItem value="month">Ce Mois</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {analytics.topProducts.slice(0, 5).map((product, index) => (
+                      <div key={product.productId} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-10 h-10 rounded-md overflow-hidden bg-gray-100 flex-shrink-0">
+                            <img
+                              src={product.image}
+                              alt={product.name}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = '/placeholder.svg'
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{product.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {product.quantity} ventes
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{product.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            {product.quantity} ventes
-                          </p>
-                        </div>
+                        <ArrowUpRight className="h-4 w-4 text-green-500 flex-shrink-0" />
                       </div>
-                      <ArrowUpRight className="h-4 w-4 text-green-500 flex-shrink-0" />
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </motion.div>
 
           {/* Categories Chart */}
@@ -875,52 +878,53 @@ export default function AdminAnalyticsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8 }}
-            className="lg:col-span-1"
           >
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold">Ventes par Catégorie</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ChartContainer
-                  config={analytics.topCategories.slice(0, 5).reduce((acc, cat, index) => {
-                    acc[`category${index}`] = {
-                      label: cat.categoryName,
-                      color: COLORS[index % COLORS.length],
-                    }
-                    return acc
-                  }, {} as Record<string, { label: string; color: string }>)}
-                  className="h-[300px] w-full"
-                >
-                  <RechartsPieChart>
-                    <Pie
-                      data={analytics.topCategories.slice(0, 5).map((cat, index) => ({
-                        name: cat.categoryName,
-                        value: cat.revenue,
-                        color: COLORS[index % COLORS.length]
-                      }))}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) => {
-                        if (percent > 0.1) {
-                          return `${name}: ${(percent * 100).toFixed(0)}%`
-                        }
-                        return ''
-                      }}
-                      outerRadius={80}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {analytics.topCategories.slice(0, 5).map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                  </RechartsPieChart>
-                </ChartContainer>
-              </CardContent>
-            </Card>
+            <div className="lg:col-span-1">
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold">Ventes par Catégorie</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={analytics.topCategories.slice(0, 5).reduce((acc, cat, index) => {
+                      acc[`category${index}`] = {
+                        label: cat.categoryName,
+                        color: COLORS[index % COLORS.length],
+                      }
+                      return acc
+                    }, {} as Record<string, { label: string; color: string }>)}
+                    className="h-[300px] w-full"
+                  >
+                    <RechartsPieChart>
+                      <Pie
+                        data={analytics.topCategories.slice(0, 5).map((cat, index) => ({
+                          name: cat.categoryName,
+                          value: cat.revenue,
+                          color: COLORS[index % COLORS.length]
+                        }))}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => {
+                          if (percent > 0.1) {
+                            return `${name}: ${(percent * 100).toFixed(0)}%`
+                          }
+                          return ''
+                        }}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {analytics.topCategories.slice(0, 5).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </RechartsPieChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </div>
           </motion.div>
 
           {/* Delivery Success Rate */}
@@ -928,63 +932,64 @@ export default function AdminAnalyticsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.9 }}
-            className="lg:col-span-1"
           >
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <Truck className="w-5 h-5" />
-                  Taux de Livraison
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col items-center justify-center h-[300px]">
-                  <div className="relative w-48 h-48">
-                    <svg className="transform -rotate-90 w-48 h-48">
-                      <circle
-                        cx="96"
-                        cy="96"
-                        r="80"
-                        stroke="currentColor"
-                        strokeWidth="16"
-                        fill="transparent"
-                        className="text-gray-200"
-                      />
-                      <circle
-                        cx="96"
-                        cy="96"
-                        r="80"
-                        stroke="currentColor"
-                        strokeWidth="16"
-                        fill="transparent"
-                        strokeDasharray={`${2 * Math.PI * 80}`}
-                        strokeDashoffset={`${2 * Math.PI * 80 * (1 - analytics.logistics.deliverySuccessRate / 100)}`}
-                        className="text-green-500 transition-all duration-500"
-                        strokeLinecap="round"
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="text-center">
-                        <div className="text-4xl font-bold">
-                          {analytics.logistics.deliverySuccessRate.toFixed(1)}%
-                        </div>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          Taux de Réussite
+            <div className="lg:col-span-1">
+              <Card className="shadow-sm">
+                <CardHeader>
+                  <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                    <Truck className="w-5 h-5" />
+                    Taux de Livraison
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex flex-col items-center justify-center h-[300px]">
+                    <div className="relative w-48 h-48">
+                      <svg className="transform -rotate-90 w-48 h-48">
+                        <circle
+                          cx="96"
+                          cy="96"
+                          r="80"
+                          stroke="currentColor"
+                          strokeWidth="16"
+                          fill="transparent"
+                          className="text-gray-200"
+                        />
+                        <circle
+                          cx="96"
+                          cy="96"
+                          r="80"
+                          stroke="currentColor"
+                          strokeWidth="16"
+                          fill="transparent"
+                          strokeDasharray={`${2 * Math.PI * 80}`}
+                          strokeDashoffset={`${2 * Math.PI * 80 * (1 - analytics.logistics.deliverySuccessRate / 100)}`}
+                          className="text-green-500 transition-all duration-500"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <div className="text-center">
+                          <div className="text-4xl font-bold">
+                            {analytics.logistics.deliverySuccessRate.toFixed(1)}%
+                          </div>
+                          <div className="text-sm text-muted-foreground mt-1">
+                            Taux de Réussite
+                          </div>
                         </div>
                       </div>
                     </div>
+                    <div className="mt-4 text-center">
+                      <p className="text-sm text-muted-foreground">
+                        {analytics.logistics.yalidineLivreOrders} commandes Yalidine
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        sur {analytics.logistics.totalShipped} expédiées
+                      </p>
+                    </div>
                   </div>
-                  <div className="mt-4 text-center">
-                    <p className="text-sm text-muted-foreground">
-                      {analytics.logistics.yalidineLivreOrders} commandes Yalidine
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      sur {analytics.logistics.totalShipped} expédiées
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </motion.div>
         </div>
 
@@ -993,156 +998,157 @@ export default function AdminAnalyticsPage() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 1.0 }}
-          className="space-y-6"
         >
-          <div>
-            <h2 className="text-2xl font-bold mb-2">Analyse de Profit du Stock</h2>
-            <p className="text-muted-foreground">Détails des produits avec prix d'achat, prix de vente et profit</p>
-          </div>
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-2xl font-bold mb-2">Analyse de Profit du Stock</h2>
+              <p className="text-muted-foreground">Détails des produits avec prix d'achat, prix de vente et profit</p>
+            </div>
 
-          {/* Stock Metrics Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <Card className="shadow-sm">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Valeur de Stock</p>
-                    <p className="text-2xl font-bold text-blue-600">
-                      {stockMetrics.totalStockValue.toLocaleString()} DA
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Prix de vente × Stock
-                    </p>
+            {/* Stock Metrics Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <Card className="shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Valeur de Stock</p>
+                      <p className="text-2xl font-bold text-blue-600">
+                        {stockMetrics.totalStockValue.toLocaleString()} DA
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Prix de vente × Stock
+                      </p>
+                    </div>
+                    <Package className="h-8 w-8 text-blue-500 opacity-50" />
                   </div>
-                  <Package className="h-8 w-8 text-blue-500 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card className="shadow-sm">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Valeur d'Achat du Stock</p>
-                    <p className="text-2xl font-bold text-orange-600">
-                      {stockMetrics.totalStockCost.toLocaleString()} DA
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Prix d'achat × Stock
-                    </p>
+              <Card className="shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Valeur d'Achat du Stock</p>
+                      <p className="text-2xl font-bold text-orange-600">
+                        {stockMetrics.totalStockCost.toLocaleString()} DA
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Prix d'achat × Stock
+                      </p>
+                    </div>
+                    <DollarSign className="h-8 w-8 text-orange-500 opacity-50" />
                   </div>
-                  <DollarSign className="h-8 w-8 text-orange-500 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
 
-            <Card className="shadow-sm">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Profit Total du Stock</p>
-                    <p className="text-2xl font-bold text-green-600">
-                      {stockMetrics.totalStockProfit.toLocaleString()} DA
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Profit potentiel total
-                    </p>
+              <Card className="shadow-sm">
+                <CardContent className="p-6">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-muted-foreground mb-1">Profit Total du Stock</p>
+                      <p className="text-2xl font-bold text-green-600">
+                        {stockMetrics.totalStockProfit.toLocaleString()} DA
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Profit potentiel total
+                      </p>
+                    </div>
+                    <TrendingUp className="h-8 w-8 text-green-500 opacity-50" />
                   </div>
-                  <TrendingUp className="h-8 w-8 text-green-500 opacity-50" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+                </CardContent>
+              </Card>
+            </div>
 
-          {/* Products Table */}
-          <Card className="shadow-sm">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle>Détails des Produits</CardTitle>
-                <div className="w-64">
-                  <Input
-                    placeholder="Rechercher un produit..."
-                    value={stockSearchQuery}
-                    onChange={(e) => setStockSearchQuery(e.target.value)}
-                    className="h-9"
-                  />
+            {/* Products Table */}
+            <Card className="shadow-sm">
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle>Détails des Produits</CardTitle>
+                  <div className="w-64">
+                    <Input
+                      placeholder="Rechercher un produit..."
+                      value={stockSearchQuery}
+                      onChange={(e) => setStockSearchQuery(e.target.value)}
+                      className="h-9"
+                    />
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Produit</TableHead>
-                      <TableHead>Référence</TableHead>
-                      <TableHead className="text-right">Prix d'Achat</TableHead>
-                      <TableHead className="text-right">Prix de Vente</TableHead>
-                      <TableHead className="text-right">Profit/Pièce</TableHead>
-                      <TableHead className="text-right">Stock Total</TableHead>
-                      <TableHead className="text-right">Profit Total</TableHead>
-                      <TableHead className="text-right">Marge</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {stockProducts.length === 0 ? (
+              </CardHeader>
+              <CardContent>
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
-                          Chargement des produits...
-                        </TableCell>
+                        <TableHead>Produit</TableHead>
+                        <TableHead>Référence</TableHead>
+                        <TableHead className="text-right">Prix d'Achat</TableHead>
+                        <TableHead className="text-right">Prix de Vente</TableHead>
+                        <TableHead className="text-right">Profit/Pièce</TableHead>
+                        <TableHead className="text-right">Stock Total</TableHead>
+                        <TableHead className="text-right">Profit Total</TableHead>
+                        <TableHead className="text-right">Marge</TableHead>
                       </TableRow>
-                    ) : (() => {
-                      // Filter products by search query
-                      const filtered = stockProducts.filter(product =>
-                        product.name.toLowerCase().includes(stockSearchQuery.toLowerCase()) ||
-                        product.nameAr?.toLowerCase().includes(stockSearchQuery.toLowerCase()) ||
-                        product.reference.toLowerCase().includes(stockSearchQuery.toLowerCase())
-                      )
-                      
-                      // Sort by total profit descending
-                      const sorted = [...filtered].sort((a, b) => b.totalProfit - a.totalProfit)
-                      
-                      return sorted.map((product) => (
-                        <TableRow key={product.id}>
-                          <TableCell>
-                            <div>
-                              <div className="font-medium">{product.name}</div>
-                              {product.nameAr && (
-                                <div className="text-sm text-muted-foreground">{product.nameAr}</div>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>
-                            <span className="font-mono text-sm">{product.reference}</span>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {product.costPrice.toLocaleString()} DA
-                          </TableCell>
-                          <TableCell className="text-right font-medium">
-                            {product.price.toLocaleString()} DA
-                          </TableCell>
-                          <TableCell className={`text-right font-medium ${product.profitPerPiece >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {product.profitPerPiece.toLocaleString()} DA
-                          </TableCell>
-                          <TableCell className="text-right">
-                            {product.stock}
-                          </TableCell>
-                          <TableCell className={`text-right font-bold ${product.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            {product.totalProfit.toLocaleString()} DA
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Badge variant={product.margin >= 30 ? 'default' : product.margin >= 15 ? 'secondary' : 'outline'}>
-                              {product.margin.toFixed(1)}%
-                            </Badge>
+                    </TableHeader>
+                    <TableBody>
+                      {stockProducts.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                            Chargement des produits...
                           </TableCell>
                         </TableRow>
-                      ))
-                    })()}
-                  </TableBody>
-                </Table>
-              </div>
-            </CardContent>
-          </Card>
+                      ) : (() => {
+                        // Filter products by search query
+                        const filtered = stockProducts.filter(product =>
+                          product.name.toLowerCase().includes(stockSearchQuery.toLowerCase()) ||
+                          product.nameAr?.toLowerCase().includes(stockSearchQuery.toLowerCase()) ||
+                          product.reference.toLowerCase().includes(stockSearchQuery.toLowerCase())
+                        )
+
+                        // Sort by total profit descending
+                        const sorted = [...filtered].sort((a, b) => b.totalProfit - a.totalProfit)
+
+                        return sorted.map((product) => (
+                          <TableRow key={product.id}>
+                            <TableCell>
+                              <div>
+                                <div className="font-medium">{product.name}</div>
+                                {product.nameAr && (
+                                  <div className="text-sm text-muted-foreground">{product.nameAr}</div>
+                                )}
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <span className="font-mono text-sm">{product.reference}</span>
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {product.costPrice.toLocaleString()} DA
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              {product.price.toLocaleString()} DA
+                            </TableCell>
+                            <TableCell className={`text-right font-medium ${product.profitPerPiece >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {product.profitPerPiece.toLocaleString()} DA
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {product.stock}
+                            </TableCell>
+                            <TableCell className={`text-right font-bold ${product.totalProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {product.totalProfit.toLocaleString()} DA
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Badge variant={product.margin >= 30 ? 'default' : product.margin >= 15 ? 'secondary' : 'outline'}>
+                                {product.margin.toFixed(1)}%
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      })()}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </motion.div>
       </div>
     </AdminLayout>
