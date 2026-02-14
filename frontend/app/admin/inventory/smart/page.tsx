@@ -1867,875 +1867,527 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
             setIsLoading(false)
             inputRef.current?.focus()
         }
-        return (
-            <>
-                <ErrorModal
-                    isOpen={errorModal.isOpen}
-                    onClose={() => setErrorModal({ isOpen: false, errors: [] })}
-                    title="خطأ في المسح"
-                    errors={errorModal.errors}
-                />
-                <Card className="h-full flex flex-col">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <ArrowDown className="h-5 w-5 text-red-500" />
-                            Sortie Stock - Scan Automatique
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex-1 flex flex-col overflow-hidden">
-                        <div className="w-full max-w-2xl mx-auto space-y-6">
-                            {/* Yalidine Barcode Input */}
-                            <form onSubmit={handleYalidineScan} className="space-y-4">
-                                <div className="space-y-2">
-                                    <Label className="text-lg">Scanner le Code-Barres Yalidine</Label>
-                                    <Input
-                                        ref={inputRef}
-                                        value={yalidineBarcode}
-                                        onChange={(e) => setYalidineBarcode(e.target.value)}
-                                        placeholder="Scanner ici..."
-                                        className="h-20 text-2xl text-center font-mono placeholder:text-muted-foreground/50"
-                                        disabled={isLoading}
-                                        autoFocus
-                                    />
-                                </div>
-                                <Button type="submit" className="w-full h-12 text-lg" disabled={isLoading || !yalidineBarcode.trim()}>
-                                    {isLoading ? (
-                                        <>
-                                            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                                            Traitement en cours...
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Scan className="h-5 w-5 mr-2" />
-                                            Traiter le Ticket
-                                        </>
-                                    )}
-                                </Button>
-                            </form>
+    }
+    return (
+        <>
+            <ErrorModal
+                isOpen={errorModal.isOpen}
+                onClose={() => setErrorModal({ isOpen: false, errors: [] })}
+                title="خطأ في المسح"
+                errors={errorModal.errors}
+            />
+            <Card className="h-full flex flex-col">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <ArrowDown className="h-5 w-5 text-red-500" />
+                        Sortie Stock - Scan Automatique
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col overflow-hidden">
+                    <div className="w-full max-w-2xl mx-auto space-y-6">
+                        {/* Yalidine Barcode Input */}
+                        <form onSubmit={handleYalidineScan} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label className="text-lg">Scanner le Code-Barres Yalidine</Label>
+                                <Input
+                                    ref={inputRef}
+                                    value={yalidineBarcode}
+                                    onChange={(e) => setYalidineBarcode(e.target.value)}
+                                    placeholder="Scanner ici..."
+                                    className="h-20 text-2xl text-center font-mono placeholder:text-muted-foreground/50"
+                                    disabled={isLoading}
+                                    autoFocus
+                                />
+                            </div>
+                            <Button type="submit" className="w-full h-12 text-lg" disabled={isLoading || !yalidineBarcode.trim()}>
+                                {isLoading ? (
+                                    <>
+                                        <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                                        Traitement en cours...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Scan className="h-5 w-5 mr-2" />
+                                        Traiter le Ticket
+                                    </>
+                                )}
+                            </Button>
+                        </form>
 
-                            {/* Scan Logs */}
-                            {scanLogs.length > 0 && (
-                                <Card className="bg-muted/50">
-                                    <CardBody logs={scanLogs} />
-                                </Card>
-                            )}
-                        </div>
-                        <div className="flex-1 overflow-hidden mt-6 border-t pt-4">
-                            <HistoryTable
-                                data={history.filter(h => h.type === 'out' && !h.notes?.startsWith('Echange'))}
-                                title="Dernières Sorties"
-                                showFilters={false}
-                            />
-                        </div>
-                    </CardContent>
-                </Card>
+                        {/* Scan Logs */}
+                        {scanLogs.length > 0 && (
+                            <Card className="bg-muted/50">
+                                <CardBody logs={scanLogs} />
+                            </Card>
+                        )}
+                    </div>
+                    <div className="flex-1 overflow-hidden mt-6 border-t pt-4">
+                        <HistoryTable
+                            data={history.filter(h => h.type === 'out' && !h.notes?.startsWith('Echange'))}
+                            title="Dernières Sorties"
+                            showFilters={false}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
 
-                <StockResolutionModal
-                    isOpen={resolutionModal.isOpen}
-                    onClose={() => setResolutionModal({ isOpen: false, items: [], tracking: '' })}
-                    items={resolutionModal.items}
-                    tracking={resolutionModal.tracking}
-                    onConfirm={handleApplyResolution}
-                />
-            </>
-        )
+            <StockResolutionModal
+                isOpen={resolutionModal.isOpen}
+                onClose={() => setResolutionModal({ isOpen: false, items: [], tracking: '' })}
+                items={resolutionModal.items}
+                tracking={resolutionModal.tracking}
+                onConfirm={handleApplyResolution}
+            />
+        </>
+    )
+}
+
+// Receptions List Component
+function ReceptionsList() {
+    const [receptions, setReceptions] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(false)
+    const [editingId, setEditingId] = useState<string | null>(null)
+    const [editCost, setEditCost] = useState('')
+    const [showEditDialog, setShowEditDialog] = useState(false)
+
+    useEffect(() => {
+        fetchReceptions()
+    }, [])
+
+    const fetchReceptions = async () => {
+        setIsLoading(true)
+        try {
+            const response = await api.getReceptions() as any
+            setReceptions(response.receptions || [])
+        } catch (error) {
+            console.error('Failed to fetch receptions', error)
+            toast.error('Erreur lors du chargement des réceptions')
+        } finally {
+            setIsLoading(false)
+        }
     }
 
-    // Receptions List Component
-    function ReceptionsList() {
-        const [receptions, setReceptions] = useState<any[]>([])
-        const [isLoading, setIsLoading] = useState(false)
-        const [editingId, setEditingId] = useState<string | null>(null)
-        const [editCost, setEditCost] = useState('')
-        const [showEditDialog, setShowEditDialog] = useState(false)
+    const atelierDisplayName = (r: any) => r.atelier?.name ?? r.atelierLegacy ?? '—'
+    const restToPay = (r: any) => (r.totalCost ?? 0) - (r.amountPaid ?? 0)
 
-        useEffect(() => {
+    const handleMarkAsPaid = async (reception: any) => {
+        if (!confirm(`Marquer la réception de "${atelierDisplayName(reception)}" comme PAYÉE ?`)) return
+        try {
+            await api.updateReception(reception.id, { amountPaid: reception.totalCost ?? 0 })
+            toast.success('Réception marquée comme payée')
             fetchReceptions()
-        }, [])
-
-        const fetchReceptions = async () => {
-            setIsLoading(true)
-            try {
-                const response = await api.getReceptions() as any
-                setReceptions(response.receptions || [])
-            } catch (error) {
-                console.error('Failed to fetch receptions', error)
-                toast.error('Erreur lors du chargement des réceptions')
-            } finally {
-                setIsLoading(false)
-            }
+        } catch (error) {
+            toast.error('Erreur lors de la mise à jour')
         }
+    }
 
-        const atelierDisplayName = (r: any) => r.atelier?.name ?? r.atelierLegacy ?? '—'
-        const restToPay = (r: any) => (r.totalCost ?? 0) - (r.amountPaid ?? 0)
+    const openEditCost = (reception: any) => {
+        setEditingId(reception.id)
+        setEditCost(reception.totalCost?.toString() || '0')
+        setShowEditDialog(true)
+    }
 
-        const handleMarkAsPaid = async (reception: any) => {
-            if (!confirm(`Marquer la réception de "${atelierDisplayName(reception)}" comme PAYÉE ?`)) return
-            try {
-                await api.updateReception(reception.id, { amountPaid: reception.totalCost ?? 0 })
-                toast.success('Réception marquée comme payée')
-                fetchReceptions()
-            } catch (error) {
-                toast.error('Erreur lors de la mise à jour')
-            }
+    const handleSaveCost = async () => {
+        if (!editingId) return
+
+        try {
+            await api.updateReception(editingId, { totalCost: parseFloat(editCost) })
+            toast.success('Coût mis à jour')
+            setShowEditDialog(false)
+            fetchReceptions()
+        } catch (error) {
+            toast.error('Erreur lors de la mise à jour')
         }
+    }
 
-        const openEditCost = (reception: any) => {
-            setEditingId(reception.id)
-            setEditCost(reception.totalCost?.toString() || '0')
-            setShowEditDialog(true)
-        }
+    return (
+        <Card className="h-full flex flex-col">
+            <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                    <History className="h-5 w-5" />
+                    Historique des Réceptions
+                </CardTitle>
+                <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={() => {
+                        const exportData = receptions.map(r => ({
+                            Date: new Date(r.date).toLocaleDateString(),
+                            Atelier: atelierDisplayName(r),
+                            Articles: r.items?.length || 0,
+                            Cout_Total: r.totalCost,
+                            Paye: r.amountPaid,
+                            Reste: restToPay(r),
+                            Statut: r.paymentStatus === 'PAID' ? 'PAYÉ' : r.paymentStatus === 'PARTIAL' ? 'PARTIEL' : 'EN ATTENTE',
+                            Notes: r.notes || ''
+                        }))
+                        exportToExcel(exportData, `Receptions_${new Date().toISOString().split('T')[0]}`)
+                        toast.success('Export Excel téléchargé !')
+                    }}>
+                        <FileSpreadsheet className="h-4 w-4 mr-2 text-green-600" />
+                        Excel
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={fetchReceptions}>
+                        Actualiser
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent className="flex-1 overflow-auto">
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Atelier</TableHead>
+                            <TableHead>Articles</TableHead>
+                            <TableHead>Coût Total</TableHead>
+                            <TableHead>Statut Paiement</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isLoading ? (
+                            <TableRow>
+                                <TableCell colSpan={6} className="text-center py-8">Chargement...</TableCell>
+                            </TableRow>
+                        ) : receptions.length === 0 ? (
+                            <TableRow>
+                                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Aucune réception trouvée</TableCell>
+                            </TableRow>
+                        ) : (
+                            receptions.map((reception) => (
+                                <TableRow key={reception.id}>
+                                    <TableCell>{new Date(reception.date).toLocaleDateString()}</TableCell>
+                                    <TableCell className="font-medium">
+                                        {atelierDisplayName(reception)}
+                                        {reception.notes && <div className="text-xs text-muted-foreground">{reception.notes}</div>}
+                                    </TableCell>
+                                    <TableCell>{reception.items?.length || 0} articles</TableCell>
+                                    <TableCell>{reception.totalCost?.toLocaleString()} DA</TableCell>
+                                    <TableCell>
+                                        <Badge variant={reception.paymentStatus === 'PAID' ? 'default' : 'secondary'} className={reception.paymentStatus === 'PAID' ? 'bg-green-600' : reception.paymentStatus === 'PARTIAL' ? 'bg-amber-500 text-white' : 'bg-yellow-500 text-white'}>
+                                            {reception.paymentStatus === 'PAID' ? 'PAYÉ' : reception.paymentStatus === 'PARTIAL' ? 'PARTIEL' : 'EN ATTENTE'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right space-x-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => openEditCost(reception)}
+                                        >
+                                            Modifier Prix
+                                        </Button>
+                                        {reception.paymentStatus !== 'PAID' && (
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="border-green-600 text-green-600 hover:bg-green-50"
+                                                onClick={() => handleMarkAsPaid(reception)}
+                                            >
+                                                Marquer Payé
+                                            </Button>
+                                        )}
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        )}
+                    </TableBody>
+                </Table>
+            </CardContent>
 
-        const handleSaveCost = async () => {
-            if (!editingId) return
-
-            try {
-                await api.updateReception(editingId, { totalCost: parseFloat(editCost) })
-                toast.success('Coût mis à jour')
-                setShowEditDialog(false)
-                fetchReceptions()
-            } catch (error) {
-                toast.error('Erreur lors de la mise à jour')
-            }
-        }
-
-        return (
-            <Card className="h-full flex flex-col">
-                <CardHeader className="flex flex-row items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                        <History className="h-5 w-5" />
-                        Historique des Réceptions
-                    </CardTitle>
-                    <div className="flex gap-2">
-                        <Button variant="outline" size="sm" onClick={() => {
-                            const exportData = receptions.map(r => ({
-                                Date: new Date(r.date).toLocaleDateString(),
-                                Atelier: atelierDisplayName(r),
-                                Articles: r.items?.length || 0,
-                                Cout_Total: r.totalCost,
-                                Paye: r.amountPaid,
-                                Reste: restToPay(r),
-                                Statut: r.paymentStatus === 'PAID' ? 'PAYÉ' : r.paymentStatus === 'PARTIAL' ? 'PARTIEL' : 'EN ATTENTE',
-                                Notes: r.notes || ''
-                            }))
-                            exportToExcel(exportData, `Receptions_${new Date().toISOString().split('T')[0]}`)
-                            toast.success('Export Excel téléchargé !')
-                        }}>
-                            <FileSpreadsheet className="h-4 w-4 mr-2 text-green-600" />
-                            Excel
-                        </Button>
-                        <Button variant="outline" size="sm" onClick={fetchReceptions}>
-                            Actualiser
-                        </Button>
+            <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Modifier le Coût Total</DialogTitle>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label>Coût Total (DA)</Label>
+                        <Input
+                            type="number"
+                            value={editCost}
+                            onChange={(e) => setEditCost(e.target.value)}
+                        />
                     </div>
-                </CardHeader>
-                <CardContent className="flex-1 overflow-auto">
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => setShowEditDialog(false)}>Annuler</Button>
+                        <Button onClick={handleSaveCost}>Enregistrer</Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </Card>
+    )
+}
+
+// Reusable History Table Component
+function HistoryTable({ data, title = "Historique", showFilters = true }: { data: StockMovement[], title?: string, showFilters?: boolean }) {
+    const [searchQuery, setSearchQuery] = useState('')
+    const [filter, setFilter] = useState('all')
+
+    const filteredData = data.filter(item => {
+        if (filter !== 'all' && item.type !== filter) return false
+        if (searchQuery) {
+            const query = searchQuery.toLowerCase()
+            return (
+                item.productName.toLowerCase().includes(query) ||
+                item.productReference.toLowerCase().includes(query) ||
+                item.barcode.includes(query) ||
+                (item.orderNumber && item.orderNumber.toLowerCase().includes(query)) ||
+                (item.trackingNumber && item.trackingNumber.toLowerCase().includes(query))
+            )
+        }
+        return true
+    })
+
+    const handleExport = () => {
+        const exportData = filteredData.map(item => ({
+            Date: item.timestamp.toLocaleString(),
+            Type: item.type === 'in' ? 'Entrée' : 'Sortie',
+            Produit: item.productName,
+            Reference: item.productReference,
+            Taille: item.size || 'Accessoire',
+            Quantite: item.quantity,
+            Ancien_Stock: item.oldStock,
+            Nouveau_Stock: item.newStock,
+            Commande_Ticket: item.orderNumber || '',
+            Notes: item.notes || ''
+        }))
+        exportToExcel(exportData, `Inventaire_${title}_${new Date().toISOString().split('T')[0]}`)
+        toast.success('Export Excel téléchargé !')
+    }
+
+    return (
+        <Card className="h-full flex flex-col">
+            <CardHeader className="pb-3">
+                <div className="flex items-center justify-between">
+                    <CardTitle className="flex items-center gap-2 text-base">
+                        <History className="h-4 w-4" />
+                        {title} ({filteredData.length})
+                    </CardTitle>
+                    <Button variant="outline" size="sm" onClick={handleExport}>
+                        <FileSpreadsheet className="h-4 w-4 mr-2 text-green-600" />
+                        Excel
+                    </Button>
+                </div>
+            </CardHeader>
+            <CardContent className="flex-1 flex flex-col overflow-hidden gap-3">
+                {showFilters && (
+                    <div className="flex gap-2">
+                        <Input
+                            placeholder="Rechercher..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="flex-1 h-8 text-sm"
+                        />
+                        <div className="flex gap-1">
+                            <Button
+                                variant={filter === 'all' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setFilter('all')}
+                                className="h-8 px-2 text-xs"
+                            >
+                                Tout
+                            </Button>
+                            <Button
+                                variant={filter === 'in' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setFilter('in')}
+                                className="h-8 px-2 text-xs text-green-600"
+                            >
+                                Entrées
+                            </Button>
+                            <Button
+                                variant={filter === 'out' ? 'secondary' : 'ghost'}
+                                size="sm"
+                                onClick={() => setFilter('out')}
+                                className="h-8 px-2 text-xs text-red-600"
+                            >
+                                Sorties
+                            </Button>
+                        </div>
+                    </div>
+                )}
+
+                <div className="flex-1 overflow-auto border rounded-lg">
                     <Table>
                         <TableHeader>
                             <TableRow>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Atelier</TableHead>
-                                <TableHead>Articles</TableHead>
-                                <TableHead>Coût Total</TableHead>
-                                <TableHead>Statut Paiement</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead className="text-xs w-[140px]">Date</TableHead>
+                                <TableHead className="text-xs w-[80px]">Type</TableHead>
+                                <TableHead className="text-xs">Produit</TableHead>
+                                <TableHead className="text-xs w-[60px]">Taille</TableHead>
+                                <TableHead className="text-xs text-right w-[60px]">Qté</TableHead>
+                                <TableHead className="text-xs w-[100px]">Info</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {isLoading ? (
+                            {filteredData.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-8">Chargement...</TableCell>
-                                </TableRow>
-                            ) : receptions.length === 0 ? (
-                                <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Aucune réception trouvée</TableCell>
+                                    <TableCell colSpan={6} className="text-center py-8 text-xs text-muted-foreground">
+                                        Aucune donnée
+                                    </TableCell>
                                 </TableRow>
                             ) : (
-                                receptions.map((reception) => (
-                                    <TableRow key={reception.id}>
-                                        <TableCell>{new Date(reception.date).toLocaleDateString()}</TableCell>
-                                        <TableCell className="font-medium">
-                                            {atelierDisplayName(reception)}
-                                            {reception.notes && <div className="text-xs text-muted-foreground">{reception.notes}</div>}
+                                filteredData.map((item) => (
+                                    <TableRow key={item.id}>
+                                        <TableCell className="text-xs py-2 whitespace-nowrap">
+                                            {item.timestamp.toLocaleString()}
                                         </TableCell>
-                                        <TableCell>{reception.items?.length || 0} articles</TableCell>
-                                        <TableCell>{reception.totalCost?.toLocaleString()} DA</TableCell>
-                                        <TableCell>
-                                            <Badge variant={reception.paymentStatus === 'PAID' ? 'default' : 'secondary'} className={reception.paymentStatus === 'PAID' ? 'bg-green-600' : reception.paymentStatus === 'PARTIAL' ? 'bg-amber-500 text-white' : 'bg-yellow-500 text-white'}>
-                                                {reception.paymentStatus === 'PAID' ? 'PAYÉ' : reception.paymentStatus === 'PARTIAL' ? 'PARTIEL' : 'EN ATTENTE'}
-                                            </Badge>
-                                        </TableCell>
-                                        <TableCell className="text-right space-x-2">
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => openEditCost(reception)}
-                                            >
-                                                Modifier Prix
-                                            </Button>
-                                            {reception.paymentStatus !== 'PAID' && (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="border-green-600 text-green-600 hover:bg-green-50"
-                                                    onClick={() => handleMarkAsPaid(reception)}
-                                                >
-                                                    Marquer Payé
-                                                </Button>
+                                        <TableCell className="py-2">
+                                            {item.type === 'in' ? (
+                                                <Badge variant="outline" className="text-[10px] px-1 py-0 border-green-200 text-green-700 bg-green-50">
+                                                    Entrée
+                                                </Badge>
+                                            ) : (
+                                                <Badge variant="outline" className="text-[10px] px-1 py-0 border-red-200 text-red-700 bg-red-50">
+                                                    Sortie
+                                                </Badge>
                                             )}
+                                        </TableCell>
+                                        <TableCell className="py-2">
+                                            <div className="font-medium text-xs truncate max-w-[180px]" title={item.productName}>
+                                                {item.productName}
+                                            </div>
+                                            <div className="text-[10px] text-muted-foreground">{item.productReference}</div>
+                                        </TableCell>
+                                        <TableCell className="text-xs py-2">{item.size || 'Accessoire'}</TableCell>
+                                        <TableCell className="text-xs py-2 text-right font-medium">
+                                            {item.quantity}
+                                        </TableCell>
+                                        <TableCell className="py-2">
+                                            <div className="text-[10px] text-muted-foreground truncate max-w-[120px]" title={item.notes || item.orderNumber}>
+                                                {item.notes || item.orderNumber || '-'}
+                                            </div>
                                         </TableCell>
                                     </TableRow>
                                 ))
                             )}
                         </TableBody>
                     </Table>
-                </CardContent>
+                </div>
+            </CardContent>
+        </Card>
+    )
+}
 
-                <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Modifier le Coût Total</DialogTitle>
-                        </DialogHeader>
-                        <div className="py-4">
-                            <Label>Coût Total (DA)</Label>
-                            <Input
-                                type="number"
-                                value={editCost}
-                                onChange={(e) => setEditCost(e.target.value)}
-                            />
-                        </div>
-                        <div className="flex justify-end gap-2">
-                            <Button variant="outline" onClick={() => setShowEditDialog(false)}>Annuler</Button>
-                            <Button onClick={handleSaveCost}>Enregistrer</Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-            </Card>
-        )
-    }
+// ------------------------------------------------------------------
+// ECHANGE (Stock In: scan ECH-XXXXXX adds items to stock) & RETOUR (Stock In)
+// ------------------------------------------------------------------
 
-    // Reusable History Table Component
-    function HistoryTable({ data, title = "Historique", showFilters = true }: { data: StockMovement[], title?: string, showFilters?: boolean }) {
-        const [searchQuery, setSearchQuery] = useState('')
-        const [filter, setFilter] = useState('all')
+function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement: StockMovement) => void, history: StockMovement[] }) {
+    const [barcode, setBarcode] = useState('')
+    const [scanLogs, setScanLogs] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(false)
+    const [scannedBarcodes, setScannedBarcodes] = useState<Set<string>>(new Set())
+    const [errorModal, setErrorModal] = useState<{ isOpen: boolean; errors: Array<{ productName: string; item: any; message: string }> }>({
+        isOpen: false,
+        errors: []
+    })
+    const inputRef = useRef<HTMLInputElement>(null)
 
-        const filteredData = data.filter(item => {
-            if (filter !== 'all' && item.type !== filter) return false
-            if (searchQuery) {
-                const query = searchQuery.toLowerCase()
-                return (
-                    item.productName.toLowerCase().includes(query) ||
-                    item.productReference.toLowerCase().includes(query) ||
-                    item.barcode.includes(query) ||
-                    (item.orderNumber && item.orderNumber.toLowerCase().includes(query)) ||
-                    (item.trackingNumber && item.trackingNumber.toLowerCase().includes(query))
-                )
-            }
-            return true
-        })
-
-        const handleExport = () => {
-            const exportData = filteredData.map(item => ({
-                Date: item.timestamp.toLocaleString(),
-                Type: item.type === 'in' ? 'Entrée' : 'Sortie',
-                Produit: item.productName,
-                Reference: item.productReference,
-                Taille: item.size || 'Accessoire',
-                Quantite: item.quantity,
-                Ancien_Stock: item.oldStock,
-                Nouveau_Stock: item.newStock,
-                Commande_Ticket: item.orderNumber || '',
-                Notes: item.notes || ''
-            }))
-            exportToExcel(exportData, `Inventaire_${title}_${new Date().toISOString().split('T')[0]}`)
-            toast.success('Export Excel téléchargé !')
-        }
-
-        return (
-            <Card className="h-full flex flex-col">
-                <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                        <CardTitle className="flex items-center gap-2 text-base">
-                            <History className="h-4 w-4" />
-                            {title} ({filteredData.length})
-                        </CardTitle>
-                        <Button variant="outline" size="sm" onClick={handleExport}>
-                            <FileSpreadsheet className="h-4 w-4 mr-2 text-green-600" />
-                            Excel
-                        </Button>
-                    </div>
-                </CardHeader>
-                <CardContent className="flex-1 flex flex-col overflow-hidden gap-3">
-                    {showFilters && (
-                        <div className="flex gap-2">
-                            <Input
-                                placeholder="Rechercher..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="flex-1 h-8 text-sm"
-                            />
-                            <div className="flex gap-1">
-                                <Button
-                                    variant={filter === 'all' ? 'secondary' : 'ghost'}
-                                    size="sm"
-                                    onClick={() => setFilter('all')}
-                                    className="h-8 px-2 text-xs"
-                                >
-                                    Tout
-                                </Button>
-                                <Button
-                                    variant={filter === 'in' ? 'secondary' : 'ghost'}
-                                    size="sm"
-                                    onClick={() => setFilter('in')}
-                                    className="h-8 px-2 text-xs text-green-600"
-                                >
-                                    Entrées
-                                </Button>
-                                <Button
-                                    variant={filter === 'out' ? 'secondary' : 'ghost'}
-                                    size="sm"
-                                    onClick={() => setFilter('out')}
-                                    className="h-8 px-2 text-xs text-red-600"
-                                >
-                                    Sorties
-                                </Button>
-                            </div>
-                        </div>
-                    )}
-
-                    <div className="flex-1 overflow-auto border rounded-lg">
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="text-xs w-[140px]">Date</TableHead>
-                                    <TableHead className="text-xs w-[80px]">Type</TableHead>
-                                    <TableHead className="text-xs">Produit</TableHead>
-                                    <TableHead className="text-xs w-[60px]">Taille</TableHead>
-                                    <TableHead className="text-xs text-right w-[60px]">Qté</TableHead>
-                                    <TableHead className="text-xs w-[100px]">Info</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {filteredData.length === 0 ? (
-                                    <TableRow>
-                                        <TableCell colSpan={6} className="text-center py-8 text-xs text-muted-foreground">
-                                            Aucune donnée
-                                        </TableCell>
-                                    </TableRow>
-                                ) : (
-                                    filteredData.map((item) => (
-                                        <TableRow key={item.id}>
-                                            <TableCell className="text-xs py-2 whitespace-nowrap">
-                                                {item.timestamp.toLocaleString()}
-                                            </TableCell>
-                                            <TableCell className="py-2">
-                                                {item.type === 'in' ? (
-                                                    <Badge variant="outline" className="text-[10px] px-1 py-0 border-green-200 text-green-700 bg-green-50">
-                                                        Entrée
-                                                    </Badge>
-                                                ) : (
-                                                    <Badge variant="outline" className="text-[10px] px-1 py-0 border-red-200 text-red-700 bg-red-50">
-                                                        Sortie
-                                                    </Badge>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="py-2">
-                                                <div className="font-medium text-xs truncate max-w-[180px]" title={item.productName}>
-                                                    {item.productName}
-                                                </div>
-                                                <div className="text-[10px] text-muted-foreground">{item.productReference}</div>
-                                            </TableCell>
-                                            <TableCell className="text-xs py-2">{item.size || 'Accessoire'}</TableCell>
-                                            <TableCell className="text-xs py-2 text-right font-medium">
-                                                {item.quantity}
-                                            </TableCell>
-                                            <TableCell className="py-2">
-                                                <div className="text-[10px] text-muted-foreground truncate max-w-[120px]" title={item.notes || item.orderNumber}>
-                                                    {item.notes || item.orderNumber || '-'}
-                                                </div>
-                                            </TableCell>
-                                        </TableRow>
-                                    ))
-                                )}
-                            </TableBody>
-                        </Table>
-                    </div>
-                </CardContent>
-            </Card>
-        )
-    }
-
-    // ------------------------------------------------------------------
-    // ECHANGE (Stock In: scan ECH-XXXXXX adds items to stock) & RETOUR (Stock In)
-    // ------------------------------------------------------------------
-
-    function EchangeSection({ onStockRemoved, history }: { onStockRemoved: (movement: StockMovement) => void, history: StockMovement[] }) {
-        const [barcode, setBarcode] = useState('')
-        const [scanLogs, setScanLogs] = useState<any[]>([])
-        const [isLoading, setIsLoading] = useState(false)
-        const [scannedBarcodes, setScannedBarcodes] = useState<Set<string>>(new Set())
-        const [errorModal, setErrorModal] = useState<{ isOpen: boolean; errors: Array<{ productName: string; item: any; message: string }> }>({
-            isOpen: false,
-            errors: []
-        })
-        const inputRef = useRef<HTMLInputElement>(null)
-
-        useEffect(() => {
-            inputRef.current?.focus()
-            const saved = localStorage.getItem(STORAGE_KEY_ECHANGE)
-            if (saved) {
-                try {
-                    setScannedBarcodes(new Set(JSON.parse(saved)))
-                } catch (e) {
-                    console.error('Failed to load scanned barcodes (Échange)', e)
-                }
-            }
-        }, [])
-
-        const isBarcodeAlreadyScanned = (barcode: string): boolean => {
-            return scannedBarcodes.has(barcode.trim())
-        }
-
-        const markBarcodeAsScanned = (barcode: string) => {
-            const newSet = new Set(scannedBarcodes)
-            newSet.add(barcode.trim())
-            setScannedBarcodes(newSet)
-            localStorage.setItem(STORAGE_KEY_ECHANGE, JSON.stringify(Array.from(newSet)))
-        }
-
-        const handleScan = async (e: React.FormEvent) => {
-            e.preventDefault()
-            const code = barcode.trim().toUpperCase()
-            if (!code) return
-
-            if (!code.startsWith('ECH-')) {
-                toast.error('Format Invalide. Doit commencer par "ECH-"')
-                return
-            }
-
-            if (isBarcodeAlreadyScanned(code)) {
-                setErrorModal({
-                    isOpen: true,
-                    errors: [{
-                        productName: 'Doublon',
-                        item: { size: '' },
-                        message: 'Ce tracking a déjà été scanné dans Échange. Un même tracking ne peut être scanné qu\'une fois par section.'
-                    }]
-                })
-                return
-            }
-
-            setIsLoading(true)
-            setScanLogs([])
-
+    useEffect(() => {
+        inputRef.current?.focus()
+        const saved = localStorage.getItem(STORAGE_KEY_ECHANGE)
+        if (saved) {
             try {
-                const validation = await api.validateTracking(code, 'echange') as { valid: boolean; message?: string }
-                if (!validation.valid) {
-                    setErrorModal({
-                        isOpen: true,
-                        errors: [{
-                            productName: 'Tracking déjà utilisé',
-                            item: { size: '' },
-                            message: validation.message || 'Tracking number already used in Exchange.'
-                        }]
-                    })
-                    setIsLoading(false)
-                    return
-                }
+                setScannedBarcodes(new Set(JSON.parse(saved)))
+            } catch (e) {
+                console.error('Failed to load scanned barcodes (Échange)', e)
+            }
+        }
+    }, [])
 
-                const shipment = await yalidineAPI.getShipment(code)
-                const tracking = shipment.tracking || code
-                const productList = shipment.product_list || shipment.productList || ''
+    const isBarcodeAlreadyScanned = (barcode: string): boolean => {
+        return scannedBarcodes.has(barcode.trim())
+    }
 
-                if (!productList) {
-                    toast.error('Aucune liste de produits trouvée dans l\'échange.')
-                    setIsLoading(false)
-                    return
-                }
+    const markBarcodeAsScanned = (barcode: string) => {
+        const newSet = new Set(scannedBarcodes)
+        newSet.add(barcode.trim())
+        setScannedBarcodes(newSet)
+        localStorage.setItem(STORAGE_KEY_ECHANGE, JSON.stringify(Array.from(newSet)))
+    }
 
-                const parsedItems = parseYalidineProductList(productList)
+    const handleScan = async (e: React.FormEvent) => {
+        e.preventDefault()
+        const code = barcode.trim().toUpperCase()
+        if (!code) return
 
-                if (parsedItems.length === 0) {
-                    toast.error('Impossible d\'analyser les produits.')
-                    setIsLoading(false)
-                    return
-                }
+        if (!code.startsWith('ECH-')) {
+            toast.error('Format Invalide. Doit commencer par "ECH-"')
+            return
+        }
 
-                // STEP 1: Validate ALL items first before processing any
-                const validationErrors: Array<{ item: any; message: string; productName: string }> = []
-                const validatedItems: Array<{
-                    item: any
-                    product: any
-                    barcode: string
-                    size: string
-                    oldStock: number
-                    isAccessoire: boolean
-                }> = []
+        if (isBarcodeAlreadyScanned(code)) {
+            setErrorModal({
+                isOpen: true,
+                errors: [{
+                    productName: 'Doublon',
+                    item: { size: '' },
+                    message: 'Ce tracking a déjà été scanné dans Échange. Un même tracking ne peut être scanné qu\'une fois par section.'
+                }]
+            })
+            return
+        }
 
-                // Validate all items first
-                for (const item of parsedItems) {
-                    try {
-                        // Find Product
-                        const productsResponse = await api.products.getAll({ search: item.productName, limit: 20 }) as any
-                        let products = productsResponse.products || []
+        setIsLoading(true)
+        setScanLogs([])
 
-                        // Filter products by size type if size is provided
-                        // This prevents mixing shoes with regular products
-                        if (item.size) {
-                            products = filterProductsBySizeType(products, item.size)
-                        }
-
-                        // Use improved matching that prioritizes products with the required size
-                        const product = findBestMatchingProduct(products, item.productName, item.size)
-
-                        if (!product) {
-                            validationErrors.push({
-                                item,
-                                message: `المنتج غير موجود`,
-                                productName: item.productName
-                            })
-                            continue
-                        }
-
-                        // Check if product is an accessory
-                        const categorySlug = product.category?.slug?.toLowerCase() || ''
-                        const isAccessoire = categorySlug.includes('accessoire') ||
-                            categorySlug.includes('accessories') ||
-                            !product.sizes ||
-                            product.sizes.length === 0
-
-                        let barcode: string
-                        let oldStock: number
-                        let size: string
-
-                        if (isAccessoire) {
-                            // Handle accessories - no size needed
-                            barcode = product.reference
-                            oldStock = product.stock || 0
-
-                            // Check Stock for accessories
-                            if (oldStock < item.quantity) {
-                                validationErrors.push({
-                                    item,
-                                    message: `المخزون غير كافٍ. المخزون: ${oldStock}، المطلوب: ${item.quantity}`,
-                                    productName: product.name
-                                })
-                                continue
-                            }
-
-                            size = ''
-                        } else {
-                            // Handle products with sizes
-                            const isShoes = isShoeProduct(product)
-
-                            // For shoes, accept shoe sizes (36-41) even if not in product.sizes yet
-                            // For regular products, size must exist in product.sizes
-                            let sizeObj = product.sizes?.find((s: any) => s.size === item.size)
-
-                            if (!sizeObj) {
-                                // If it's a shoe and the size is a valid shoe size, create a virtual size object
-                                if (isShoes && isValidShoeSize(item.size)) {
-                                    sizeObj = { size: item.size, stock: 0 }
-                                } else {
-                                    validationErrors.push({
-                                        item,
-                                        message: `المقاس "${item.size}" غير موجود`,
-                                        productName: product.name
-                                    })
-                                    continue
-                                }
-                            }
-
-                            // Check Stock
-                            if ((sizeObj.stock || 0) < item.quantity) {
-                                validationErrors.push({
-                                    item,
-                                    message: `المخزون غير كافٍ للمقاس ${item.size}. المخزون: ${sizeObj.stock}، المطلوب: ${item.quantity}`,
-                                    productName: product.name
-                                })
-                                continue
-                            }
-
-                            barcode = `${product.reference}-${item.size}`
-                            oldStock = sizeObj.stock || 0
-                            size = item.size
-                        }
-
-                        // Item is valid, add to validated items
-                        validatedItems.push({
-                            item,
-                            product,
-                            barcode,
-                            size,
-                            oldStock,
-                            isAccessoire
-                        })
-                    } catch (err: any) {
-                        validationErrors.push({
-                            item,
-                            message: `خطأ في النظام: ${err.message}`,
-                            productName: item.productName
-                        })
-                    }
-                }
-
-                // STEP 2: If ANY validation errors, show error modal and DON'T process anything
-                if (validationErrors.length > 0) {
-                    setErrorModal({
-                        isOpen: true,
-                        errors: validationErrors
-                    })
-
-                    setScanLogs(validationErrors.map(e => ({
-                        status: 'error',
-                        message: `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`,
-                        item: e.item
-                    })))
-                    setIsLoading(false)
-                    return
-                }
-
-                // STEP 3: All items are valid, process them (Échange = increase stock)
-                const logs = []
-                for (const validated of validatedItems) {
-                    try {
-                        for (let i = 0; i < validated.item.quantity; i++) {
-                            await api.products.scanProduct(validated.barcode, 'add')
-                        }
-
-                        const newStock = validated.oldStock + validated.item.quantity
-
-                        const movement: StockMovement = {
-                            id: Date.now().toString() + Math.random(),
-                            timestamp: new Date(),
-                            type: 'in',
-                            barcode: validated.barcode,
-                            productName: validated.product.name,
-                            productReference: validated.product.reference,
-                            size: validated.size,
-                            quantity: validated.item.quantity,
-                            oldStock: validated.oldStock,
-                            newStock,
-                            trackingNumber: tracking,
-                            notes: `Echange Yalidine: ${code}`,
-                            operationType: 'echange'
-                        }
-                        onStockRemoved(movement)
-
-                        logs.push({
-                            status: 'success',
-                            message: `Échangé: ${validated.item.quantity}x ${validated.product.name}${validated.size ? ` (${validated.size})` : ''}`,
-                            item: validated.item
-                        })
-                    } catch (err: any) {
-                        logs.push({
-                            status: 'error',
-                            message: `خطأ في النظام للمنتج "${validated.product.name}": ${err.message}`,
-                            item: validated.item
-                        })
-                    }
-                }
-
-                setScanLogs(logs)
-                if (logs.every(log => log.status === 'success')) {
-                    // Mark barcode as scanned only if all items processed successfully
-                    markBarcodeAsScanned(code)
-                    toast.success('Échange traité avec succès !')
-                    setBarcode('')
-                } else {
-                    toast.error('Erreur lors du traitement de certains articles.')
-                }
-
-            } catch (error: any) {
+        try {
+            const validation = await api.validateTracking(code, 'echange') as { valid: boolean; message?: string }
+            if (!validation.valid) {
                 setErrorModal({
                     isOpen: true,
                     errors: [{
-                        productName: 'خطأ في المسح',
+                        productName: 'Tracking déjà utilisé',
                         item: { size: '' },
-                        message: error.message || 'خطأ في استرجاع تذكرة Yalidine. يرجى التحقق من الرمز الشريطي والمحاولة مرة أخرى.'
+                        message: validation.message || 'Tracking number already used in Exchange.'
                     }]
                 })
-            } finally {
                 setIsLoading(false)
-                inputRef.current?.focus()
-            }
-        }
-
-        return (
-            <>
-                <ErrorModal
-                    isOpen={errorModal.isOpen}
-                    onClose={() => setErrorModal({ isOpen: false, errors: [] })}
-                    title="خطأ في مسح التبادل"
-                    errors={errorModal.errors}
-                />
-                <Card className="h-full flex flex-col border-orange-200 bg-orange-50/30">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-orange-700">
-                            <ArrowUp className="h-5 w-5" />
-                            Échange (Entrée Stock)
-                        </CardTitle>
-                        <CardDescription>
-                            En scannant un ticket ECH-XXXXXX, les articles sont ajoutés au stock (entrée).
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="flex-1 flex flex-col gap-4">
-                        <form onSubmit={handleScan} className="space-y-4">
-                            <Label>Scanner Ticket Échange (ECH-XXXXXX)</Label>
-                            <Input
-                                ref={inputRef}
-                                value={barcode}
-                                onChange={(e) => setBarcode(e.target.value)}
-                                placeholder="ECH-..."
-                                className="h-16 text-xl text-center font-mono"
-                                disabled={isLoading}
-                                autoFocus
-                            />
-                            <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={isLoading}>
-                                {isLoading ? <Loader2 className="animate-spin" /> : 'Valider Échange'}
-                            </Button>
-                        </form>
-
-                        {scanLogs.length > 0 && <CardBody logs={scanLogs} />}
-
-                        <div className="flex-1 overflow-hidden mt-6 border-t pt-4">
-                            <HistoryTable
-                                data={history.filter(h => h.notes?.includes('Echange'))}
-                                title="Historique des Échanges"
-                                showFilters={false}
-                            />
-                        </div>
-                    </CardContent>
-                </Card>
-            </>
-        )
-    }
-
-    function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: StockMovement) => void, history: StockMovement[] }) {
-        const [tracking, setTracking] = useState('')
-        const [scanLogs, setScanLogs] = useState<any[]>([])
-        const [isLoading, setIsLoading] = useState(false)
-        const [scannedBarcodes, setScannedBarcodes] = useState<Set<string>>(new Set())
-        const [errorModal, setErrorModal] = useState<{ isOpen: boolean; errors: Array<{ productName: string; item: any; message: string }> }>({
-            isOpen: false,
-            errors: []
-        })
-        const inputRef = useRef<HTMLInputElement>(null)
-
-        useEffect(() => {
-            inputRef.current?.focus()
-            const saved = localStorage.getItem(STORAGE_KEY_RETOUR)
-            if (saved) {
-                try {
-                    setScannedBarcodes(new Set(JSON.parse(saved)))
-                } catch (e) {
-                    console.error('Failed to load scanned barcodes (Retour)', e)
-                }
-            }
-        }, [])
-
-        const isBarcodeAlreadyScanned = (barcode: string): boolean => {
-            return scannedBarcodes.has(barcode.trim())
-        }
-
-        const markBarcodeAsScanned = (barcode: string) => {
-            const newSet = new Set(scannedBarcodes)
-            newSet.add(barcode.trim())
-            setScannedBarcodes(newSet)
-            localStorage.setItem(STORAGE_KEY_RETOUR, JSON.stringify(Array.from(newSet)))
-        }
-
-        const handleScan = async (e: React.FormEvent) => {
-            e.preventDefault()
-            const trackingKey = tracking.trim()
-            if (!trackingKey) return
-
-            if (isBarcodeAlreadyScanned(trackingKey)) {
-                setErrorModal({
-                    isOpen: true,
-                    errors: [{
-                        productName: 'Doublon',
-                        item: { size: '' },
-                        message: 'Ce tracking a déjà été scanné dans Retour. Un même tracking ne peut être scanné qu\'une fois par section.'
-                    }]
-                })
                 return
             }
 
-            setIsLoading(true)
-            setScanLogs([])
+            const shipment = await yalidineAPI.getShipment(code)
+            const tracking = shipment.tracking || code
+            const productList = shipment.product_list || shipment.productList || ''
 
-            try {
-                const validation = await api.validateTracking(trackingKey, 'retour') as { valid: boolean; message?: string }
-                if (!validation.valid) {
-                    setErrorModal({
-                        isOpen: true,
-                        errors: [{
-                            productName: 'Tracking déjà utilisé',
-                            item: { size: '' },
-                            message: validation.message || 'Tracking number already used in Return.'
-                        }]
-                    })
-                    setIsLoading(false)
-                    return
-                }
+            if (!productList) {
+                toast.error('Aucune liste de produits trouvée dans l\'échange.')
+                setIsLoading(false)
+                return
+            }
 
-                let parsedItems: Array<{ productName: string; reference: string; size: string; quantity: number; barcode?: string }> = []
-                const lookupRes = await api.lookupSortieByTracking(trackingKey) as { items?: Array<{ productName: string; productReference?: string; size: string; quantity: number; barcode?: string }>; count?: number }
-                if (lookupRes?.items?.length) {
-                    parsedItems = lookupRes.items.map(i => ({
-                        productName: i.productName,
-                        reference: i.productReference || '',
-                        size: i.size || '',
-                        quantity: i.quantity,
-                        barcode: i.barcode
-                    }))
-                }
-                if (parsedItems.length === 0) {
-                    const shipment = await yalidineAPI.getShipment(trackingKey)
-                    const productList = shipment.product_list || shipment.productList || ''
-                    if (!productList) {
-                        toast.error('Aucune liste de produits trouvée. Scannez le code produit ou le tracking Yalidine.')
-                        setIsLoading(false)
-                        return
+            const parsedItems = parseYalidineProductList(productList)
+
+            if (parsedItems.length === 0) {
+                toast.error('Impossible d\'analyser les produits.')
+                setIsLoading(false)
+                return
+            }
+
+            // STEP 1: Validate ALL items first before processing any
+            const validationErrors: Array<{ item: any; message: string; productName: string }> = []
+            const validatedItems: Array<{
+                item: any
+                product: any
+                barcode: string
+                size: string
+                oldStock: number
+                isAccessoire: boolean
+            }> = []
+
+            // Validate all items first
+            for (const item of parsedItems) {
+                try {
+                    // Find Product
+                    const productsResponse = await api.products.getAll({ search: item.productName, limit: 20 }) as any
+                    let products = productsResponse.products || []
+
+                    // Filter products by size type if size is provided
+                    // This prevents mixing shoes with regular products
+                    if (item.size) {
+                        products = filterProductsBySizeType(products, item.size)
                     }
-                    parsedItems = parseYalidineProductList(productList).map((item: any) => ({
-                        productName: item.productName,
-                        reference: '',
-                        size: item.size || '',
-                        quantity: item.quantity,
-                        barcode: undefined
-                    }))
-                }
-                if (parsedItems.length === 0) {
-                    toast.error('Produits illisibles ou aucun Sortie trouvé pour ce tracking.')
-                    setIsLoading(false)
-                    return
-                }
 
-                // STEP 1: Validate ALL items first before processing any
-                const validationErrors: Array<{ item: any; message: string; productName: string }> = []
-                const validatedItems: Array<{
-                    productName: string
-                    reference: string
-                    size: string
-                    quantity: number
-                    barcode: string
-                }> = []
-
-                for (const item of parsedItems) {
-                    let product: any = null
-                    if (item.reference) {
-                        const productsResponse = await api.products.getAll({ search: item.reference, limit: 50 }) as any
-                        const products = productsResponse.products || []
-                        product = products.find((p: any) => p.reference === item.reference)
-                    }
-                    if (!product) {
-                        const productsResponse = await api.products.getAll({ search: item.productName, limit: 20 }) as any
-                        let products = productsResponse.products || []
-                        if (item.size) products = filterProductsBySizeType(products, item.size)
-                        product = findBestMatchingProduct(products, item.productName, item.size)
-                    }
+                    // Use improved matching that prioritizes products with the required size
+                    const product = findBestMatchingProduct(products, item.productName, item.size)
 
                     if (!product) {
                         validationErrors.push({
@@ -2753,15 +2405,26 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                         !product.sizes ||
                         product.sizes.length === 0
 
+                    let barcode: string
+                    let oldStock: number
+                    let size: string
+
                     if (isAccessoire) {
                         // Handle accessories - no size needed
-                        validatedItems.push({
-                            productName: product.name,
-                            reference: product.reference,
-                            size: '',
-                            quantity: item.quantity,
-                            barcode: product.reference
-                        })
+                        barcode = product.reference
+                        oldStock = product.stock || 0
+
+                        // Check Stock for accessories
+                        if (oldStock < item.quantity) {
+                            validationErrors.push({
+                                item,
+                                message: `المخزون غير كافٍ. المخزون: ${oldStock}، المطلوب: ${item.quantity}`,
+                                productName: product.name
+                            })
+                            continue
+                        }
+
+                        size = ''
                     } else {
                         // Handle products with sizes
                         const isShoes = isShoeProduct(product)
@@ -2771,9 +2434,8 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                         let sizeObj = product.sizes?.find((s: any) => s.size === item.size)
 
                         if (!sizeObj) {
-                            // If it's a shoe and the size is a valid shoe size, accept it
+                            // If it's a shoe and the size is a valid shoe size, create a virtual size object
                             if (isShoes && isValidShoeSize(item.size)) {
-                                // Accept the shoe size even if not in product.sizes
                                 sizeObj = { size: item.size, stock: 0 }
                             } else {
                                 validationErrors.push({
@@ -2785,139 +2447,478 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
                             }
                         }
 
-                        validatedItems.push({
-                            productName: product.name,
-                            reference: product.reference,
-                            size: item.size,
-                            quantity: item.quantity,
-                            barcode: `${product.reference}-${item.size}`
-                        })
+                        // Check Stock
+                        if ((sizeObj.stock || 0) < item.quantity) {
+                            validationErrors.push({
+                                item,
+                                message: `المخزون غير كافٍ للمقاس ${item.size}. المخزون: ${sizeObj.stock}، المطلوب: ${item.quantity}`,
+                                productName: product.name
+                            })
+                            continue
+                        }
+
+                        barcode = `${product.reference}-${item.size}`
+                        oldStock = sizeObj.stock || 0
+                        size = item.size
                     }
-                }
 
-                // STEP 2: If ANY validation errors, show error modal and DON'T process anything
-                if (validationErrors.length > 0) {
-                    setErrorModal({
-                        isOpen: true,
-                        errors: validationErrors
+                    // Item is valid, add to validated items
+                    validatedItems.push({
+                        item,
+                        product,
+                        barcode,
+                        size,
+                        oldStock,
+                        isAccessoire
                     })
-
-                    setScanLogs(validationErrors.map(e => ({
-                        status: 'error',
-                        message: `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`,
-                        item: e.item
-                    })))
-                    setIsLoading(false)
-                    return
+                } catch (err: any) {
+                    validationErrors.push({
+                        item,
+                        message: `خطأ في النظام: ${err.message}`,
+                        productName: item.productName
+                    })
                 }
+            }
 
-                // STEP 3: All items are valid, process them (use "Retour Client" atelier)
-                if (validatedItems.length > 0) {
-                    const ateliersRes: any = await api.getAteliers()
-                    const ateliersList = ateliersRes.ateliers || []
-                    let retourAtelierId = ateliersList.find((a: any) => a.name === 'Retour Client')?.id
-                    if (!retourAtelierId) {
-                        const created = await api.createAtelier({ name: 'Retour Client' }) as any
-                        retourAtelierId = created.id
+            // STEP 2: If ANY validation errors, show error modal and DON'T process anything
+            if (validationErrors.length > 0) {
+                setErrorModal({
+                    isOpen: true,
+                    errors: validationErrors
+                })
+
+                setScanLogs(validationErrors.map(e => ({
+                    status: 'error',
+                    message: `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`,
+                    item: e.item
+                })))
+                setIsLoading(false)
+                return
+            }
+
+            // STEP 3: All items are valid, process them (Échange = increase stock)
+            const logs = []
+            for (const validated of validatedItems) {
+                try {
+                    for (let i = 0; i < validated.item.quantity; i++) {
+                        await api.products.scanProduct(validated.barcode, 'add')
                     }
-                    await api.createReception({
-                        atelierId: retourAtelierId,
-                        date: new Date().toISOString(),
-                        notes: `Retour Tracking: ${trackingKey}`,
-                        items: validatedItems
-                    })
 
-                    validatedItems.forEach(item => {
-                        onStockAdded({
-                            id: Date.now().toString() + Math.random(),
-                            timestamp: new Date(),
-                            type: 'in',
-                            barcode: item.barcode || '',
-                            productName: item.productName,
-                            productReference: item.reference || '',
-                            size: item.size,
-                            quantity: item.quantity,
-                            oldStock: 0,
-                            newStock: 0,
-                            trackingNumber: trackingKey,
-                            notes: 'Retour Client',
-                            operationType: 'retour'
-                        })
-                    })
+                    const newStock = validated.oldStock + validated.item.quantity
 
-                    // Mark barcode as scanned only if all items processed successfully
-                    markBarcodeAsScanned(trackingKey)
-                    toast.success('Retour stocké avec succès !')
-                    setTracking('')
+                    const movement: StockMovement = {
+                        id: Date.now().toString() + Math.random(),
+                        timestamp: new Date(),
+                        type: 'in',
+                        barcode: validated.barcode,
+                        productName: validated.product.name,
+                        productReference: validated.product.reference,
+                        size: validated.size,
+                        quantity: validated.item.quantity,
+                        oldStock: validated.oldStock,
+                        newStock,
+                        trackingNumber: tracking,
+                        notes: `Echange Yalidine: ${code}`,
+                        operationType: 'echange'
+                    }
+                    onStockRemoved(movement)
 
-                    setScanLogs(validatedItems.map(item => ({
+                    logs.push({
                         status: 'success',
-                        message: `Retour: ${item.quantity}x ${item.productName}${item.size ? ` (${item.size})` : ' (Accessoire)'}`,
-                        item: { originalLine: `${item.quantity}x ${item.productName}${item.size ? ` (${item.size})` : ''}` }
-                    })))
-                } else {
-                    toast.error('Aucun produit valide à retourner.')
+                        message: `Échangé: ${validated.item.quantity}x ${validated.product.name}${validated.size ? ` (${validated.size})` : ''}`,
+                        item: validated.item
+                    })
+                } catch (err: any) {
+                    logs.push({
+                        status: 'error',
+                        message: `خطأ في النظام للمنتج "${validated.product.name}": ${err.message}`,
+                        item: validated.item
+                    })
                 }
+            }
 
-            } catch (error: any) {
+            setScanLogs(logs)
+            if (logs.every(log => log.status === 'success')) {
+                // Mark barcode as scanned only if all items processed successfully
+                markBarcodeAsScanned(code)
+                toast.success('Échange traité avec succès !')
+                setBarcode('')
+            } else {
+                toast.error('Erreur lors du traitement de certains articles.')
+            }
+
+        } catch (error: any) {
+            setErrorModal({
+                isOpen: true,
+                errors: [{
+                    productName: 'خطأ في المسح',
+                    item: { size: '' },
+                    message: error.message || 'خطأ في استرجاع تذكرة Yalidine. يرجى التحقق من الرمز الشريطي والمحاولة مرة أخرى.'
+                }]
+            })
+        } finally {
+            setIsLoading(false)
+            inputRef.current?.focus()
+        }
+    }
+
+    return (
+        <>
+            <ErrorModal
+                isOpen={errorModal.isOpen}
+                onClose={() => setErrorModal({ isOpen: false, errors: [] })}
+                title="خطأ في مسح التبادل"
+                errors={errorModal.errors}
+            />
+            <Card className="h-full flex flex-col border-orange-200 bg-orange-50/30">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-orange-700">
+                        <ArrowUp className="h-5 w-5" />
+                        Échange (Entrée Stock)
+                    </CardTitle>
+                    <CardDescription>
+                        En scannant un ticket ECH-XXXXXX, les articles sont ajoutés au stock (entrée).
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col gap-4">
+                    <form onSubmit={handleScan} className="space-y-4">
+                        <Label>Scanner Ticket Échange (ECH-XXXXXX)</Label>
+                        <Input
+                            ref={inputRef}
+                            value={barcode}
+                            onChange={(e) => setBarcode(e.target.value)}
+                            placeholder="ECH-..."
+                            className="h-16 text-xl text-center font-mono"
+                            disabled={isLoading}
+                            autoFocus
+                        />
+                        <Button type="submit" className="w-full bg-orange-600 hover:bg-orange-700" disabled={isLoading}>
+                            {isLoading ? <Loader2 className="animate-spin" /> : 'Valider Échange'}
+                        </Button>
+                    </form>
+
+                    {scanLogs.length > 0 && <CardBody logs={scanLogs} />}
+
+                    <div className="flex-1 overflow-hidden mt-6 border-t pt-4">
+                        <HistoryTable
+                            data={history.filter(h => h.notes?.includes('Echange'))}
+                            title="Historique des Échanges"
+                            showFilters={false}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
+        </>
+    )
+}
+
+function RetourSection({ onStockAdded, history }: { onStockAdded: (movement: StockMovement) => void, history: StockMovement[] }) {
+    const [tracking, setTracking] = useState('')
+    const [scanLogs, setScanLogs] = useState<any[]>([])
+    const [isLoading, setIsLoading] = useState(false)
+    const [scannedBarcodes, setScannedBarcodes] = useState<Set<string>>(new Set())
+    const [errorModal, setErrorModal] = useState<{ isOpen: boolean; errors: Array<{ productName: string; item: any; message: string }> }>({
+        isOpen: false,
+        errors: []
+    })
+    const inputRef = useRef<HTMLInputElement>(null)
+
+    useEffect(() => {
+        inputRef.current?.focus()
+        const saved = localStorage.getItem(STORAGE_KEY_RETOUR)
+        if (saved) {
+            try {
+                setScannedBarcodes(new Set(JSON.parse(saved)))
+            } catch (e) {
+                console.error('Failed to load scanned barcodes (Retour)', e)
+            }
+        }
+    }, [])
+
+    const isBarcodeAlreadyScanned = (barcode: string): boolean => {
+        return scannedBarcodes.has(barcode.trim())
+    }
+
+    const markBarcodeAsScanned = (barcode: string) => {
+        const newSet = new Set(scannedBarcodes)
+        newSet.add(barcode.trim())
+        setScannedBarcodes(newSet)
+        localStorage.setItem(STORAGE_KEY_RETOUR, JSON.stringify(Array.from(newSet)))
+    }
+
+    const handleScan = async (e: React.FormEvent) => {
+        e.preventDefault()
+        const trackingKey = tracking.trim()
+        if (!trackingKey) return
+
+        if (isBarcodeAlreadyScanned(trackingKey)) {
+            setErrorModal({
+                isOpen: true,
+                errors: [{
+                    productName: 'Doublon',
+                    item: { size: '' },
+                    message: 'Ce tracking a déjà été scanné dans Retour. Un même tracking ne peut être scanné qu\'une fois par section.'
+                }]
+            })
+            return
+        }
+
+        setIsLoading(true)
+        setScanLogs([])
+
+        try {
+            const validation = await api.validateTracking(trackingKey, 'retour') as { valid: boolean; message?: string }
+            if (!validation.valid) {
                 setErrorModal({
                     isOpen: true,
                     errors: [{
-                        productName: 'خطأ في المسح',
+                        productName: 'Tracking déjà utilisé',
                         item: { size: '' },
-                        message: error.message || 'خطأ في استرجاع تذكرة Yalidine. يرجى التحقق من رمز التتبع والمحاولة مرة أخرى.'
+                        message: validation.message || 'Tracking number already used in Return.'
                     }]
                 })
-            } finally {
                 setIsLoading(false)
-                inputRef.current?.focus()
+                return
             }
+
+            let parsedItems: Array<{ productName: string; reference: string; size: string; quantity: number; barcode?: string }> = []
+            const lookupRes = await api.lookupSortieByTracking(trackingKey) as { items?: Array<{ productName: string; productReference?: string; size: string; quantity: number; barcode?: string }>; count?: number }
+            if (lookupRes?.items?.length) {
+                parsedItems = lookupRes.items.map(i => ({
+                    productName: i.productName,
+                    reference: i.productReference || '',
+                    size: i.size || '',
+                    quantity: i.quantity,
+                    barcode: i.barcode
+                }))
+            }
+            if (parsedItems.length === 0) {
+                const shipment = await yalidineAPI.getShipment(trackingKey)
+                const productList = shipment.product_list || shipment.productList || ''
+                if (!productList) {
+                    toast.error('Aucune liste de produits trouvée. Scannez le code produit ou le tracking Yalidine.')
+                    setIsLoading(false)
+                    return
+                }
+                parsedItems = parseYalidineProductList(productList).map((item: any) => ({
+                    productName: item.productName,
+                    reference: '',
+                    size: item.size || '',
+                    quantity: item.quantity,
+                    barcode: undefined
+                }))
+            }
+            if (parsedItems.length === 0) {
+                toast.error('Produits illisibles ou aucun Sortie trouvé pour ce tracking.')
+                setIsLoading(false)
+                return
+            }
+
+            // STEP 1: Validate ALL items first before processing any
+            const validationErrors: Array<{ item: any; message: string; productName: string }> = []
+            const validatedItems: Array<{
+                productName: string
+                reference: string
+                size: string
+                quantity: number
+                barcode: string
+            }> = []
+
+            for (const item of parsedItems) {
+                let product: any = null
+                if (item.reference) {
+                    const productsResponse = await api.products.getAll({ search: item.reference, limit: 50 }) as any
+                    const products = productsResponse.products || []
+                    product = products.find((p: any) => p.reference === item.reference)
+                }
+                if (!product) {
+                    const productsResponse = await api.products.getAll({ search: item.productName, limit: 20 }) as any
+                    let products = productsResponse.products || []
+                    if (item.size) products = filterProductsBySizeType(products, item.size)
+                    product = findBestMatchingProduct(products, item.productName, item.size)
+                }
+
+                if (!product) {
+                    validationErrors.push({
+                        item,
+                        message: `المنتج غير موجود`,
+                        productName: item.productName
+                    })
+                    continue
+                }
+
+                // Check if product is an accessory
+                const categorySlug = product.category?.slug?.toLowerCase() || ''
+                const isAccessoire = categorySlug.includes('accessoire') ||
+                    categorySlug.includes('accessories') ||
+                    !product.sizes ||
+                    product.sizes.length === 0
+
+                if (isAccessoire) {
+                    // Handle accessories - no size needed
+                    validatedItems.push({
+                        productName: product.name,
+                        reference: product.reference,
+                        size: '',
+                        quantity: item.quantity,
+                        barcode: product.reference
+                    })
+                } else {
+                    // Handle products with sizes
+                    const isShoes = isShoeProduct(product)
+
+                    // For shoes, accept shoe sizes (36-41) even if not in product.sizes yet
+                    // For regular products, size must exist in product.sizes
+                    let sizeObj = product.sizes?.find((s: any) => s.size === item.size)
+
+                    if (!sizeObj) {
+                        // If it's a shoe and the size is a valid shoe size, accept it
+                        if (isShoes && isValidShoeSize(item.size)) {
+                            // Accept the shoe size even if not in product.sizes
+                            sizeObj = { size: item.size, stock: 0 }
+                        } else {
+                            validationErrors.push({
+                                item,
+                                message: `المقاس "${item.size}" غير موجود`,
+                                productName: product.name
+                            })
+                            continue
+                        }
+                    }
+
+                    validatedItems.push({
+                        productName: product.name,
+                        reference: product.reference,
+                        size: item.size,
+                        quantity: item.quantity,
+                        barcode: `${product.reference}-${item.size}`
+                    })
+                }
+            }
+
+            // STEP 2: If ANY validation errors, show error modal and DON'T process anything
+            if (validationErrors.length > 0) {
+                setErrorModal({
+                    isOpen: true,
+                    errors: validationErrors
+                })
+
+                setScanLogs(validationErrors.map(e => ({
+                    status: 'error',
+                    message: `${e.productName}${e.item.size ? ` (${e.item.size})` : ''}: ${e.message}`,
+                    item: e.item
+                })))
+                setIsLoading(false)
+                return
+            }
+
+            // STEP 3: All items are valid, process them (use "Retour Client" atelier)
+            if (validatedItems.length > 0) {
+                const ateliersRes: any = await api.getAteliers()
+                const ateliersList = ateliersRes.ateliers || []
+                let retourAtelierId = ateliersList.find((a: any) => a.name === 'Retour Client')?.id
+                if (!retourAtelierId) {
+                    const created = await api.createAtelier({ name: 'Retour Client' }) as any
+                    retourAtelierId = created.id
+                }
+                await api.createReception({
+                    atelierId: retourAtelierId,
+                    date: new Date().toISOString(),
+                    notes: `Retour Tracking: ${trackingKey}`,
+                    items: validatedItems
+                })
+
+                validatedItems.forEach(item => {
+                    onStockAdded({
+                        id: Date.now().toString() + Math.random(),
+                        timestamp: new Date(),
+                        type: 'in',
+                        barcode: item.barcode || '',
+                        productName: item.productName,
+                        productReference: item.reference || '',
+                        size: item.size,
+                        quantity: item.quantity,
+                        oldStock: 0,
+                        newStock: 0,
+                        trackingNumber: trackingKey,
+                        notes: 'Retour Client',
+                        operationType: 'retour'
+                    })
+                })
+
+                // Mark barcode as scanned only if all items processed successfully
+                markBarcodeAsScanned(trackingKey)
+                toast.success('Retour stocké avec succès !')
+                setTracking('')
+
+                setScanLogs(validatedItems.map(item => ({
+                    status: 'success',
+                    message: `Retour: ${item.quantity}x ${item.productName}${item.size ? ` (${item.size})` : ' (Accessoire)'}`,
+                    item: { originalLine: `${item.quantity}x ${item.productName}${item.size ? ` (${item.size})` : ''}` }
+                })))
+            } else {
+                toast.error('Aucun produit valide à retourner.')
+            }
+
+        } catch (error: any) {
+            setErrorModal({
+                isOpen: true,
+                errors: [{
+                    productName: 'خطأ في المسح',
+                    item: { size: '' },
+                    message: error.message || 'خطأ في استرجاع تذكرة Yalidine. يرجى التحقق من رمز التتبع والمحاولة مرة أخرى.'
+                }]
+            })
+        } finally {
+            setIsLoading(false)
+            inputRef.current?.focus()
         }
-
-        return (
-            <>
-                <ErrorModal
-                    isOpen={errorModal.isOpen}
-                    onClose={() => setErrorModal({ isOpen: false, errors: [] })}
-                    title="خطأ في مسح الإرجاع"
-                    errors={errorModal.errors}
-                />
-                <Card className="h-full flex flex-col border-blue-200 bg-blue-50/30">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-blue-700">
-                            <ArrowUp className="h-5 w-5" />
-                            Retour (Entrée Stock)
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex-1 flex flex-col gap-4">
-                        <form onSubmit={handleScan} className="space-y-4">
-                            <Label>Scanner Tracking Retour</Label>
-                            <Input
-                                ref={inputRef}
-                                value={tracking}
-                                onChange={(e) => setTracking(e.target.value)}
-                                placeholder="Yalidine Tracking..."
-                                className="h-16 text-xl text-center font-mono"
-                                disabled={isLoading}
-                                autoFocus
-                            />
-                            <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
-                                {isLoading ? <Loader2 className="animate-spin" /> : 'Valider Retour'}
-                            </Button>
-                        </form>
-
-                        {scanLogs.length > 0 && <CardBody logs={scanLogs} />}
-
-                        <div className="flex-1 overflow-hidden mt-6 border-t pt-4">
-                            <HistoryTable
-                                data={history.filter(h => h.notes?.includes('Retour'))}
-                                title="Historique des Retours"
-                                showFilters={false}
-                            />
-                        </div>
-                    </CardContent>
-                </Card>
-            </>
-        )
     }
+
+    return (
+        <>
+            <ErrorModal
+                isOpen={errorModal.isOpen}
+                onClose={() => setErrorModal({ isOpen: false, errors: [] })}
+                title="خطأ في مسح الإرجاع"
+                errors={errorModal.errors}
+            />
+            <Card className="h-full flex flex-col border-blue-200 bg-blue-50/30">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-blue-700">
+                        <ArrowUp className="h-5 w-5" />
+                        Retour (Entrée Stock)
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col gap-4">
+                    <form onSubmit={handleScan} className="space-y-4">
+                        <Label>Scanner Tracking Retour</Label>
+                        <Input
+                            ref={inputRef}
+                            value={tracking}
+                            onChange={(e) => setTracking(e.target.value)}
+                            placeholder="Yalidine Tracking..."
+                            className="h-16 text-xl text-center font-mono"
+                            disabled={isLoading}
+                            autoFocus
+                        />
+                        <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700" disabled={isLoading}>
+                            {isLoading ? <Loader2 className="animate-spin" /> : 'Valider Retour'}
+                        </Button>
+                    </form>
+
+                    {scanLogs.length > 0 && <CardBody logs={scanLogs} />}
+
+                    <div className="flex-1 overflow-hidden mt-6 border-t pt-4">
+                        <HistoryTable
+                            data={history.filter(h => h.notes?.includes('Retour'))}
+                            title="Historique des Retours"
+                            showFilters={false}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
+        </>
+    )
 }
+
