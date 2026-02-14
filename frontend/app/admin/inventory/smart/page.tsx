@@ -2920,3 +2920,4 @@ function StockOutSection({ onStockRemoved, history }: { onStockRemoved: (movemen
             </>
         )
     }
+}
