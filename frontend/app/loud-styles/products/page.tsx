@@ -1,0 +1,740 @@
+'use client'
+
+import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { Preloader } from '@/components/preloader'
+// Tree-shakeable framer-motion import - only import what we need
+import { motion } from 'framer-motion'
+import dynamic from 'next/dynamic'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import {
+  ShoppingCart,
+  Star,
+  Search,
+  Sparkles,
+  TrendingUp,
+  Heart,
+  Eye,
+  Filter,
+  X,
+  Check
+} from 'lucide-react'
+import Image from 'next/image'
+import Link from 'next/link'
+import { useCartStore, useWishlistStore } from '@/lib/store'
+import { useLocaleStore } from '@/lib/locale-store'
+import { toast } from 'sonner'
+import { LaunchCountdown } from '@/components/launch-countdown'
+import { LaunchCountdownEnhanced } from '@/components/launch-countdown-enhanced'
+import { LoudStylesNavbar } from '@/components/loud-styles-navbar'
+import { ProductGridSkeleton } from '@/components/loading-skeleton-product'
+
+// Define Product type
+interface Product {
+  id: string;
+  slug: string;
+  name: string;
+  nameAr?: string;
+  price: number;
+  oldPrice?: number;
+  image: string;
+  category: {
+    id: string;
+    name: string;
+    nameAr?: string;
+    slug: string;
+  } | string;
+  categoryAr?: string;
+  rating?: number;
+  isOnSale?: boolean;
+  isLaunch?: boolean;
+  isLaunchActive?: boolean;
+  isOrderable?: boolean;
+  launchAt?: string;
+  stock: number;
+  sizes: Array<{ id: string; size: string; stock: number }> | string[];
+  displayPriority?: number | null;
+}
+
+/** Deduplicate by product id and keep order (backend already sends displayPriority order). */
+function dedupeById<T extends { id: string }>(items: T[]): T[] {
+  const seen = new Set<string>();
+  return items.filter(p => {
+    if (seen.has(p.id)) return false;
+    seen.add(p.id);
+    return true;
+  });
+}
+
+function LoudStylesProductsContent() {
+  const searchParams = useSearchParams()
+  const [mounted, setMounted] = useState(false)
+  const [products, setProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
+  const [searchQuery, setSearchQuery] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [selectedSizes, setSelectedSizes] = useState<string[]>([])
+  const [isFilterOpen, setIsFilterOpen] = useState(false)
+
+
+  const addItem = useCartStore((state) => state.addItem)
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore()
+  const { isRTL } = useLocaleStore()
+
+  // Get unique categories and sizes
+  const categories = Array.from(new Set(products.map(p =>
+    typeof p.category === 'string' ? p.category : p.category.name
+  )))
+
+  const allSizes = products.flatMap(p =>
+    Array.isArray(p.sizes) ? p.sizes.map(s => typeof s === 'string' ? s : s.size) : []
+  )
+  const sizes = Array.from(new Set(allSizes)).filter(Boolean)
+
+  // Fetch all products (we'll filter and paginate client-side)
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      const limit = 500 // Fetch up to 500 per request so we get all products in 1–2 calls
+      const params = new URLSearchParams({
+        brand: 'loud-styles',
+        limit: limit.toString(),
+        page: '1'
+      })
+
+      if (searchQuery.trim()) {
+        params.append('search', searchQuery.trim())
+      }
+
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 45000)
+      const productsRes = await fetch(`/api/products?${params.toString()}`, {
+        signal: controller.signal,
+        cache: 'no-store'
+      }).finally(() => clearTimeout(timeoutId))
+      
+      if (!productsRes.ok) {
+        const errorText = await productsRes.text().catch(() => '')
+        throw new Error(`Erreur HTTP ${productsRes.status}: ${errorText || 'Impossible de charger les produits'}`)
+      }
+      
+      const productsData = await productsRes.json()
+      if (productsData.error) {
+        throw new Error(productsData.error)
+      }
+
+      let productsArray: Product[] = Array.isArray(productsData) ? productsData : (productsData.products || [])
+      productsArray = dedupeById(productsArray)
+
+      const totalFromAPI = productsData.pagination?.total ?? 0
+      const totalPages = productsData.pagination?.pages ?? (totalFromAPI > 0 ? Math.ceil(totalFromAPI / limit) : 1)
+
+      // Fetch every remaining page until we have all products (no pagination UI – single list)
+      let page = 2
+      while (totalPages >= 2 && productsArray.length < (totalFromAPI || productsArray.length + 1)) {
+        const pageParams = new URLSearchParams(params)
+        pageParams.set('page', String(page))
+        try {
+          const pageController = new AbortController()
+          const pageTimeoutId = setTimeout(() => pageController.abort(), 30000)
+          const pageRes = await fetch(`/api/products?${pageParams.toString()}`, {
+            signal: pageController.signal,
+            cache: 'no-store'
+          }).finally(() => clearTimeout(pageTimeoutId))
+          if (!pageRes.ok) break
+          const pageData = await pageRes.json()
+          const pageProducts: Product[] = Array.isArray(pageData) ? pageData : (pageData.products || [])
+          if (pageProducts.length === 0) break
+          productsArray = dedupeById([...productsArray, ...pageProducts])
+          if (pageProducts.length < limit) break
+          page++
+          if (page > totalPages) break
+        } catch (err) {
+          console.error('Failed to fetch page', page, err)
+          break
+        }
+      }
+
+      setProducts(productsArray)
+      setFilteredProducts(productsArray)
+      setError(null)
+
+    } catch (error: any) {
+      let errorMsg = 'Erreur lors du chargement des produits'
+      if (error?.name === 'AbortError' || error?.message?.includes('aborted')) {
+        errorMsg = isRTL ? 'انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى.' : 'Request timeout. Please try again.'
+      } else if (error?.message) {
+        errorMsg = error.message
+      } else if (typeof error === 'string') {
+        errorMsg = error
+      }
+      console.error('Failed to fetch products:', error)
+      setError(errorMsg)
+      setProducts([])
+      setFilteredProducts([])
+      if (mounted) {
+        toast.error(errorMsg)
+      }
+    } finally {
+      setLoading(false)
+    }
+  }, [searchQuery, isRTL, mounted])
+
+  useEffect(() => {
+    setMounted(true)
+    fetchData()
+  }, [fetchData])
+
+  // Initialize filters from URL parameters
+  useEffect(() => {
+    if (products.length === 0) return;
+
+    const categoryParam = searchParams.get('category');
+    if (categoryParam) {
+      // Find the category name corresponding to the slug
+      const productWithCategory = products.find(p =>
+        (typeof p.category === 'string' ? p.category : p.category.slug) === categoryParam
+      );
+
+      if (productWithCategory) {
+        const categoryName = typeof productWithCategory.category === 'string'
+          ? productWithCategory.category
+          : productWithCategory.category.name;
+
+        setSelectedCategories([categoryName]);
+      }
+    }
+  }, [searchParams, products]);
+
+  // Filter products based on search query, categories, and sizes
+  // Note: All filtering operations preserve the displayPriority order from the API
+  useEffect(() => {
+    // If no products yet, don't filter
+    if (products.length === 0) {
+      setFilteredProducts([])
+      return
+    }
+
+    let filtered = products
+
+    // Search filter (only if not already filtered by API)
+    if (searchQuery.trim()) {
+      // If API already filtered by search, we still need to filter client-side for category name matching
+      filtered = filtered.filter(product => {
+        const productName = (isRTL ? (product.nameAr ?? '') : (product.name ?? '')).toLowerCase();
+        const categoryName = (isRTL
+          ? (typeof product.category === 'string'
+            ? (product.categoryAr ?? '')
+            : (product.category.nameAr ?? ''))
+          : (typeof product.category === 'string'
+            ? product.category
+            : product.category.name)
+        ).toLowerCase();
+
+        return productName.includes(searchQuery.toLowerCase()) ||
+          categoryName.includes(searchQuery.toLowerCase());
+      })
+    }
+
+    // Category filter (client-side)
+    if (selectedCategories.length > 0) {
+      filtered = filtered.filter(product => {
+        const productCategory = typeof product.category === 'string' ? product.category : product.category.name
+        return selectedCategories.includes(productCategory)
+      })
+    }
+
+    // Size filter (always client-side as API doesn't support it)
+    if (selectedSizes.length > 0) {
+      filtered = filtered.filter(product => {
+        const productSizes = Array.isArray(product.sizes)
+          ? product.sizes.map(s => typeof s === 'string' ? s : s.size)
+          : []
+        return selectedSizes.some(size => productSizes.includes(size))
+      })
+    }
+
+    // Display all filtered products (no pagination)
+    setFilteredProducts(filtered)
+
+  }, [searchQuery, selectedCategories, selectedSizes, products, isRTL])
+
+  if (!mounted) return <Preloader />
+
+  const handleAddToCart = (product: Product) => {
+    addItem({
+      id: product.id,
+      name: isRTL ? (product.nameAr || product.name) : product.name,
+      price: product.price,
+      image: product.image || '/placeholder.svg'
+    })
+  }
+
+  const ProductCard = ({ product, index }: { product: Product, index: number }) => {
+    // Check if product is in accessoires or shoes category
+    const categorySlug = typeof product.category === 'string' 
+      ? product.category.toLowerCase() 
+      : (product.category as { slug?: string })?.slug?.toLowerCase() || '';
+    const categoryName = typeof product.category === 'string'
+      ? product.category.toLowerCase()
+      : product.category?.name?.toLowerCase() || '';
+    const isAccessoires = categorySlug.includes('accessoire') || categorySlug.includes('accessories');
+    const isShoes = categorySlug.includes('shoe') || categorySlug.includes('chaussure') || categoryName.includes('shoe') || categoryName.includes('chaussure');
+    
+    // Convert sizes to string array for rendering
+    let sizeStrings: string[] = [];
+    if (isAccessoires) {
+      sizeStrings = [];
+    } else if (isShoes) {
+      // Get actual shoe sizes from product or use default
+      if (Array.isArray(product.sizes) && product.sizes.length > 0) {
+        sizeStrings = product.sizes.map(s => typeof s === 'string' ? s : s.size).sort((a, b) => {
+          const numA = parseInt(a) || 0;
+          const numB = parseInt(b) || 0;
+          return numA - numB;
+        });
+      } else {
+        sizeStrings = ['36', '37', '38', '39', '40', '41'];
+      }
+    } else {
+      sizeStrings = ['M', 'L', 'XL', 'XXL'];
+    }
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 36, scale: 0.96 }}
+        whileInView={{ opacity: 1, y: 0, scale: 1 }}
+        viewport={{ once: true, margin: '-40px 0px -40px 0px', amount: 0.1 }}
+        transition={{
+          duration: 0.45,
+          ease: [0.25, 0.46, 0.45, 0.94]
+        }}
+        whileHover={{
+          y: -8,
+          transition: { duration: 0.3, ease: "easeOut" }
+        }}
+        className="group relative h-full"
+      >
+        <Link href={`/loud-styles/products/${product.slug}?brand=loud-styles`} className="block h-full">
+          <Card className={`overflow-hidden transition-all duration-500 h-full flex flex-col cursor-pointer ${
+            product.isLaunch && product.isLaunchActive
+              ? 'border-2 border-[#bfa36a] bg-gradient-to-br from-[#bfa36a]/5 via-[#bfa36a]/3 to-transparent shadow-xl hover:shadow-2xl ring-2 ring-[#bfa36a]/20'
+              : 'border border-gray-200 dark:border-gray-700 bg-transparent shadow-lg hover:shadow-2xl'
+          }`}>
+            {/* Product Image */}
+            <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-cream-100 via-warm-50 to-cream-200 dark:from-gray-800 dark:via-gray-700 dark:to-gray-800 flex-shrink-0 w-full">
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+                className="relative w-full h-full"
+              >
+                <Image
+                  src={product.image && product.image.trim() !== '' ? product.image : '/placeholder.svg'}
+                  alt={isRTL ? product.nameAr || product.name : product.name}
+                  fill
+                  className="object-cover transition-transform duration-500"
+                  unoptimized={product.image?.startsWith('http')}
+                  loading={index < 8 ? "eager" : "lazy"}
+                  priority={index < 8}
+                  sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = '/placeholder.svg';
+                  }}
+                />
+                {/* Launch Countdown Overlay on Image */}
+                {product.isLaunch && product.launchAt && product.isLaunchActive && (
+                  <LaunchCountdownEnhanced launchAt={product.launchAt} variant="overlay" />
+                )}
+              </motion.div>
+            </div>
+
+            {/* Overlay with actions */}
+            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-all duration-300">
+              <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'} opacity-0 group-hover:opacity-100 transition-all duration-300`}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  className="rounded-full w-10 h-10 p-0 bg-white/90 hover:bg-white dark:bg-gray-800/90 dark:hover:bg-gray-800 dark:text-white shadow-lg"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    const isCurrentlyWishlisted = isInWishlist(product.id)
+
+                    if (isCurrentlyWishlisted) {
+                      removeFromWishlist(product.id)
+                      toast.success(isRTL ? 'تم إزالة من المفضلة' : 'Removed from wishlist')
+                    } else {
+                      addToWishlist({
+                        id: product.id,
+                        name: product.name,
+                        nameAr: product.nameAr,
+                        price: product.price,
+                        oldPrice: product.oldPrice,
+                        image: product.image,
+                        rating: product.rating,
+                        isOnSale: product.isOnSale,
+                        stock: product.stock,
+                        slug: product.slug
+                      })
+                      toast.success(isRTL ? 'تم الإضافة للمفضلة' : 'Added to wishlist')
+                    }
+                  }}
+                >
+                  <Heart className={`w-4 h-4 ${isInWishlist(product.id) ? 'fill-red-500 text-red-500' : 'text-gray-600 dark:text-gray-300'}`} />
+                </Button>
+              </div>
+            </div>
+
+            {/* Badges */}
+            <div className={`absolute top-4 ${isRTL ? 'right-4' : 'left-4'} space-y-2`}>
+              {product.isOnSale && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8, x: isRTL ? 20 : -20 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  transition={{ delay: 0.2 + index * 0.1, duration: 0.4 }}
+                >
+                  <Badge className="bg-gradient-to-r from-red-500 to-pink-500 text-white border-0 shadow-lg text-center">
+                    <Sparkles className={`w-3 h-3 ${isRTL ? 'ml-1' : 'mr-1'}`} />
+                    {isRTL ? 'تخفيض' : 'Sale'}
+                  </Badge>
+                </motion.div>
+              )}
+              {product.isLaunch && product.isLaunchActive && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8, x: isRTL ? 20 : -20 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  transition={{ delay: 0.25 + index * 0.1, duration: 0.4 }}
+                >
+                  <Badge className="bg-gradient-to-r from-[#bfa36a] to-[#d4af37] text-white border-0 shadow-lg text-center font-semibold animate-pulse">
+                    <Sparkles className={`w-3 h-3 ${isRTL ? 'ml-1' : 'mr-1'}`} />
+                    {isRTL ? 'قريباً' : 'Coming Soon'}
+                  </Badge>
+                </motion.div>
+              )}
+            </div>
+
+            <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'}`}>
+              {product.stock <= 5 && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8, x: isRTL ? -20 : 20 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  transition={{ delay: 0.3 + index * 0.1, duration: 0.4 }}
+                >
+                  <Badge className="bg-gradient-to-r from-orange-500 to-yellow-500 text-white border-0 shadow-lg text-center">
+                    {isRTL ? 'مخزون قليل' : 'Low Stock'}
+                  </Badge>
+                </motion.div>
+              )}
+            </div>
+
+            {/* Product Info */}
+            <CardContent className="p-2 sm:p-4 flex-1 flex flex-col min-h-0 bg-transparent">
+              <div className="space-y-2 sm:space-y-3 flex-1 flex flex-col">
+                {/* Category */}
+                <div className={`flex items-center justify-center ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
+                  <Badge variant="outline" className="text-xs font-medium text-center">
+                    {isRTL
+                      ? (typeof product.category === 'string'
+                        ? (product.categoryAr || product.category)
+                        : (product.category.nameAr || product.category.name))
+                      : (typeof product.category === 'string'
+                        ? product.category
+                        : product.category.name)
+                    }
+                  </Badge>
+                </div>
+
+                {/* Product Name */}
+                <h3 className="font-semibold text-sm sm:text-base leading-tight line-clamp-2 hover:text-primary transition-colors group-hover:text-primary text-center min-h-[2rem] sm:min-h-[2.5rem] flex items-center justify-center">
+                  {isRTL ? product.nameAr || product.name : product.name}
+                </h3>
+
+                {/* Sizes Preview */}
+                {sizeStrings.length > 0 && (
+                  <div className="flex flex-wrap gap-1 justify-center min-h-[1.5rem]">
+                    {sizeStrings.slice(0, 2).map((size: string, sizeIndex: number) => (
+                      <span
+                        key={size || sizeIndex}
+                        className="text-xs bg-muted px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full font-medium text-center"
+                      >
+                        {size || '-'}
+                      </span>
+                    ))}
+                    {sizeStrings.length > 2 && (
+                      <span className="text-xs text-gray-500 dark:text-muted-foreground">
+                        +{sizeStrings.length - 2}
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                {/* Price */}
+                <div className={`flex items-center justify-between ${isRTL ? 'flex-row-reverse' : 'flex-row'} mt-auto`}>
+                  <div className="space-y-1 text-center flex-1">
+                    <div className={`flex items-center space-x-1 sm:space-x-2 ${isRTL ? 'flex-row-reverse' : 'flex-row'} justify-center`}>
+                      <span className="text-sm sm:text-lg font-bold text-primary">
+                        {product.price.toLocaleString()} {isRTL ? 'د.ج' : 'DA'}
+                      </span>
+                      {product.oldPrice && (
+                        <span className="text-xs sm:text-sm text-muted-foreground line-through">
+                          {product.oldPrice.toLocaleString()} {isRTL ? 'د.ج' : 'DA'}
+                        </span>
+                      )}
+                    </div>
+                    {product.oldPrice && (
+                      <div className={`flex items-center space-x-1 ${isRTL ? 'flex-row-reverse' : 'flex-row'} justify-center`}>
+                        <TrendingUp className="w-3 h-3 text-green-500" />
+                        <span className="text-xs text-green-600 font-medium">
+                          {Math.round(((product.oldPrice - product.price) / product.oldPrice) * 100)}% {isRTL ? 'توفير' : 'off'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+
+                {/* Add to Cart Button */}
+                <Button
+                  className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 text-center mt-2 sm:mt-3 h-8 sm:h-10 text-xs sm:text-sm"
+                  onClick={() => handleAddToCart(product)}
+                  disabled={(product.isLaunch && product.isLaunchActive)}
+                >
+                  <ShoppingCart className={`w-4 h-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                  {(product.isLaunch && product.isLaunchActive)
+                    ? 'Coming Soon'
+                    : (isRTL ? 'أضيفي للسلة' : 'Add to Cart')
+                  }
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
+      </motion.div>
+    )
+  }
+
+  // Filter sidebar component
+  const FilterSidebar = () => (
+    <div className={`fixed inset-0 z-50 ${isFilterOpen ? 'block' : 'hidden'}`}>
+      <div className="absolute inset-0 bg-black/50" onClick={() => setIsFilterOpen(false)} />
+      <div className={`absolute top-0 ${isRTL ? 'right-0' : 'left-0'} h-full w-80 bg-gradient-to-br from-cream-100 via-warm-50 to-cream-200 dark:from-gray-800 dark:via-gray-700 dark:to-gray-800 p-6 shadow-2xl`}>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white">
+            {isRTL ? 'المرشحات' : 'Filters'}
+          </h3>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setIsFilterOpen(false)}
+            className="p-2"
+          >
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+
+        {/* Categories */}
+        <div className="mb-6">
+          <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200">
+            {isRTL ? 'الفئات' : 'Categories'}
+          </h4>
+          <div className="space-y-2">
+            {categories.map(category => (
+              <label key={category} className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedCategories.includes(category)}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedCategories([...selectedCategories, category])
+                    } else {
+                      setSelectedCategories(selectedCategories.filter(c => c !== category))
+                    }
+                  }}
+                  className="w-4 h-4 text-primary rounded border-gray-300"
+                />
+                <span className="text-sm text-gray-700 dark:text-gray-300">{category}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+
+        {/* Sizes */}
+        <div className="mb-6">
+          <h4 className="text-lg font-semibold mb-3 text-gray-800 dark:text-gray-200">
+            {isRTL ? 'المقاسات' : 'Sizes'}
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {sizes.map(size => (
+              <button
+                key={size}
+                onClick={() => {
+                  if (selectedSizes.includes(size)) {
+                    setSelectedSizes(selectedSizes.filter(s => s !== size))
+                  } else {
+                    setSelectedSizes([...selectedSizes, size])
+                  }
+                }}
+                className={`px-3 py-1 text-sm rounded-full border transition-all ${selectedSizes.includes(size)
+                  ? 'bg-primary text-white border-primary'
+                  : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-primary'
+                  }`}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Clear Filters */}
+        <Button
+          variant="outline"
+          onClick={() => {
+            setSelectedCategories([])
+            setSelectedSizes([])
+          }}
+          className="w-full"
+        >
+          {isRTL ? 'مسح المرشحات' : 'Clear Filters'}
+        </Button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-cream-100 via-warm-50 to-cream-200 dark:from-gray-800 dark:via-gray-700 dark:to-gray-800" dir={isRTL ? 'rtl' : 'ltr'}>
+      {/* Navbar */}
+      <div className="fixed top-0 left-0 right-0 z-50">
+        <LoudStylesNavbar />
+      </div>
+
+      {/* Filter Sidebar */}
+      <FilterSidebar />
+
+      {/* Hero Section */}
+      <div className="relative overflow-hidden pt-20 bg-gradient-to-br from-cream-100 via-warm-50 to-cream-200 dark:from-gray-800 dark:via-gray-700 dark:to-gray-800">
+        <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
+        <div className="max-w-6xl mx-auto px-2 sm:px-4 py-16 relative">
+
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            className="text-center"
+          >
+            <h1 className="text-5xl md:text-6xl font-bold mb-4 text-gray-900 dark:text-white text-center leading-tight">
+              {isRTL ? 'أناقة الأزياء التقليدية الجزائرية' : 'LOUD STYLES Collection'}
+            </h1>
+            <p className="text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto text-center leading-relaxed">
+              {isRTL
+                ? 'تسوقي حسب المجموعة - المجموعة المميزة'
+                : 'A unique collection of premium products with the highest quality and best prices'
+              }
+            </p>
+
+            {/* Search Bar and Filter Button */}
+            <div className="max-w-2xl mx-auto flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className={`absolute ${isRTL ? 'right-4' : 'left-4'} top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5`} />
+                <Input
+                  placeholder={isRTL ? 'البحث في المنتجات...' : 'Search products...'}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className={`${isRTL ? 'pr-12 pl-4' : 'pl-12 pr-4'} h-12 text-base sm:text-lg bg-white/80 backdrop-blur-sm border-2 border-primary/20 focus:border-primary/50 transition-all duration-300`}
+                  dir={isRTL ? 'rtl' : 'ltr'}
+                />
+              </div>
+              <Button
+                onClick={() => setIsFilterOpen(true)}
+                className="h-12 px-4 sm:px-6 bg-white/80 backdrop-blur-sm border-2 border-primary/20 hover:border-primary/50 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-primary transition-all duration-300"
+              >
+                <Filter className="w-5 h-5 sm:mr-2" />
+                <span className="hidden sm:inline">{isRTL ? 'مرشحات' : 'Filters'}</span>
+              </Button>
+            </div>
+          </motion.div>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-2 sm:px-4 py-8 bg-gradient-to-br from-cream-100 via-warm-50 to-cream-200 dark:from-gray-800 dark:via-gray-700 dark:to-gray-800">
+        {/* Products Grid */}
+        {loading ? (
+          <ProductGridSkeleton count={12} />
+        ) : error ? (
+          <div className="text-center py-8 sm:py-16">
+            <div className="w-16 h-16 sm:w-24 sm:h-24 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+              <X className="w-8 h-8 sm:w-12 sm:h-12 text-red-600 dark:text-red-400" />
+            </div>
+            <h3 className="text-lg sm:text-xl font-semibold mb-2 text-center text-red-600 dark:text-red-400">
+              {isRTL ? 'خطأ في التحميل' : 'Error loading products'}
+            </h3>
+            <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6 text-center px-4 max-w-md mx-auto">
+              {error}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <Button 
+                onClick={() => {
+                  setError(null)
+                  setSearchQuery('')
+                  fetchData()
+                }}
+                className="bg-primary hover:bg-primary/90"
+              >
+                {isRTL ? 'إعادة المحاولة' : 'Retry'}
+              </Button>
+              <Button onClick={() => window.location.reload()} variant="outline">
+                {isRTL ? 'تحديث الصفحة' : 'Refresh Page'}
+              </Button>
+            </div>
+          </div>
+        ) : filteredProducts.length === 0 ? (
+          <div className="text-center py-8 sm:py-16">
+            <div className="w-16 h-16 sm:w-24 sm:h-24 bg-muted rounded-full flex items-center justify-center mx-auto mb-4 sm:mb-6">
+              <Search className="w-8 h-8 sm:w-12 sm:h-12 text-muted-foreground" />
+            </div>
+            <h3 className="text-lg sm:text-xl font-semibold mb-2 text-center">
+              {isRTL ? 'لا توجد منتجات' : 'No products found'}
+            </h3>
+            <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6 text-center px-4">
+              {isRTL
+                ? 'لا توجد منتجات تطابق معايير البحث. جربي تعديل المرشحات.'
+                : 'No products match your search criteria. Try adjusting your filters.'
+              }
+            </p>
+            <Button onClick={() => setSearchQuery('')} variant="outline" className="text-center">
+              {isRTL ? 'مسح البحث' : 'Clear Search'}
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-8">
+            {/* Single list of all products – no pagination; scroll to see all */}
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-6">
+              {filteredProducts.map((product, index) => (
+                <ProductCard key={product.id} product={product} index={index} />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default function LoudStylesProductsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-cream-100 via-warm-50 to-cream-200 dark:from-gray-800 dark:via-gray-700 dark:to-gray-800 flex items-center justify-center">
+        <ProductGridSkeleton count={12} />
+      </div>
+    }>
+      <LoudStylesProductsContent />
+    </Suspense>
+  )
+}
