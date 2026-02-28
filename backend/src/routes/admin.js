@@ -370,6 +370,7 @@ router.post('/products', async (req, res) => {
         isOnSale: productData.isOnSale || false,
         isActive: productData.isActive !== false,
         isLaunch: productData.isLaunch || false,
+        isOutOfStock: productData.isOutOfStock || false,
         launchAt: productData.launchAt ? new Date(productData.launchAt) : null,
         displayPriority: requestedPriority,
         brandId: productData.brandId,
@@ -500,6 +501,7 @@ router.put('/products/:id', async (req, res) => {
     if (productData.isOnSale !== undefined) updateData.isOnSale = productData.isOnSale;
     if (productData.isActive !== undefined) updateData.isActive = productData.isActive;
     if (productData.isLaunch !== undefined) updateData.isLaunch = productData.isLaunch;
+    if (productData.isOutOfStock !== undefined) updateData.isOutOfStock = productData.isOutOfStock;
     if (productData.launchAt !== undefined) updateData.launchAt = productData.launchAt ? new Date(productData.launchAt) : null;
     if (productData.categoryId !== undefined) updateData.categoryId = productData.categoryId;
     if (productData.slug !== undefined) updateData.slug = productData.slug;

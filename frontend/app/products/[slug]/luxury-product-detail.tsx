@@ -72,6 +72,7 @@ interface Product {
   isLaunch?: boolean;
   isLaunchActive?: boolean;
   isOrderable?: boolean;
+  isOutOfStock?: boolean;
   launchAt?: string;
   stock: number;
   reference?: string;
@@ -95,7 +96,7 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
   const [isZoomed, setIsZoomed] = useState(false)
   const [showImageModal, setShowImageModal] = useState(false)
   const [timerCompleted, setTimerCompleted] = useState(false)
-  const isOrderable = !product.isLaunchActive || timerCompleted
+  const isOrderable = (!product.isLaunchActive || timerCompleted) && !product.isOutOfStock && product.stock > 0
 
   const addItem = useCartStore((state) => state.addItem)
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore()
@@ -130,6 +131,11 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
   }
 
   const handleAddToCart = () => {
+    if (product.isOutOfStock) {
+      toast.error(isRTL ? 'هذا المنتج غير متوفر' : 'This product is out of stock')
+      return
+    }
+    
     if (!selectedSize && product.sizes && product.sizes.length > 0) {
       toast.error(isRTL ? 'يرجى اختيار المقاس' : 'Please select a size')
       return
@@ -429,6 +435,11 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
                   <Badge className="bg-gradient-to-r from-blue-500 to-purple-500 text-white border-0">
                     <TrendingUp className="w-3 h-3 mr-1" />
                     {isRTL ? 'قريباً' : 'Coming Soon'}
+                  </Badge>
+                )}
+                {product.isOutOfStock && (
+                  <Badge className="bg-gray-500 text-white border-0">
+                    {isRTL ? 'نفاذ الكمية' : 'Out of Stock'}
                   </Badge>
                 )}
                 <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">

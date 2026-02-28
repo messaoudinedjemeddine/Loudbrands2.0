@@ -115,6 +115,7 @@ model Product {
   descriptionAr String?
   price       Float
   costPrice   Float    @default(0)
+  wholesalePrice Float?
   oldPrice    Float?
   stock       Int      @default(0)
   reference   String?  @unique
@@ -122,6 +123,7 @@ model Product {
   isOnSale    Boolean  @default(false)
   isActive    Boolean  @default(true)
   isLaunch    Boolean  @default(false)
+  isOutOfStock Boolean @default(false)  // Manual out of stock flag
   launchAt    DateTime?
   displayPriority Int?  // Lower = show first on Loud Styles products page; null = no priority
   createdAt   DateTime @default(now())

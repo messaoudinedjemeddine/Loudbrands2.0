@@ -42,6 +42,7 @@ interface Product {
   isOnSale: boolean
   isActive: boolean
   isLaunch: boolean
+  isOutOfStock?: boolean
   launchAt?: string
   image: string
   createdAt: string
@@ -222,6 +223,24 @@ export default function AdminProductsPage() {
     } catch (error) {
       console.error('Failed to update product launch status:', error)
       toast.error('Failed to update product launch status')
+    }
+  }
+
+  const handleToggleOutOfStock = async (productId: string) => {
+    try {
+      const product = products.find(p => p.id === productId)
+      if (!product) return
+      
+      const newOutOfStockState = !product.isOutOfStock
+      
+      await api.admin.updateProduct(productId, { isOutOfStock: newOutOfStockState })
+      setProducts(prev => prev.map(p => 
+        p.id === productId ? { ...p, isOutOfStock: newOutOfStockState } : p
+      ))
+      toast.success(`Produit ${newOutOfStockState ? 'marqué comme épuisé' : 'marqué comme disponible'}`)
+    } catch (error) {
+      console.error('Failed to update product out of stock status:', error)
+      toast.error('Failed to update product out of stock status')
     }
   }
 
@@ -479,6 +498,9 @@ export default function AdminProductsPage() {
                         {product.stock === 0 && (
                           <Badge variant="destructive" className="text-xs">Rupture de Stock</Badge>
                         )}
+                        {product.isOutOfStock && (
+                          <Badge variant="secondary" className="text-xs bg-gray-500">Épuisé</Badge>
+                        )}
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {product.reference} • {getCategoryName(product.category)}
@@ -561,6 +583,14 @@ export default function AdminProductsPage() {
                       className={product.isLaunch ? 'text-blue-600' : 'text-gray-600'}
                     >
                       {product.isLaunch ? 'Désactiver Lancement' : 'Activer Lancement'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleToggleOutOfStock(product.id)}
+                      className={product.isOutOfStock ? 'text-gray-600 bg-gray-100' : 'text-gray-600'}
+                    >
+                      {product.isOutOfStock ? 'En Stock' : 'Épuisé'}
                     </Button>
                     <Button
                       variant="outline"
