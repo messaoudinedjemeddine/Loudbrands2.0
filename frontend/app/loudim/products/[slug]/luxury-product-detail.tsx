@@ -79,7 +79,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   const [quantity, setQuantity] = useState(1)
   const [showImageModal, setShowImageModal] = useState(false)
   const [timerCompleted, setTimerCompleted] = useState(false)
-  const isOrderable = (!product.isLaunchActive || timerCompleted) && !product.isOutOfStock && product.stock > 0
+  const isOrderable = (!product.isLaunchActive || timerCompleted) && !product.isOutOfStock
 
   const addItem = useCartStore((state) => state.addItem)
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore()

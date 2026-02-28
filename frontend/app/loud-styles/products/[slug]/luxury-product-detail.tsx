@@ -99,7 +99,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   const [relatedAccessories, setRelatedAccessories] = useState<Product[]>([])
   const [loadingAccessories, setLoadingAccessories] = useState(false)
   const [colorVariants, setColorVariants] = useState<Array<{ slug: string; color: string; name: string; nameEn: string; hexColor: string; isCurrent: boolean }>>([])
-  const isOrderable = (!product?.isLaunchActive || timerCompleted) && !product?.isOutOfStock && product?.stock > 0
+  const isOrderable = (!product?.isLaunchActive || timerCompleted) && !product?.isOutOfStock
 
   const addItem = useCartStore((state) => state.addItem)
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore()

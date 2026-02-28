@@ -435,7 +435,7 @@ function LoudStylesProductsContent() {
             </div>
 
             <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'}`}>
-              {(product.stock === 0 || product.isOutOfStock) && (
+              {product.isOutOfStock && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8, x: isRTL ? -20 : 20 }}
                   animate={{ opacity: 1, scale: 1, x: 0 }}
@@ -529,10 +529,10 @@ function LoudStylesProductsContent() {
                 <Button
                   className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 text-center mt-2 sm:mt-3 h-8 sm:h-10 text-xs sm:text-sm"
                   onClick={() => handleAddToCart(product)}
-                  disabled={product.isOutOfStock || product.stock === 0 || (product.isLaunch && product.isLaunchActive)}
+                  disabled={product.isOutOfStock || (product.isLaunch && product.isLaunchActive)}
                 >
                   <ShoppingCart className={`w-4 h-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
-                  {product.isOutOfStock || product.stock === 0
+                  {product.isOutOfStock
                     ? (isRTL ? 'غير متوفر' : 'Out of Stock')
                     : (product.isLaunch && product.isLaunchActive)
                       ? 'Coming Soon'

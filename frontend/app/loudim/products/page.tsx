@@ -324,7 +324,7 @@ function LoudimProductsContent() {
               </div>
 
               <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'}`}>
-                {(product.stock === 0 || product.isOutOfStock) && (
+                {product.isOutOfStock && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0.8, x: isRTL ? -20 : 20 }}
                     animate={{ opacity: 1, scale: 1, x: 0 }}

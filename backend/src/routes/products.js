@@ -232,7 +232,7 @@ router.get('/', async (req, res) => {
     const now = new Date();
     const productsWithLaunchStatus = products.map(product => {
       const isLaunchActive = product.isLaunch && product.launchAt && product.launchAt > now;
-      const isOrderable = !isLaunchActive && !product.isOutOfStock && product.stock > 0;
+      const isOrderable = !isLaunchActive && !product.isOutOfStock;
 
       return {
         ...product,
@@ -294,7 +294,7 @@ router.get('/slug/:slug', async (req, res) => {
     // Add launch status and orderability
     const now = new Date();
     const isLaunchActive = product.isLaunch && product.launchAt && product.launchAt > now;
-    const isOrderable = !isLaunchActive && !product.isOutOfStock && product.stock > 0;
+    const isOrderable = !isLaunchActive && !product.isOutOfStock;
 
     // Transform the product to match frontend expectations
     const transformedProduct = {
@@ -378,7 +378,7 @@ router.get('/:id', async (req, res) => {
     // Add launch status and orderability
     const now = new Date();
     const isLaunchActive = product.isLaunch && product.launchAt && product.launchAt > now;
-    const isOrderable = !isLaunchActive && !product.isOutOfStock && product.stock > 0;
+    const isOrderable = !isLaunchActive && !product.isOutOfStock;
 
     const productWithLaunchStatus = {
       ...product,
