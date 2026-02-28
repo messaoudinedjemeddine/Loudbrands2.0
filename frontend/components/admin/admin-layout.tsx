@@ -71,6 +71,7 @@ const getNavigationByRole = (role: string) => {
       return [
         { name: 'Inventaire', href: '/admin/inventory', icon: Package },
         { name: 'Inventaire Intelligent', href: '/admin/inventory/smart', icon: Package },
+        { name: 'Ateliers', href: '/admin/ateliers', icon: Building2 },
       ]
     default:
       return [
