@@ -71,6 +71,7 @@ interface Product {
   reviewCount?: number;
   isOnSale?: boolean;
   isLaunch?: boolean;
+  isOutOfStock?: boolean;
   stock: number;
   reference?: string;
   images: string[];
@@ -98,7 +99,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   const [relatedAccessories, setRelatedAccessories] = useState<Product[]>([])
   const [loadingAccessories, setLoadingAccessories] = useState(false)
   const [colorVariants, setColorVariants] = useState<Array<{ slug: string; color: string; name: string; nameEn: string; hexColor: string; isCurrent: boolean }>>([])
-  const isOrderable = !product?.isLaunchActive || timerCompleted
+  const isOrderable = (!product?.isLaunchActive || timerCompleted) && !product?.isOutOfStock && product?.stock > 0
 
   const addItem = useCartStore((state) => state.addItem)
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore()
@@ -278,6 +279,12 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   }
 
   const handleAddToCart = () => {
+    // Check if product is out of stock
+    if (product.isOutOfStock) {
+      toast.error(isRTL ? 'هذا المنتج غير متوفر' : 'This product is out of stock')
+      return
+    }
+    
     // Check if product is in launch mode and countdown hasn't finished
     if (!isOrderable) {
       toast.error(isRTL ? 'يرجى الانتظار حتى انتهاء العد التنازلي' : 'Please wait for the countdown to finish')
@@ -504,7 +511,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     src={product.images[currentImageIndex] || '/placeholder.svg'}
                     alt={isRTL ? product.nameAr || product.name : product.name}
                     fill
-                    className="object-contain transition-transform duration-300 group-hover:scale-105"
+                    className={`object-contain transition-transform duration-300 group-hover:scale-105 ${product.isOutOfStock ? 'opacity-50' : ''}`}
                     priority={currentImageIndex === 0}
                     fetchPriority={currentImageIndex === 0 ? 'high' : 'auto'}
                     loading={currentImageIndex === 0 ? 'eager' : 'lazy'}
@@ -516,6 +523,15 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       target.src = '/placeholder.svg'
                     }}
                   />
+                  
+                  {/* Out of Stock Overlay */}
+                  {product.isOutOfStock && (
+                    <div className="absolute inset-0 bg-gray-500/80 flex items-center justify-center z-10">
+                      <div className="bg-gray-600/90 px-6 py-3 rounded-lg">
+                        <p className="text-white font-semibold text-lg">نفاذ الكمية</p>
+                      </div>
+                    </div>
+                  )}
 
                   {/* Zoom Button */}
                   <Button
@@ -619,6 +635,11 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       {isRTL ? 'قريباً' : 'Coming Soon'}
                     </Badge>
                   )}
+                  {product.isOutOfStock && (
+                    <Badge className="bg-gray-500 text-white border-0">
+                      {isRTL ? 'نفاذ الكمية' : 'Out of Stock'}
+                    </Badge>
+                  )}
                   {product.isLaunch && product.launchAt && (
                     <LaunchCountdownEnhanced
                       launchAt={product.launchAt}
@@ -631,7 +652,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     {isRTL ? 'مجموعة تقليدية' : 'Traditional Collection'}
                   </Badge>
                   {/* LOW STOCK BADGE */}
-                  {(product.stock <= 5 || (selectedSize && product.sizes?.find(s => s.size === selectedSize)?.stock! <= 5)) && (
+                  {!product.isOutOfStock && (product.stock <= 5 || (selectedSize && product.sizes?.find(s => s.size === selectedSize)?.stock! <= 5)) && (
                     <Badge className="bg-amber-500 text-white border-0 animate-pulse">
                       <TrendingUp className="w-3 h-3 mr-1" />
                       {isRTL ? 'كمية محدودة جداً' : 'Low Stock'}

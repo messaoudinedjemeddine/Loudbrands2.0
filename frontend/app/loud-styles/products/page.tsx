@@ -53,6 +53,7 @@ interface Product {
   isLaunch?: boolean;
   isLaunchActive?: boolean;
   isOrderable?: boolean;
+  isOutOfStock?: boolean;
   launchAt?: string;
   stock: number;
   sizes: Array<{ id: string; size: string; stock: number }> | string[];
@@ -269,6 +270,10 @@ function LoudStylesProductsContent() {
   if (!mounted) return <Preloader />
 
   const handleAddToCart = (product: Product) => {
+    if (product.isOutOfStock) {
+      toast.error(isRTL ? 'هذا المنتج غير متوفر' : 'This product is out of stock')
+      return
+    }
     addItem({
       id: product.id,
       name: isRTL ? (product.nameAr || product.name) : product.name,
@@ -339,7 +344,7 @@ function LoudStylesProductsContent() {
                   src={product.image && product.image.trim() !== '' ? product.image : '/placeholder.svg'}
                   alt={isRTL ? product.nameAr || product.name : product.name}
                   fill
-                  className="object-cover transition-transform duration-500"
+                  className={`object-cover transition-transform duration-500 ${product.isOutOfStock ? 'opacity-50' : ''}`}
                   unoptimized={product.image?.startsWith('http')}
                   loading={index < 8 ? "eager" : "lazy"}
                   priority={index < 8}
@@ -349,6 +354,14 @@ function LoudStylesProductsContent() {
                     target.src = '/placeholder.svg';
                   }}
                 />
+                {/* Out of Stock Overlay */}
+                {product.isOutOfStock && (
+                  <div className="absolute inset-0 bg-gray-500/80 flex items-center justify-center z-10">
+                    <div className="bg-gray-600/90 px-6 py-3 rounded-lg">
+                      <p className="text-white font-semibold text-lg">نفاذ الكمية</p>
+                    </div>
+                  </div>
+                )}
                 {/* Launch Countdown Overlay on Image */}
                 {product.isLaunch && product.launchAt && product.isLaunchActive && (
                   <LaunchCountdownEnhanced launchAt={product.launchAt} variant="overlay" />
@@ -422,7 +435,18 @@ function LoudStylesProductsContent() {
             </div>
 
             <div className={`absolute top-4 ${isRTL ? 'left-4' : 'right-4'}`}>
-              {product.stock <= 5 && (
+              {(product.stock === 0 || product.isOutOfStock) && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.8, x: isRTL ? -20 : 20 }}
+                  animate={{ opacity: 1, scale: 1, x: 0 }}
+                  transition={{ delay: 0.3 + index * 0.1, duration: 0.4 }}
+                >
+                  <Badge className="bg-gradient-to-r from-gray-500 to-gray-600 text-white border-0 shadow-lg text-center">
+                    {isRTL ? 'غير متوفر' : 'Out of Stock'}
+                  </Badge>
+                </motion.div>
+              )}
+              {product.stock <= 5 && product.stock > 0 && !product.isOutOfStock && (
                 <motion.div
                   initial={{ opacity: 0, scale: 0.8, x: isRTL ? -20 : 20 }}
                   animate={{ opacity: 1, scale: 1, x: 0 }}
@@ -505,12 +529,14 @@ function LoudStylesProductsContent() {
                 <Button
                   className="w-full bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 text-white font-medium shadow-lg hover:shadow-xl transition-all duration-300 text-center mt-2 sm:mt-3 h-8 sm:h-10 text-xs sm:text-sm"
                   onClick={() => handleAddToCart(product)}
-                  disabled={(product.isLaunch && product.isLaunchActive)}
+                  disabled={product.isOutOfStock || product.stock === 0 || (product.isLaunch && product.isLaunchActive)}
                 >
                   <ShoppingCart className={`w-4 h-4 ${isRTL ? 'ml-2' : 'mr-2'}`} />
-                  {(product.isLaunch && product.isLaunchActive)
-                    ? 'Coming Soon'
-                    : (isRTL ? 'أضيفي للسلة' : 'Add to Cart')
+                  {product.isOutOfStock || product.stock === 0
+                    ? (isRTL ? 'غير متوفر' : 'Out of Stock')
+                    : (product.isLaunch && product.isLaunchActive)
+                      ? 'Coming Soon'
+                      : (isRTL ? 'أضيفي للسلة' : 'Add to Cart')
                   }
                 </Button>
               </div>

@@ -57,6 +57,7 @@ interface Product {
   reviewCount?: number;
   isOnSale?: boolean;
   isLaunch?: boolean;
+  isOutOfStock?: boolean;
   stock: number;
   reference?: string;
   images: string[];
@@ -78,7 +79,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   const [quantity, setQuantity] = useState(1)
   const [showImageModal, setShowImageModal] = useState(false)
   const [timerCompleted, setTimerCompleted] = useState(false)
-  const isOrderable = !product.isLaunchActive || timerCompleted
+  const isOrderable = (!product.isLaunchActive || timerCompleted) && !product.isOutOfStock && product.stock > 0
 
   const addItem = useCartStore((state) => state.addItem)
   const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlistStore()
@@ -109,6 +110,11 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   }
 
   const handleAddToCart = () => {
+    if (product.isOutOfStock) {
+      toast.error(isRTL ? 'هذا المنتج غير متوفر' : 'This product is out of stock')
+      return
+    }
+    
     if (!selectedSize && product.sizes && product.sizes.length > 0) {
       toast.error(isRTL ? 'يرجى اختيار المقاس' : 'Please select a size')
       return
