@@ -175,7 +175,7 @@ router.post('/orders', async (req, res) => {
         total,
         notes: orderData.notes ? `[WHOLESALE] ${orderData.notes}` : '[WHOLESALE]',
         cityId: city.id,
-        callCenterStatus: 'nouveau', // Changed to nouveau per user request
+        callCenterStatus: 'NEW', // Must use the Prisma Enum value 'NEW' (which maps to nouveau in UI)
         deliveryDetails: {
           wilayaId: String(orderData.wilayaId),
           wilayaName: wilayaInfo.name,
@@ -195,7 +195,12 @@ router.post('/orders', async (req, res) => {
 
   } catch (error) {
     console.error('Create admin order error:', error);
-    res.status(500).json({ error: 'Failed to create wholesale order' });
+    require('fs').writeFileSync('wholesale-error.txt', JSON.stringify({
+      payload: req.body,
+      message: error.message,
+      stack: error.stack
+    }, null, 2));
+    res.status(500).json({ error: 'Failed to create wholesale order', details: error.message });
   }
 });
 
