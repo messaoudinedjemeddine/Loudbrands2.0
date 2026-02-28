@@ -1,3 +1,4 @@
 # Release phase: run Prisma migrations before new dynos go live (prevents crashes from missing columns/tables)
-release: npx prisma migrate deploy
+# Regenerate Prisma Client after migrations to ensure it includes all schema changes
+release: npx prisma migrate deploy && npx prisma generate
 web: node src/server.js
