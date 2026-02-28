@@ -283,6 +283,7 @@ router.get('/products', async (req, res) => {
         where,
         include: {
           category: true,
+          sizes: true, // Included sizes for the wholesale quantity modal
           images: {
             where: { isPrimary: true },
             take: 1
