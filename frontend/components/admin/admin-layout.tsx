@@ -59,6 +59,8 @@ const getNavigationByRole = (role: string) => {
     case 'CONFIRMATRICE':
       return [
         { name: 'Commandes', href: '/admin/orders', icon: ShoppingCart },
+        { name: 'Commandes Gros', href: '/admin/wholesale', icon: ShoppingCart },
+        { name: 'Liste Prix Gros', href: '/admin/wholesale-prices', icon: DollarSign },
         { name: 'Inventaire', href: '/admin/inventory', icon: Package },
       ]
     case 'AGENT_LIVRAISON':
