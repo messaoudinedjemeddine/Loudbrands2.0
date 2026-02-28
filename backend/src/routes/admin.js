@@ -419,6 +419,32 @@ router.post('/products', async (req, res) => {
   }
 });
 
+// Bulk update wholesale prices
+router.put('/products/wholesale-prices', async (req, res) => {
+  try {
+    const { updates } = req.body;
+
+    if (!Array.isArray(updates)) {
+      return res.status(400).json({ error: 'Valid updates array is required' });
+    }
+
+    // Process updates in a transaction for safety
+    const updatePromises = updates.map(update =>
+      prisma.product.update({
+        where: { id: update.id },
+        data: { wholesalePrice: update.wholesalePrice }
+      })
+    );
+
+    await prisma.$transaction(updatePromises);
+
+    res.json({ message: 'Wholesale prices updated successfully' });
+  } catch (error) {
+    console.error('Update wholesale prices error:', error);
+    res.status(500).json({ error: 'Failed to update wholesale prices' });
+  }
+});
+
 // Get single product by ID
 router.get('/products/:id', async (req, res) => {
   try {
