@@ -119,24 +119,24 @@ export default function AdminInventoryPage() {
     fetchProducts()
   }, [])
 
-  // Fetch products when page or filters change
+  // Fetch products when page changes, but only if not handled by handleSearch/filter change
   useEffect(() => {
     if (mounted) {
-      fetchProducts()
+      fetchProducts(page, searchQuery)
     }
-  }, [page, searchQuery, categoryFilter, stockFilter, statusFilter])
+  }, [page])
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (pageNum: number = page, search: string = searchQuery) => {
     try {
       setLoading(true)
 
       // Build query parameters
       const params: any = {
-        page,
+        page: pageNum,
         limit,
       }
 
-      if (searchQuery) params.search = searchQuery
+      if (search) params.search = search
       if (categoryFilter !== 'all') params.category = categoryFilter
       if (stockFilter !== 'all') params.stockFilter = stockFilter
       if (statusFilter !== 'all') params.status = statusFilter
@@ -172,10 +172,19 @@ export default function AdminInventoryPage() {
     }
   }
 
-  // Reset to page 1 when filters change
+  // Reset page when filters change
   useEffect(() => {
+    if (mounted && (categoryFilter !== 'all' || stockFilter !== 'all' || statusFilter !== 'all')) {
+      setPage(1)
+      fetchProducts(1, searchQuery)
+    }
+  }, [categoryFilter, stockFilter, statusFilter])
+
+  const handleSearch = () => {
+    setSearchQuery(inputValue)
     setPage(1)
-  }, [searchQuery, categoryFilter, stockFilter, statusFilter])
+    fetchProducts(1, inputValue)
+  }
 
   const exportToExcel = async () => {
     try {
@@ -496,7 +505,7 @@ export default function AdminInventoryPage() {
                   onChange={(e) => setInputValue(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      setSearchQuery(inputValue)
+                      handleSearch()
                     }
                   }}
                 />

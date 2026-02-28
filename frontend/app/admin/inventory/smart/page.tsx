@@ -605,10 +605,6 @@ function LabelsSection() {
 
     const filteredProducts = products.filter(p =>
         p != null && p != undefined
-    ).filter(p =>
-        !searchQuery ||
-        p?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p?.reference?.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
     return (
@@ -2138,7 +2134,7 @@ function HistoryTable({ data, title = "Historique", showFilters = true }: { data
     const handleExport = () => {
         const exportData = filteredData.map(item => ({
             Date: item.timestamp.toLocaleString(),
-            Type: item.type === 'in' ? 'Entrée' : 'Sortie',
+            Type: item.operationType === 'echange' ? 'Échange' : item.operationType === 'retour' ? 'Retour' : item.type === 'in' ? 'Entrée' : 'Sortie',
             Produit: item.productName,
             Reference: item.productReference,
             Taille: item.size || 'Accessoire',
@@ -2230,7 +2226,15 @@ function HistoryTable({ data, title = "Historique", showFilters = true }: { data
                                             {item.timestamp.toLocaleString()}
                                         </TableCell>
                                         <TableCell className="py-2">
-                                            {item.type === 'in' ? (
+                                            {item.operationType === 'echange' ? (
+                                                <Badge variant="outline" className="text-[10px] px-1 py-0 border-orange-200 text-orange-700 bg-orange-50">
+                                                    Échange
+                                                </Badge>
+                                            ) : item.operationType === 'retour' ? (
+                                                <Badge variant="outline" className="text-[10px] px-1 py-0 border-blue-200 text-blue-700 bg-blue-50">
+                                                    Retour
+                                                </Badge>
+                                            ) : item.type === 'in' ? (
                                                 <Badge variant="outline" className="text-[10px] px-1 py-0 border-green-200 text-green-700 bg-green-50">
                                                     Entrée
                                                 </Badge>

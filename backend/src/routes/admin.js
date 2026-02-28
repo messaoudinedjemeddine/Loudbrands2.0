@@ -175,7 +175,7 @@ router.post('/orders', async (req, res) => {
         total,
         notes: orderData.notes ? `[WHOLESALE] ${orderData.notes}` : '[WHOLESALE]',
         cityId: city.id,
-        callCenterStatus: 'CONFIRMED', // Wholesale orders are usually pre-confirmed
+        callCenterStatus: 'nouveau', // Changed to nouveau per user request
         deliveryDetails: {
           wilayaId: String(orderData.wilayaId),
           wilayaName: wilayaInfo.name,
@@ -332,6 +332,23 @@ router.post('/products', async (req, res) => {
       return res.status(400).json({ error: 'Brand not found' });
     }
 
+    // Parse the requested displayPriority
+    const requestedPriority = productData.displayPriority !== undefined && productData.displayPriority !== '' && productData.displayPriority !== null
+      ? parseInt(productData.displayPriority, 10)
+      : null;
+
+    // Shift existing priorities if a explicit priority is requested
+    if (requestedPriority !== null) {
+      await prisma.product.updateMany({
+        where: {
+          displayPriority: { gte: requestedPriority }
+        },
+        data: {
+          displayPriority: { increment: 1 }
+        }
+      });
+    }
+
     // First create the product
     const product = await prisma.product.create({
       data: {
@@ -348,7 +365,7 @@ router.post('/products', async (req, res) => {
         isActive: productData.isActive !== false,
         isLaunch: productData.isLaunch || false,
         launchAt: productData.launchAt ? new Date(productData.launchAt) : null,
-        displayPriority: productData.displayPriority !== undefined && productData.displayPriority !== '' && productData.displayPriority !== null ? parseInt(productData.displayPriority, 10) : null,
+        displayPriority: requestedPriority,
         brandId: productData.brandId,
         categoryId: productData.categoryId,
         slug: productData.slug
@@ -455,6 +472,83 @@ router.put('/products/:id', async (req, res) => {
     if (productData.categoryId !== undefined) updateData.categoryId = productData.categoryId;
     if (productData.slug !== undefined) updateData.slug = productData.slug;
     if (productData.displayPriority !== undefined) updateData.displayPriority = productData.displayPriority === '' || productData.displayPriority === null ? null : parseInt(productData.displayPriority, 10);
+
+    // Handle displayPriority auto-shifting logic
+    let shiftQueries = [];
+    const oldPriority = existingProduct.displayPriority;
+    const newPriority = updateData.displayPriority;
+
+    if (newPriority !== undefined && newPriority !== oldPriority) {
+      if (newPriority !== null) {
+        if (oldPriority === null) {
+          // Scenario A: Adding a new priority where there was none
+          shiftQueries.push(
+            prisma.product.updateMany({
+              where: {
+                id: { not: id },
+                displayPriority: { gte: newPriority }
+              },
+              data: {
+                displayPriority: { increment: 1 }
+              }
+            })
+          );
+        } else if (newPriority < oldPriority) {
+          // Scenario B: Moving UP in priority (e.g. 5 to 2) 
+          // Products at 2, 3, 4 shift down to 3, 4, 5
+          shiftQueries.push(
+            prisma.product.updateMany({
+              where: {
+                id: { not: id },
+                displayPriority: {
+                  gte: newPriority,
+                  lt: oldPriority
+                }
+              },
+              data: {
+                displayPriority: { increment: 1 }
+              }
+            })
+          );
+        } else if (newPriority > oldPriority) {
+          // Scenario C: Moving DOWN in priority (e.g. 2 to 5)
+          // Products at 3, 4, 5 shift up to 2, 3, 4
+          shiftQueries.push(
+            prisma.product.updateMany({
+              where: {
+                id: { not: id },
+                displayPriority: {
+                  gt: oldPriority,
+                  lte: newPriority
+                }
+              },
+              data: {
+                displayPriority: { decrement: 1 }
+              }
+            })
+          );
+        }
+      } else if (oldPriority !== null && newPriority === null) {
+        // Scenario D: Removing a priority (e.g. 3 to null)
+        // Products at 4, 5, etc. shift up by 1 block
+        shiftQueries.push(
+          prisma.product.updateMany({
+            where: {
+              id: { not: id },
+              displayPriority: { gt: oldPriority }
+            },
+            data: {
+              displayPriority: { decrement: 1 }
+            }
+          })
+        );
+      }
+    }
+
+    // Process shifts first if any
+    if (shiftQueries.length > 0) {
+      await prisma.$transaction(shiftQueries);
+    }
 
     // Update the product
     const product = await prisma.product.update({
