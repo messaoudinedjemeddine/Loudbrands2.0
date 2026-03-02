@@ -356,8 +356,8 @@ function LoudStylesProductsContent() {
                 />
                 {/* Out of Stock Overlay */}
                 {product.isOutOfStock && (
-                  <div className="absolute top-3 inset-x-3 sm:top-4 sm:inset-x-4 z-10 flex justify-center">
-                    <div className="bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full">
+                  <div className="absolute inset-0 z-10 flex items-center justify-center">
+                    <div className="bg-red-600/90 backdrop-blur-sm px-4 py-2 rounded-full">
                       <p className="text-white font-semibold text-sm sm:text-base">نفاذ الكمية</p>
                     </div>
                   </div>
