@@ -2994,24 +2994,41 @@ router.get('/analytics/comprehensive', async (req, res) => {
     confirmedOrders.forEach(order => {
       if (order.items && order.items.length > 0) {
         order.items.forEach(item => {
-          if (item.product) {
-            const productId = item.productId;
-            if (!productSales[productId]) {
-              productSales[productId] = {
-                productId,
-                name: item.product.name || 'Unknown Product',
-                nameAr: item.product.nameAr,
-                image: item.product.images?.[0]?.url || '/placeholder.svg',
-                quantity: 0,
-                revenue: 0,
-                orderCount: 0
-              };
+          try {
+            if (item.product && item.productId) {
+              const productId = item.productId;
+              if (!productSales[productId]) {
+                // Get image from product - check images array first, then direct image field
+                let productImage = '/placeholder.svg';
+                try {
+                  if (item.product.images && Array.isArray(item.product.images) && item.product.images.length > 0) {
+                    productImage = item.product.images[0].url || '/placeholder.svg';
+                  } else if (item.product.image) {
+                    productImage = item.product.image;
+                  }
+                } catch (imgError) {
+                  console.warn('Error accessing product image:', imgError);
+                }
+                
+                productSales[productId] = {
+                  productId,
+                  name: item.product.name || 'Unknown Product',
+                  nameAr: item.product.nameAr || null,
+                  image: productImage,
+                  quantity: 0,
+                  revenue: 0,
+                  orderCount: 0
+                };
+              }
+              const quantity = item.quantity || 0;
+              const itemPrice = item.price || 0;
+              productSales[productId].quantity += quantity;
+              productSales[productId].revenue += itemPrice * quantity;
+              productSales[productId].orderCount += 1;
             }
-            const quantity = item.quantity || 0;
-            const itemPrice = item.price || 0;
-            productSales[productId].quantity += quantity;
-            productSales[productId].revenue += itemPrice * quantity;
-            productSales[productId].orderCount += 1;
+          } catch (itemError) {
+            console.warn('Error processing order item:', itemError);
+            // Continue processing other items
           }
         });
       }
@@ -3042,7 +3059,12 @@ router.get('/analytics/comprehensive', async (req, res) => {
     });
   } catch (error) {
     console.error('Comprehensive analytics error:', error);
-    res.status(500).json({ error: 'Failed to fetch comprehensive analytics' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to fetch comprehensive analytics',
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -3126,7 +3148,12 @@ router.get('/analytics/time-series', async (req, res) => {
     res.json(timeSeriesData);
   } catch (error) {
     console.error('Time-series analytics error:', error);
-    res.status(500).json({ error: 'Failed to fetch time-series analytics' });
+    console.error('Error stack:', error.stack);
+    res.status(500).json({ 
+      error: 'Failed to fetch time-series analytics',
+      message: error.message,
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
