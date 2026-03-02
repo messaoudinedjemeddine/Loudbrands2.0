@@ -153,7 +153,7 @@ export default function AdminInventoryPage() {
       const statsResponse = await api.admin.getInventory({ limit: 10000 }) as { products: Product[] }
       const allProducts = statsResponse.products || []
 
-      // Calculate stats using totalStock from backend (already calculated correctly)
+      // Calculate stats using only main stock (product.stock), not sizes
       let totalStock = 0
       let totalValueRetail = 0
       let totalValueCost = 0
@@ -161,19 +161,19 @@ export default function AdminInventoryPage() {
       let outOfStockProducts = 0
 
       allProducts.forEach(product => {
-        // Use totalStock from backend (already includes main stock + sizes)
-        const productTotalStock = product.totalStock || 0
+        // Use only main stock (product.stock), not sizes
+        const productMainStock = product.stock || 0
 
-        totalStock += productTotalStock
+        totalStock += productMainStock
         const price = product.price || 0
         const cost = product.costPrice || 0
 
-        totalValueRetail += price * productTotalStock
-        totalValueCost += cost * productTotalStock
+        totalValueRetail += price * productMainStock
+        totalValueCost += cost * productMainStock
 
-        if (productTotalStock === 0) {
+        if (productMainStock === 0) {
           outOfStockProducts += 1
-        } else if (productTotalStock <= 5) {
+        } else if (productMainStock <= 5) {
           lowStockProducts += 1
         }
       })

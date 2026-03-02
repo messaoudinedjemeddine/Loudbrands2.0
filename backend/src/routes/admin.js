@@ -803,7 +803,8 @@ router.get('/orders/export', async (req, res) => {
         'Delivery Fee (DA)': order.deliveryFee.toLocaleString(),
         'Total (DA)': order.total.toLocaleString(),
         'Items': items,
-        'Notes': order.notes || ''
+        'Notes': order.notes || '',
+        'Yalidine Tracking': order.trackingNumber || ''
       };
     });
 
