@@ -526,9 +526,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                   
                   {/* Out of Stock Overlay */}
                   {product.isOutOfStock && (
-                    <div className="absolute inset-0 bg-gray-500/80 flex items-center justify-center z-10">
-                      <div className="bg-gray-600/90 px-6 py-3 rounded-lg">
-                        <p className="text-white font-semibold text-lg">نفاذ الكمية</p>
+                    <div className="absolute top-3 inset-x-3 sm:top-4 sm:inset-x-4 z-10 flex justify-center">
+                      <div className="bg-black/60 backdrop-blur-sm px-4 py-2 rounded-full">
+                        <p className="text-white font-semibold text-sm sm:text-base">نفاذ الكمية</p>
                       </div>
                     </div>
                   )}

@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Search, Save, DollarSign } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '@/lib/api'
+import { useAuthStore } from '@/lib/store'
 import Image from 'next/image'
 
 interface Product {
@@ -26,6 +27,9 @@ export default function WholesalePricesPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [loading, setLoading] = useState(false)
     const [changes, setChanges] = useState<Map<string, number | null>>(new Map())
+    const { user } = useAuthStore()
+
+    const isConfirmatrice = user?.role === 'CONFIRMATRICE'
 
     useEffect(() => {
         loadProducts()
@@ -84,12 +88,18 @@ export default function WholesalePricesPage() {
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-3xl font-bold">Liste Prix Gros</h1>
-                        <p className="text-muted-foreground">Gérer les prix de gros pour tous les produits</p>
+                        <p className="text-muted-foreground">
+                            {isConfirmatrice
+                                ? 'Consulter les prix de gros pour tous les produits'
+                                : 'Gérer les prix de gros pour tous les produits'}
+                        </p>
                     </div>
-                    <Button onClick={handleSave} disabled={loading || changes.size === 0} size="lg">
-                        <Save className="w-4 h-4 mr-2" />
-                        Enregistrer {changes.size > 0 && `(${changes.size})`}
-                    </Button>
+                    {!isConfirmatrice && (
+                        <Button onClick={handleSave} disabled={loading || changes.size === 0} size="lg">
+                            <Save className="w-4 h-4 mr-2" />
+                            Enregistrer {changes.size > 0 && `(${changes.size})`}
+                        </Button>
+                    )}
                 </div>
 
                 <Card>
@@ -142,16 +152,22 @@ export default function WholesalePricesPage() {
                                                 {product.price.toLocaleString()} DA
                                             </TableCell>
                                             <TableCell>
-                                                <div className="flex items-center gap-2">
-                                                    <Input
-                                                        type="number"
-                                                        className="w-32"
-                                                        placeholder="Prix gros"
-                                                        value={currentValue ?? ''}
-                                                        onChange={e => handlePriceChange(product.id, e.target.value)}
-                                                    />
-                                                    <span className="text-sm text-muted-foreground">DA</span>
-                                                </div>
+                                                {isConfirmatrice ? (
+                                                    <span className="font-semibold">
+                                                        {currentValue != null ? `${currentValue.toLocaleString()} DA` : '-'}
+                                                    </span>
+                                                ) : (
+                                                    <div className="flex items-center gap-2">
+                                                        <Input
+                                                            type="number"
+                                                            className="w-32"
+                                                            placeholder="Prix gros"
+                                                            value={currentValue ?? ''}
+                                                            onChange={e => handlePriceChange(product.id, e.target.value)}
+                                                        />
+                                                        <span className="text-sm text-muted-foreground">DA</span>
+                                                    </div>
+                                                )}
                                             </TableCell>
                                             <TableCell>
                                                 <span className={product.stock > 0 ? 'text-green-600' : 'text-red-600'}>

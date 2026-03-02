@@ -831,12 +831,15 @@ router.get('/orders/export', async (req, res) => {
       .map(row => row.map(cell => `"${cell}"`).join(','))
       .join('\n');
 
+    // Add UTF-8 BOM for proper Excel encoding (especially for Arabic characters)
+    const csvWithBOM = '\uFEFF' + csvContent;
+
     // Set response headers for CSV download
-    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="orders-${new Date().toISOString().split('T')[0]}.csv"`);
     res.setHeader('Cache-Control', 'no-cache');
 
-    res.send(csvContent);
+    res.send(csvWithBOM);
   } catch (error) {
     console.error('Export orders error:', error);
     res.status(500).json({ error: 'Failed to export orders' });

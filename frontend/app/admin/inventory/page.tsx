@@ -83,7 +83,8 @@ interface InventoryStats {
   totalProducts: number
   lowStockProducts: number
   outOfStockProducts: number
-  totalValue: number
+  totalValueRetail: number
+  totalValueCost: number
   totalStock: number
 }
 
@@ -105,7 +106,8 @@ export default function AdminInventoryPage() {
     totalProducts: 0,
     lowStockProducts: 0,
     outOfStockProducts: 0,
-    totalValue: 0,
+    totalValueRetail: 0,
+    totalValueCost: 0,
     totalStock: 0
   })
 
@@ -148,20 +150,40 @@ export default function AdminInventoryPage() {
       setTotalProducts(response.pagination?.total || productsList.length)
 
       // Fetch stats separately (all products for accurate stats)
-      const statsResponse = await api.admin.getInventory() as { products: Product[] }
+      const statsResponse = await api.admin.getInventory({ limit: 10000 }) as { products: Product[] }
       const allProducts = statsResponse.products || []
 
-      // Calculate stats based on stock principal (product.stock)
-      const totalValue = allProducts.reduce((sum, product) => sum + (product.price * product.stock), 0)
-      const lowStockProducts = allProducts.filter(p => p.stock <= 5 && p.stock > 0).length
-      const outOfStockProducts = allProducts.filter(p => p.stock === 0).length
-      const totalStock = allProducts.reduce((sum, product) => sum + product.stock, 0)
+      // Calculate stats using total stock (main stock + sizes)
+      let totalStock = 0
+      let totalValueRetail = 0
+      let totalValueCost = 0
+      let lowStockProducts = 0
+      let outOfStockProducts = 0
+
+      allProducts.forEach(product => {
+        const sizesTotal = (product.sizes || []).reduce((sum, size) => sum + (size.stock || 0), 0)
+        const productTotalStock = (product.stock || 0) + sizesTotal
+
+        totalStock += productTotalStock
+        const price = product.price || 0
+        const cost = product.costPrice || 0
+
+        totalValueRetail += price * productTotalStock
+        totalValueCost += cost * productTotalStock
+
+        if (productTotalStock === 0) {
+          outOfStockProducts += 1
+        } else if (productTotalStock <= 5) {
+          lowStockProducts += 1
+        }
+      })
 
       setStats({
         totalProducts: allProducts.length,
         lowStockProducts,
         outOfStockProducts,
-        totalValue,
+        totalValueRetail,
+        totalValueCost,
         totalStock
       })
     } catch (error) {
@@ -467,26 +489,49 @@ export default function AdminInventoryPage() {
           </motion.div>
 
           {!shouldHidePriceInfo && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 }}
-            >
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between pb-2">
-                  <CardTitle className="text-sm font-medium">Total Value</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-green-500" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-green-600">
-                    {stats.totalValue.toLocaleString()} DA
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Inventory value
-                  </p>
-                </CardContent>
-              </Card>
-            </motion.div>
+            <>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Valeur Stock (Prix d'Achat)</CardTitle>
+                    <TrendingDown className="h-4 w-4 text-red-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-red-600">
+                      {stats.totalValueCost.toLocaleString()} DA
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Valeur totale du stock au prix d&apos;achat
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
+              >
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between pb-2">
+                    <CardTitle className="text-sm font-medium">Valeur Stock (Prix de Vente)</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-green-500" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">
+                      {stats.totalValueRetail.toLocaleString()} DA
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Valeur totale du stock au prix de vente
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </>
           )}
         </div>
 
