@@ -43,7 +43,7 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: 'LOUD BRANDS - Traditional Modern Fashion',
+  title: 'Loudy Collection - Traditional Modern Fashion',
   description: 'Discover our exquisite collection of traditional Algerian fashion designed for the modern woman. Free delivery across Algeria.',
   keywords: 'Algerian fashion, traditional clothing, modern fashion, women clothing, Algeria, traditional dress',
   authors: [{ name: 'LOUD BRANDS' }],
@@ -59,7 +59,7 @@ export const metadata: Metadata = {
     canonical: '/',
   },
   openGraph: {
-    title: 'LOUD BRANDS - Traditional Modern Fashion',
+    title: 'Loudy Collection - Traditional Modern Fashion',
     description: 'Discover our exquisite collection of traditional Algerian fashion designed for the modern woman.',
     url: 'https://algerian-elegance.com',
     siteName: 'LOUD BRANDS',
@@ -76,7 +76,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'LOUD BRANDS - Traditional Modern Fashion',
+    title: 'Loudy Collection - Traditional Modern Fashion',
     description: 'Discover our exquisite collection of traditional Algerian fashion designed for the modern woman.',
     images: ['/logos/logo-light.png'],
   },
@@ -196,7 +196,7 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/logo-mini.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="apple-mobile-web-app-title" content="LOUD BRANDS" />
+        <meta name="apple-mobile-web-app-title" content="Loudy Collection" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#C4A47C" />
         {/* Meta Pixel Domain Verification - Add your verification code from Meta Business Suite if needed */}

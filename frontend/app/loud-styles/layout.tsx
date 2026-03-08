@@ -1,7 +1,7 @@
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'LOUD STYLES - Traditional Algerian Fashion',
+  title: 'Loudy Collection - Traditional Algerian Fashion',
   description: 'Discover our exquisite collection of traditional Algerian fashion designed for the modern woman.',
 }
 
