@@ -74,7 +74,7 @@ interface Product {
   isOutOfStock?: boolean;
   stock: number;
   reference?: string;
-  images: string[];
+  images: any[];
   image?: string;
   sizes: Array<{ id: string; size: string; stock: number }>;
   slug?: string;
@@ -621,7 +621,7 @@ export default function LuxuryProductDetail({ product: initialProduct }: LuxuryP
                   }}
                 >
                   <img
-                    src={(product.images[currentImageIndex] || '').trim() ? (product.images[currentImageIndex] || '').trim().replace(/ /g, '%20') : '/placeholder.svg'}
+                    src={(() => { const img = product.images[currentImageIndex]; const url = typeof img === 'string' ? img : (img?.url || img?.src || ''); return url && url.trim() !== '' ? url.trim().replace(/ /g, '%20') : '/placeholder.svg'; })()}
                     alt={isRTL ? product.nameAr || product.name : product.name}
                     className={`w-full h-full object-contain transition-transform duration-300 group-hover:scale-105 ${product.isOutOfStock ? 'opacity-50' : ''}`}
                     loading={currentImageIndex === 0 ? 'eager' : 'lazy'}
@@ -695,7 +695,7 @@ export default function LuxuryProductDetail({ product: initialProduct }: LuxuryP
                           style={{ willChange: 'transform' }}
                         >
                           <img
-                            src={(image || '').trim() ? (image || '').trim().replace(/ /g, '%20') : '/placeholder.svg'}
+                            src={(() => { const img = image; const url = typeof img === 'string' ? img : (img?.url || img?.src || ''); return url && url.trim() !== '' ? url.trim().replace(/ /g, '%20') : '/placeholder.svg'; })()}
                             alt={`${isRTL ? product.nameAr || product.name : product.name} - Image ${index + 1}`}
                             className="w-full h-full object-contain"
                             loading="lazy"
@@ -818,12 +818,16 @@ export default function LuxuryProductDetail({ product: initialProduct }: LuxuryP
                           if (!variant.isCurrent) {
                             e.preventDefault();
                             window.history.pushState({}, '', `/loud-styles/products/${variant.slug}?brand=loud-styles`);
-                            // Ensure the fullProduct has a valid images array
+                            // Normalize images to string array
+                            const rawImages = variant.fullProduct.images && variant.fullProduct.images.length > 0
+                              ? variant.fullProduct.images
+                              : (variant.fullProduct.image ? [variant.fullProduct.image] : ['/placeholder.svg']);
+                            const normalizedImages = rawImages.map((img: any) =>
+                              typeof img === 'string' ? img : (img?.url || img?.src || '/placeholder.svg')
+                            );
                             const safeProduct = {
                               ...variant.fullProduct,
-                              images: variant.fullProduct.images && variant.fullProduct.images.length > 0
-                                ? variant.fullProduct.images
-                                : (variant.fullProduct.image ? [variant.fullProduct.image] : ['/placeholder.svg'])
+                              images: normalizedImages
                             };
                             setProduct(safeProduct);
                             setCurrentImageIndex(0);
