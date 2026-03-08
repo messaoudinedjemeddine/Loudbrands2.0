@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 
+// Force dynamic rendering to prevent "DYNAMIC_SERVER_USAGE" build errors
+export const dynamic = 'force-dynamic'
+
 // Cache products for 15 seconds so primary picture updates show quickly (ISR)
 export const revalidate = 15
 
@@ -37,10 +40,10 @@ export async function GET(request: NextRequest) {
 
       const data = await response.json()
       const result = NextResponse.json(data)
-      
+
       // Prevent browser from caching so first load always gets full product list (avoids "stuck at 7" from stale cache)
       result.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
-      
+
       return result
     } catch (fetchError: any) {
       clearTimeout(timeoutId)
