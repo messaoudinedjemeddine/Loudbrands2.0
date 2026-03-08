@@ -59,7 +59,6 @@ export function LoudStylesNavbar() {
 
   // Loud Styles specific navigation
   const navigation = [
-    { name: isRTL ? 'الرئيسية' : 'Home', href: '/' },
     { name: isRTL ? 'المنتجات' : 'Products', href: '/loud-styles/products' },
     { name: isRTL ? 'الفئات' : 'Categories', href: '/loud-styles/categories' },
   ]
@@ -110,8 +109,8 @@ export function LoudStylesNavbar() {
         animate={{ y: 0 }}
         transition={{ duration: 0.5, ease: [0.25, 0.46, 0.45, 0.94] }}
         className={`w-full z-50 transition-all duration-300 h-16 ${isScrolled || needsVisibleNavbar || needsVisibleNavbar
-            ? 'bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-200 dark:bg-gray-900/95 dark:border-gray-700'
-            : 'bg-transparent'
+          ? 'bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-200 dark:bg-gray-900/95 dark:border-gray-700'
+          : 'bg-transparent'
           }`}
         dir={isRTL ? 'rtl' : 'ltr'}
       >
@@ -119,7 +118,7 @@ export function LoudStylesNavbar() {
           <div className={`flex items-center justify-between h-16 ${isRTL ? 'flex-row-reverse' : ''}`}>
             {/* Logo Section */}
             <div className="flex-shrink-0">
-              <Link href="/loud-styles" className="flex items-center group">
+              <Link href="/loud-styles/products" className="flex items-center group">
                 <motion.div
                   className="transition-transform duration-300 group-hover:scale-105"
                   whileHover={{ scale: 1.05 }}
@@ -174,8 +173,8 @@ export function LoudStylesNavbar() {
                 size="sm"
                 onClick={() => setIsSearchOpen(true)}
                 className={`relative p-2 rounded-lg transition-all duration-300 hover:scale-105 ${isScrolled || needsVisibleNavbar
-                    ? 'text-gray-800 dark:text-gray-300 hover:text-primary hover:bg-primary/10'
-                    : 'text-white hover:text-primary hover:bg-primary/20'
+                  ? 'text-gray-800 dark:text-gray-300 hover:text-primary hover:bg-primary/10'
+                  : 'text-white hover:text-primary hover:bg-primary/20'
                   }`}
               >
                 <Search className="w-5 h-5" />
@@ -187,8 +186,8 @@ export function LoudStylesNavbar() {
                 size="sm"
                 onClick={toggleTheme}
                 className={`p-2 rounded-lg transition-all duration-300 hover:scale-105 ${isScrolled || needsVisibleNavbar
-                    ? 'text-gray-800 dark:text-gray-300 hover:text-primary hover:bg-primary/10'
-                    : 'text-white hover:text-primary hover:bg-primary/20'
+                  ? 'text-gray-800 dark:text-gray-300 hover:text-primary hover:bg-primary/10'
+                  : 'text-white hover:text-primary hover:bg-primary/20'
                   }`}
               >
                 {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
@@ -204,8 +203,8 @@ export function LoudStylesNavbar() {
                 size="sm"
                 asChild
                 className={`p-2 rounded-lg transition-all duration-300 hover:scale-105 ${isScrolled || needsVisibleNavbar
-                    ? 'text-gray-800 dark:text-gray-300 hover:text-primary hover:bg-primary/10'
-                    : 'text-white hover:text-primary hover:bg-primary/20'
+                  ? 'text-gray-800 dark:text-gray-300 hover:text-primary hover:bg-primary/10'
+                  : 'text-white hover:text-primary hover:bg-primary/20'
                   }`}
               >
                 <Link href="/admin/login" aria-label="Admin Login">
@@ -218,8 +217,8 @@ export function LoudStylesNavbar() {
                 variant="ghost"
                 size="sm"
                 className={`relative p-2 rounded-lg transition-all duration-300 hover:scale-105 ${isScrolled || needsVisibleNavbar
-                    ? 'text-gray-800 dark:text-gray-300 hover:text-primary hover:bg-primary/10'
-                    : 'text-white hover:text-primary hover:bg-primary/20'
+                  ? 'text-gray-800 dark:text-gray-300 hover:text-primary hover:bg-primary/10'
+                  : 'text-white hover:text-primary hover:bg-primary/20'
                   }`}
                 onClick={() => router.push('/wishlist')}
               >
@@ -236,8 +235,8 @@ export function LoudStylesNavbar() {
                 variant="ghost"
                 size="sm"
                 className={`relative p-2 rounded-lg transition-all duration-300 hover:scale-105 ${isScrolled || needsVisibleNavbar
-                    ? 'text-gray-800 dark:text-gray-300 hover:text-primary hover:bg-primary/10'
-                    : 'text-white hover:text-primary hover:bg-primary/20'
+                  ? 'text-gray-800 dark:text-gray-300 hover:text-primary hover:bg-primary/10'
+                  : 'text-white hover:text-primary hover:bg-primary/20'
                   }`}
                 onClick={() => setCartOpen(true)}
               >
@@ -256,8 +255,8 @@ export function LoudStylesNavbar() {
                     variant="ghost"
                     size="sm"
                     className={`lg:hidden p-2 rounded-lg transition-all duration-300 hover:scale-105 ${isScrolled || needsVisibleNavbar
-                        ? 'text-gray-800 dark:text-gray-300 hover:text-primary hover:bg-primary/10'
-                        : 'text-white hover:text-primary hover:bg-primary/20'
+                      ? 'text-gray-800 dark:text-gray-300 hover:text-primary hover:bg-primary/10'
+                      : 'text-white hover:text-primary hover:bg-primary/20'
                       }`}
                   >
                     <Menu className="w-5 h-5" />
@@ -267,7 +266,7 @@ export function LoudStylesNavbar() {
                   <div className="flex flex-col h-full">
                     {/* Mobile Menu Header */}
                     <div className="flex items-center justify-between mb-6">
-                      <Link href="/loud-styles" className="flex items-center space-x-2">
+                      <Link href="/loud-styles/products" className="flex items-center space-x-2">
                         <div className="flex flex-col" dir="ltr">
                           <span className="text-lg font-bold text-gray-800">{logoText}</span>
                           <span className="text-xs font-medium text-gray-600 -mt-1">{logoSubtext}</span>
@@ -292,8 +291,8 @@ export function LoudStylesNavbar() {
                             href={item.href}
                             onClick={() => setIsMenuOpen(false)}
                             className={`block px-4 py-3 rounded-lg transition-colors ${pathname === item.href
-                                ? 'text-gray-900 bg-gray-200/50'
-                                : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200/30'
+                              ? 'text-gray-900 bg-gray-200/50'
+                              : 'text-gray-700 hover:text-gray-900 hover:bg-gray-200/30'
                               }`}
                           >
                             {item.name}

@@ -145,27 +145,122 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
     }
   }, [product?.sizes, selectedSize, isAccessoires, isShoes])
 
-  // Fetch color variants for Victoria Dress
+  // Fetch true color variants dynamically
   useEffect(() => {
-    const isVictoriaDress = product?.slug?.includes('victoria-dress')
+    if (!product?.name || !mounted) return;
 
-    if (isVictoriaDress && mounted && product?.slug) {
-      const currentColor = product.slug.includes('black') ? 'black' : product.slug.includes('red') ? 'red' : null
+    const fetchSiblingProducts = async () => {
+      try {
+        const colorKeywords = [
+          'Noir', 'Bleu', 'Blanc', 'Rose', 'Rouge', 'Vert', 'Beige', 'Bordeaux',
+          'Gris', 'Marron', 'Fayrouzi', 'Aubergine', 'Pistache', 'Orange',
+          'Bleu Roi', 'Royal Blue', 'Bleu Nuit', 'Bleu Fayrouz', 'Bleu Turquoise',
+          'Vert Olive', 'Vert D\'Eau', 'Vert Kaki', 'Vert Émreraude', 'Vert Bouteille',
+          'Blanc Casse', 'Rouge Brique'
+        ];
 
-      // Define color variants for Victoria Dress
-      const variants = [
-        { slug: 'victoria-dress-black', color: 'black', name: 'أسود', nameEn: 'Black', hexColor: '#000000' },
-        { slug: 'victoria-dress-red', color: 'red', name: 'بوردو', nameEn: 'Bordeaux', hexColor: '#722F37' }
-      ].map(variant => ({
-        ...variant,
-        isCurrent: variant.slug === product.slug
-      }))
+        const colorHexMap: Record<string, string> = {
+          'Noir': '#000000',
+          'Black': '#000000',
+          'Bleu': '#0000FF',
+          'Blue': '#0000FF',
+          'Blanc': '#FFFFFF',
+          'Blanc Casse': '#FDFBF7',
+          'White': '#FFFFFF',
+          'Rose': '#FFC0CB',
+          'Rouge': '#FF0000',
+          'Red': '#FF0000',
+          'Rouge Brique': '#CB4154',
+          'Vert': '#008000',
+          'Beige': '#F5F5DC',
+          'Bordeaux': '#800000',
+          'Gris': '#808080',
+          'Marron': '#A52A2A',
+          'Fayrouzi': '#40E0D0',
+          'Aubergine': '#4A0E4E',
+          'Pistache': '#93C572',
+          'Orange': '#FFA500',
+          'Bleu Roi': '#4169E1',
+          'Royal Blue': '#4169E1',
+          'Bleu Nuit': '#191970',
+          'Bleu Fayrouz': '#00CED1',
+          'Bleu Turquoise': '#40E0D0',
+          'Vert Olive': '#808000',
+          'Vert D\'Eau': '#B0E0E6',
+          'Vert Kaki': '#C3B091',
+          'Vert Émreraude': '#50C878',
+          'Vert Bouteille': '#006A4E',
+        };
 
-      setColorVariants(variants)
-    } else {
-      setColorVariants([])
-    }
-  }, [product?.slug, mounted])
+        const extractColorFromName = (name: string): string | null => {
+          if (!name) return null;
+          for (const color of colorKeywords) {
+            const regex = new RegExp(`\\s+${color}$`, 'i');
+            if (regex.test(name)) {
+              return color;
+            }
+          }
+          return null;
+        };
+
+        const extractBaseName = (name: string): string => {
+          if (!name) return '';
+          let baseName = name;
+          for (const color of colorKeywords) {
+            const regex = new RegExp(`\\s+${color}$`, 'i');
+            if (regex.test(baseName)) {
+              baseName = baseName.replace(regex, '').trim();
+              break;
+            }
+          }
+          return baseName;
+        };
+
+        const baseName = extractBaseName(product.name);
+
+        // If no color suffix is found, return early
+        if (baseName === product.name) {
+          setColorVariants([]);
+          return;
+        }
+
+        // Fetch enough products to find siblings
+        const res = await fetch('/api/products?brand=loud-styles&limit=500', { cache: 'no-store' });
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const allProducts: Product[] = Array.isArray(data) ? data : (data.products || []);
+
+        const siblings = allProducts.filter(p => p.name && extractBaseName(p.name) === baseName);
+
+        if (siblings.length <= 1) {
+          setColorVariants([]);
+          return;
+        }
+
+        // Sort siblings alphabetically by color for a stable UI
+        const sortedSiblings = siblings.sort((a, b) => a.name.localeCompare(b.name));
+
+        const variants = sortedSiblings.map(sibling => {
+          const colorName = extractColorFromName(sibling.name) || 'Default';
+          return {
+            slug: sibling.slug || sibling.name.toLowerCase().replace(/\s+/g, '-'),
+            color: colorName.toLowerCase(),
+            name: colorName, // Use the Arabic translation dictionary here if you add one later
+            nameEn: colorName,
+            hexColor: colorHexMap[colorName] || '#CCCCCC',
+            isCurrent: sibling.id === product.id
+          };
+        });
+
+        setColorVariants(variants);
+      } catch (err) {
+        console.error("Failed to fetch sibling products for color variants:", err);
+      }
+    };
+
+    fetchSiblingProducts();
+  }, [product?.name, product?.id, mounted]);
 
   // Fetch related accessories for yennayer-dress
   useEffect(() => {
@@ -284,7 +379,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
       toast.error(isRTL ? 'هذا المنتج غير متوفر' : 'This product is out of stock')
       return
     }
-    
+
     // Check if product is in launch mode and countdown hasn't finished
     if (!isOrderable) {
       toast.error(isRTL ? 'يرجى الانتظار حتى انتهاء العد التنازلي' : 'Please wait for the countdown to finish')
@@ -523,7 +618,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       target.src = '/placeholder.svg'
                     }}
                   />
-                  
+
                   {/* Out of Stock Overlay */}
                   {product.isOutOfStock && (
                     <div className="absolute top-3 inset-x-3 sm:top-4 sm:inset-x-4 z-10 flex justify-center">
@@ -722,7 +817,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                         >
                           {variant.isCurrent && (
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <Check className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                              <Check className="w-5 h-5 sm:w-6 sm:h-6" style={{ color: variant.hexColor === '#FFFFFF' || variant.hexColor === '#FDFBF7' || variant.hexColor === '#F5F5DC' ? '#000000' : '#FFFFFF' }} />
                             </div>
                           )}
                         </div>
