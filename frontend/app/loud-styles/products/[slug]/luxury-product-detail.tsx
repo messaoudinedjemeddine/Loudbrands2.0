@@ -75,6 +75,7 @@ interface Product {
   stock: number;
   reference?: string;
   images: string[];
+  image?: string;
   sizes: Array<{ id: string; size: string; stock: number }>;
   slug?: string;
   launchAt?: string;
@@ -817,7 +818,14 @@ export default function LuxuryProductDetail({ product: initialProduct }: LuxuryP
                           if (!variant.isCurrent) {
                             e.preventDefault();
                             window.history.pushState({}, '', `/loud-styles/products/${variant.slug}?brand=loud-styles`);
-                            setProduct(variant.fullProduct);
+                            // Ensure the fullProduct has a valid images array
+                            const safeProduct = {
+                              ...variant.fullProduct,
+                              images: variant.fullProduct.images && variant.fullProduct.images.length > 0
+                                ? variant.fullProduct.images
+                                : (variant.fullProduct.image ? [variant.fullProduct.image] : ['/placeholder.svg'])
+                            };
+                            setProduct(safeProduct);
                             setCurrentImageIndex(0);
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                           }
