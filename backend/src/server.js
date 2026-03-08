@@ -22,19 +22,6 @@ const PORT = process.env.PORT || 5000;
 // Trust proxy for Heroku
 app.set('trust proxy', 1);
 
-// Static files with CORS headers (before other middleware)
-app.use('/uploads', (req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-  res.header('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
-  next();
-}, express.static('uploads', {
-  maxAge: '1y',
-  etag: true,
-  lastModified: true
-}));
-
 // CORS configuration for production and development
 const allowedOrigins = [
   process.env.FRONTEND_URL, // Production Vercel URL
@@ -47,7 +34,7 @@ const allowedOrigins = [
   'http://127.0.0.1:3000' // Development
 ].filter(Boolean); // Remove undefined values
 
-// Explicit preflight handler so OPTIONS always gets CORS headers (fixes Heroku/preflight issues)
+// FIRST: explicit preflight so OPTIONS from loudycollection.com always get CORS headers
 const loudycollectionOrigins = ['https://loudycollection.com', 'https://www.loudycollection.com'];
 app.use((req, res, next) => {
   const origin = req.get('Origin');
@@ -60,6 +47,19 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// Static files with CORS headers (before other middleware)
+app.use('/uploads', (req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
+  res.header('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+  next();
+}, express.static('uploads', {
+  maxAge: '1y',
+  etag: true,
+  lastModified: true
+}));
 
 // CORS configuration
 const corsOptions = {
