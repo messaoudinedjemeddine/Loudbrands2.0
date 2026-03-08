@@ -22,6 +22,32 @@ const PORT = process.env.PORT || 5000;
 // Trust proxy for Heroku
 app.set('trust proxy', 1);
 
+// CORS configuration for production and development
+const allowedOrigins = [
+  process.env.FRONTEND_URL, // Production Vercel URL
+  process.env.CORS_ADDITIONAL_ORIGIN, // Extra origin (e.g. Heroku frontend URL)
+  'https://loudbrandss.com', // Production domain
+  'https://www.loudbrandss.com', // Production domain with www
+  'https://loudycollection.com', // Loudy Collection
+  'https://www.loudycollection.com', // Loudy Collection with www
+  'http://localhost:3000', // Development
+  'http://127.0.0.1:3000' // Development
+].filter(Boolean); // Remove undefined values
+
+// FIRST: explicit preflight so OPTIONS from loudycollection.com always get CORS headers
+const loudycollectionOrigins = ['https://loudycollection.com', 'https://www.loudycollection.com'];
+app.use((req, res, next) => {
+  const origin = req.get('Origin');
+  if (req.method === 'OPTIONS' && origin && (allowedOrigins.includes(origin) || loudycollectionOrigins.includes(origin) || origin.includes('loudycollection.com'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    return res.status(204).end();
+  }
+  next();
+});
+
 // Static files with CORS headers (before other middleware)
 app.use('/uploads', (req, res, next) => {
   res.header('Access-Control-Allow-Origin', '*');
@@ -35,15 +61,6 @@ app.use('/uploads', (req, res, next) => {
   lastModified: true
 }));
 
-// CORS configuration for production and development
-const allowedOrigins = [
-  process.env.FRONTEND_URL, // Production Vercel URL
-  'https://loudbrandss.com', // Production domain
-  'https://www.loudbrandss.com', // Production domain with www
-  'http://localhost:3000', // Development
-  'http://127.0.0.1:3000' // Development
-].filter(Boolean); // Remove undefined values
-
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
@@ -53,6 +70,7 @@ const corsOptions = {
     // Check if origin matches allowed domains or includes trusted substrings
     const isAllowed = allowedOrigins.includes(origin) ||
       origin.includes('loudbrandss.com') ||
+      origin.includes('loudycollection.com') ||
       origin.includes('loudbrands-backend') ||
       origin.includes('vercel.app') ||
       origin.includes('netlify.app') ||
