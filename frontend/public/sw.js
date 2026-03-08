@@ -1,6 +1,6 @@
 // Service Worker for caching and offline support
-const CACHE_NAME = 'loud-brands-v2';
-const RUNTIME_CACHE = 'loud-brands-runtime-v2';
+const CACHE_NAME = 'loud-brands-v3';
+const RUNTIME_CACHE = 'loud-brands-runtime-v3';
 
 // Assets to cache immediately on install
 const STATIC_ASSETS = [
@@ -100,13 +100,13 @@ self.addEventListener('fetch', (event) => {
         if (cachedResponse) {
           return cachedResponse;
         }
-        
+
         return fetch(request).then((response) => {
           // Don't cache if not successful or if partial response (206)
           if (!response || response.status !== 200 || response.status === 206) {
             return response;
           }
-          
+
           const responseToCache = response.clone();
           caches.open(CACHE_NAME).then((cache) => {
             cache.put(request, responseToCache).catch((err) => {
@@ -114,7 +114,7 @@ self.addEventListener('fetch', (event) => {
               console.warn('Cache put failed:', err);
             });
           });
-          
+
           return response;
         });
       })
@@ -151,57 +151,57 @@ self.addEventListener('fetch', (event) => {
 
 // Push notification handler
 self.addEventListener('push', function (event) {
-    if (event.data) {
-        const data = event.data.json();
-        const options = {
-            body: data.body,
-            icon: '/logo-mini.png',
-            badge: '/logo-mini.png',
-            vibrate: [100, 50, 100],
-            data: {
-                dateOfArrival: Date.now(),
-                primaryKey: '2',
-                url: data.url || '/'
-            },
-            actions: [
-                {
-                    action: 'explore',
-                    title: 'View Order'
-                },
-                {
-                    action: 'close',
-                    title: 'Close'
-                },
-            ]
-        };
-        event.waitUntil(
-            self.registration.showNotification(data.title, options)
-        );
-    }
+  if (event.data) {
+    const data = event.data.json();
+    const options = {
+      body: data.body,
+      icon: '/logo-mini.png',
+      badge: '/logo-mini.png',
+      vibrate: [100, 50, 100],
+      data: {
+        dateOfArrival: Date.now(),
+        primaryKey: '2',
+        url: data.url || '/'
+      },
+      actions: [
+        {
+          action: 'explore',
+          title: 'View Order'
+        },
+        {
+          action: 'close',
+          title: 'Close'
+        },
+      ]
+    };
+    event.waitUntil(
+      self.registration.showNotification(data.title, options)
+    );
+  }
 });
 
 // Notification click handler
 self.addEventListener('notificationclick', function (event) {
-    event.notification.close();
+  event.notification.close();
 
-    if (event.action === 'close') {
-        return;
-    }
+  if (event.action === 'close') {
+    return;
+  }
 
-    event.waitUntil(
-        clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
-            const urlToOpen = event.notification.data.url;
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(function (clientList) {
+      const urlToOpen = event.notification.data.url;
 
-            for (let i = 0; i < clientList.length; i++) {
-                const client = clientList[i];
-                if (client.url === urlToOpen && 'focus' in client) {
-                    return client.focus();
-                }
-            }
+      for (let i = 0; i < clientList.length; i++) {
+        const client = clientList[i];
+        if (client.url === urlToOpen && 'focus' in client) {
+          return client.focus();
+        }
+      }
 
-            if (clients.openWindow) {
-                return clients.openWindow(urlToOpen);
-            }
-        })
-    );
+      if (clients.openWindow) {
+        return clients.openWindow(urlToOpen);
+      }
+    })
+  );
 });

@@ -171,6 +171,7 @@ export default function RootLayout({
                     manifestLink = document.createElement('link');
                     manifestLink.rel = 'manifest';
                     manifestLink.id = 'pwa-manifest';
+                    manifestLink.crossOrigin = 'use-credentials';
                     document.head.appendChild(manifestLink);
                   }
                   
@@ -182,7 +183,7 @@ export default function RootLayout({
             `,
           }}
         />
-        <link rel="manifest" href="/manifest.json" id="pwa-manifest" />
+        <link rel="manifest" href="/manifest.json" id="pwa-manifest" crossOrigin="use-credentials" />
 
         {/* Prefetch likely next pages (removed API prefetch - not supported) */}
         <link rel="prefetch" href="/loud-styles" />
