@@ -329,8 +329,8 @@ function LoudStylesProductsContent() {
       >
         <Link href={`/loud-styles/products/${product.slug}?brand=loud-styles`} className="block h-full">
           <Card className={`overflow-hidden transition-all duration-500 h-full flex flex-col cursor-pointer ${product.isLaunch && product.isLaunchActive
-              ? 'border-2 border-[#bfa36a] bg-gradient-to-br from-[#bfa36a]/5 via-[#bfa36a]/3 to-transparent shadow-xl hover:shadow-2xl ring-2 ring-[#bfa36a]/20'
-              : 'border border-gray-200 dark:border-gray-700 bg-transparent shadow-lg hover:shadow-2xl'
+            ? 'border-2 border-[#bfa36a] bg-gradient-to-br from-[#bfa36a]/5 via-[#bfa36a]/3 to-transparent shadow-xl hover:shadow-2xl ring-2 ring-[#bfa36a]/20'
+            : 'border border-gray-200 dark:border-gray-700 bg-transparent shadow-lg hover:shadow-2xl'
             }`}>
             {/* Product Image */}
             <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-cream-100 via-warm-50 to-cream-200 dark:from-gray-800 dark:via-gray-700 dark:to-gray-800 flex-shrink-0 w-full">
@@ -339,18 +339,16 @@ function LoudStylesProductsContent() {
                 transition={{ duration: 0.4, ease: "easeOut" }}
                 className="relative w-full h-full"
               >
-                <Image
+                <img
                   src={product.image && product.image.trim() !== '' ? product.image.trim().replace(/ /g, '%20') : '/placeholder.svg'}
                   alt={isRTL ? product.nameAr || product.name : product.name}
-                  fill
-                  className="object-cover transition-transform duration-500"
-                  unoptimized={product.image?.trim().startsWith('http')}
+                  className="w-full h-full object-cover transition-transform duration-500"
                   loading={index < 8 ? "eager" : "lazy"}
-                  priority={index < 8}
-                  sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
                   onError={(e) => {
                     const target = e.target as HTMLImageElement;
-                    target.src = '/placeholder.svg';
+                    if (target.src !== '/placeholder.svg') {
+                      target.src = '/placeholder.svg';
+                    }
                   }}
                 />
                 {/* Out of Stock Overlay */}

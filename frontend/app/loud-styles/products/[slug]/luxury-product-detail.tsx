@@ -619,20 +619,16 @@ export default function LuxuryProductDetail({ product: initialProduct }: LuxuryP
                     willChange: 'transform'
                   }}
                 >
-                  <Image
+                  <img
                     src={(product.images[currentImageIndex] || '').trim() ? (product.images[currentImageIndex] || '').trim().replace(/ /g, '%20') : '/placeholder.svg'}
                     alt={isRTL ? product.nameAr || product.name : product.name}
-                    fill
-                    className={`object-contain transition-transform duration-300 group-hover:scale-105 ${product.isOutOfStock ? 'opacity-50' : ''}`}
-                    priority={currentImageIndex === 0}
-                    fetchPriority={currentImageIndex === 0 ? 'high' : 'auto'}
+                    className={`w-full h-full object-contain transition-transform duration-300 group-hover:scale-105 ${product.isOutOfStock ? 'opacity-50' : ''}`}
                     loading={currentImageIndex === 0 ? 'eager' : 'lazy'}
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 40vw"
-                    quality={currentImageIndex === 0 ? 90 : 75}
-                    unoptimized={(product.images[currentImageIndex] || '').trim().startsWith('http')}
                     onError={(e) => {
                       const target = e.target as HTMLImageElement
-                      target.src = '/placeholder.svg'
+                      if (target.src !== '/placeholder.svg') {
+                        target.src = '/placeholder.svg'
+                      }
                     }}
                   />
 
@@ -697,17 +693,16 @@ export default function LuxuryProductDetail({ product: initialProduct }: LuxuryP
                           whileTap={{ scale: 0.95 }}
                           style={{ willChange: 'transform' }}
                         >
-                          <Image
+                          <img
                             src={(image || '').trim() ? (image || '').trim().replace(/ /g, '%20') : '/placeholder.svg'}
                             alt={`${isRTL ? product.nameAr || product.name : product.name} - Image ${index + 1}`}
-                            fill
-                            className="object-contain"
+                            className="w-full h-full object-contain"
                             loading="lazy"
-                            sizes="(max-width: 640px) 40px, (max-width: 1024px) 56px, 80px"
-                            unoptimized={typeof image === 'string' && image.trim().startsWith('http')}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement
-                              target.src = '/placeholder.svg'
+                              if (target.src !== '/placeholder.svg') {
+                                target.src = '/placeholder.svg'
+                              }
                             }}
                           />
                         </motion.button>
