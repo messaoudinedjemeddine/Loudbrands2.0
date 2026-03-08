@@ -101,6 +101,7 @@ export default function LuxuryProductDetail({ product: initialProduct }: LuxuryP
   const [relatedAccessories, setRelatedAccessories] = useState<Product[]>([])
   const [loadingAccessories, setLoadingAccessories] = useState(false)
   const [colorVariants, setColorVariants] = useState<Array<{ slug: string; color: string; name: string; nameEn: string; hexColor: string; isCurrent: boolean; fullProduct: Product }>>([])
+  const [colorLoading, setColorLoading] = useState(false)
   const isOrderable = (!product?.isLaunchActive || timerCompleted) && !product?.isOutOfStock
 
   const addItem = useCartStore((state) => state.addItem)
@@ -599,6 +600,29 @@ export default function LuxuryProductDetail({ product: initialProduct }: LuxuryP
           </div>
         </motion.div>
 
+        {/* Color Loading Overlay */}
+        <AnimatePresence>
+          {colorLoading && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+            >
+              <motion.div
+                initial={{ scale: 0.8, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.3, ease: "easeOut" }}
+                className="flex flex-col items-center gap-3"
+              >
+                <div className="w-10 h-10 border-3 border-primary/30 border-t-primary rounded-full animate-spin" />
+                <p className="text-sm text-muted-foreground font-medium">{isRTL ? 'جاري التحميل...' : 'Loading color...'}</p>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <motion.div
           className="w-full max-w-7xl mx-auto px-4 sm:px-4 py-3 sm:py-4 lg:py-8 layout-content-container"
           variants={containerVariants}
@@ -817,6 +841,7 @@ export default function LuxuryProductDetail({ product: initialProduct }: LuxuryP
                         onClick={(e) => {
                           if (!variant.isCurrent) {
                             e.preventDefault();
+                            setColorLoading(true);
                             router.push(`/loud-styles/products/${variant.slug}?brand=loud-styles`);
                           }
                         }}
