@@ -78,32 +78,32 @@ export function Navbar() {
       { name: 'LOUDIM', href: '/loudim' },
       { name: 'LOUD STYLES', href: '/loud-styles' },
     ]
-    logoText = 'LOUD'
-    logoSubtext = 'BRANDS'
+    logoText = 'LOUDY'
+    logoSubtext = 'COLLECTION'
   } else if (isLoudimPage) {
     navigation = [
       { name: isRTL ? 'الرئيسية' : 'Home', href: '/' },
       { name: isRTL ? 'المنتجات' : 'Products', href: '/loudim/products' },
       { name: isRTL ? 'الفئات' : 'Categories', href: '/loudim/categories' },
     ]
-    logoText = 'LOUD'
-    logoSubtext = 'IM'
+    logoText = 'LOUDY'
+    logoSubtext = 'COLLECTION'
   } else if (isLoudStylesPage) {
     navigation = [
       { name: isRTL ? 'الرئيسية' : 'Home', href: '/' },
       { name: isRTL ? 'المنتجات' : 'Products', href: '/loud-styles/products' },
       { name: isRTL ? 'الفئات' : 'Categories', href: '/loud-styles/categories' },
     ]
-    logoText = 'LOUD'
-    logoSubtext = 'STYLES'
+    logoText = 'LOUDY'
+    logoSubtext = 'COLLECTION'
   } else {
     // Default navigation for other pages
     navigation = [
       { name: isRTL ? 'الرئيسية' : 'Home', href: '/' },
       { name: isRTL ? 'المنتجات' : 'Products', href: '/products' },
     ]
-    logoText = 'LOUD'
-    logoSubtext = 'BRANDS'
+    logoText = 'LOUDY'
+    logoSubtext = 'COLLECTION'
   }
 
   useEffect(() => {
