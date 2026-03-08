@@ -1,6 +1,5 @@
-// Service Worker for caching and offline support
-const CACHE_NAME = 'loud-brands-v3';
-const RUNTIME_CACHE = 'loud-brands-runtime-v3';
+const CACHE_NAME = 'loud-brands-v4';
+const RUNTIME_CACHE = 'loud-brands-runtime-v4';
 
 // Assets to cache immediately on install
 const STATIC_ASSETS = [
@@ -50,6 +49,12 @@ self.addEventListener('fetch', (event) => {
 
   // Skip chrome-extension and other non-http(s) requests
   if (!url.protocol.startsWith('http')) {
+    return;
+  }
+
+  // Skip cross-origin requests (like Cloudinary or Heroku APIs) 
+  // to avoid strict CSP connect-src violations enforced by Vercel
+  if (url.origin !== self.location.origin) {
     return;
   }
 
