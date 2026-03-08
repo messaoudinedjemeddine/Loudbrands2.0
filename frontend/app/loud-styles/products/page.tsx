@@ -120,12 +120,12 @@ function LoudStylesProductsContent() {
         signal: controller.signal,
         cache: 'no-store'
       }).finally(() => clearTimeout(timeoutId))
-      
+
       if (!productsRes.ok) {
         const errorText = await productsRes.text().catch(() => '')
         throw new Error(`Erreur HTTP ${productsRes.status}: ${errorText || 'Impossible de charger les produits'}`)
       }
-      
+
       const productsData = await productsRes.json()
       if (productsData.error) {
         throw new Error(productsData.error)
@@ -284,15 +284,15 @@ function LoudStylesProductsContent() {
 
   const ProductCard = ({ product, index }: { product: Product, index: number }) => {
     // Check if product is in accessoires or shoes category
-    const categorySlug = typeof product.category === 'string' 
-      ? product.category.toLowerCase() 
+    const categorySlug = typeof product.category === 'string'
+      ? product.category.toLowerCase()
       : (product.category as { slug?: string })?.slug?.toLowerCase() || '';
     const categoryName = typeof product.category === 'string'
       ? product.category.toLowerCase()
       : product.category?.name?.toLowerCase() || '';
     const isAccessoires = categorySlug.includes('accessoire') || categorySlug.includes('accessories');
     const isShoes = categorySlug.includes('shoe') || categorySlug.includes('chaussure') || categoryName.includes('shoe') || categoryName.includes('chaussure');
-    
+
     // Convert sizes to string array for rendering
     let sizeStrings: string[] = [];
     if (isAccessoires) {
@@ -328,11 +328,10 @@ function LoudStylesProductsContent() {
         className="group relative h-full"
       >
         <Link href={`/loud-styles/products/${product.slug}?brand=loud-styles`} className="block h-full">
-          <Card className={`overflow-hidden transition-all duration-500 h-full flex flex-col cursor-pointer ${
-            product.isLaunch && product.isLaunchActive
+          <Card className={`overflow-hidden transition-all duration-500 h-full flex flex-col cursor-pointer ${product.isLaunch && product.isLaunchActive
               ? 'border-2 border-[#bfa36a] bg-gradient-to-br from-[#bfa36a]/5 via-[#bfa36a]/3 to-transparent shadow-xl hover:shadow-2xl ring-2 ring-[#bfa36a]/20'
               : 'border border-gray-200 dark:border-gray-700 bg-transparent shadow-lg hover:shadow-2xl'
-          }`}>
+            }`}>
             {/* Product Image */}
             <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-cream-100 via-warm-50 to-cream-200 dark:from-gray-800 dark:via-gray-700 dark:to-gray-800 flex-shrink-0 w-full">
               <motion.div
@@ -341,11 +340,11 @@ function LoudStylesProductsContent() {
                 className="relative w-full h-full"
               >
                 <Image
-                  src={product.image && product.image.trim() !== '' ? product.image : '/placeholder.svg'}
+                  src={product.image && product.image.trim() !== '' ? product.image.trim().replace(/ /g, '%20') : '/placeholder.svg'}
                   alt={isRTL ? product.nameAr || product.name : product.name}
                   fill
                   className="object-cover transition-transform duration-500"
-                  unoptimized={product.image?.startsWith('http')}
+                  unoptimized={product.image?.trim().startsWith('http')}
                   loading={index < 8 ? "eager" : "lazy"}
                   priority={index < 8}
                   sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
@@ -705,7 +704,7 @@ function LoudStylesProductsContent() {
               {error}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button 
+              <Button
                 onClick={() => {
                   setError(null)
                   setSearchQuery('')

@@ -6,9 +6,9 @@ const nextConfig = {
   // Production optimizations
   reactStrictMode: true,
   // Performance optimizations
-    experimental: {
+  experimental: {
     optimizePackageImports: [
-      '@radix-ui/react-icons', 
+      '@radix-ui/react-icons',
       'lucide-react',
       '@radix-ui/react-accordion',
       '@radix-ui/react-alert-dialog',
@@ -48,7 +48,7 @@ const nextConfig = {
   },
   // Turbopack configuration (Next.js 16+)
   turbopack: {},
-  images: { 
+  images: {
     unoptimized: false, // Enable image optimization for better performance
     remotePatterns: [
       {
@@ -69,7 +69,6 @@ const nextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 31536000, // 1 year cache
     dangerouslyAllowSVG: true,
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
   },
   async headers() {
     return [
@@ -134,8 +133,8 @@ const nextConfig = {
               "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://connect.facebook.net https://www.googletagmanager.com https://www.google-analytics.com https://vercel.live",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' https://fonts.gstatic.com data:",
-              "img-src 'self' data: https: blob:",
-              "connect-src 'self' https://connect.facebook.net https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com https://vercel.live wss://vercel.live",
+              "img-src 'self' data: https: blob: wss:",
+              "connect-src 'self' https://connect.facebook.net https://www.facebook.com https://www.google-analytics.com https://www.googletagmanager.com https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com https://vercel.live wss://vercel.live https://res.cloudinary.com wss://ws-us3.pusher.com",
               "frame-src 'self' https://www.facebook.com",
               "object-src 'none'",
               "base-uri 'self'",

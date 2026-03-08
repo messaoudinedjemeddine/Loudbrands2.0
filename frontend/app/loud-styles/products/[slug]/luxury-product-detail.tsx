@@ -85,8 +85,9 @@ interface LuxuryProductDetailProps {
   product: Product
 }
 
-export default function LuxuryProductDetail({ product }: LuxuryProductDetailProps) {
+export default function LuxuryProductDetail({ product: initialProduct }: LuxuryProductDetailProps) {
   const router = useRouter()
+  const [product, setProduct] = useState<Product>(initialProduct)
   const [mounted, setMounted] = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [selectedSize, setSelectedSize] = useState<string | null>(null)
@@ -98,7 +99,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   const [showSizeGuide, setShowSizeGuide] = useState(false)
   const [relatedAccessories, setRelatedAccessories] = useState<Product[]>([])
   const [loadingAccessories, setLoadingAccessories] = useState(false)
-  const [colorVariants, setColorVariants] = useState<Array<{ slug: string; color: string; name: string; nameEn: string; hexColor: string; isCurrent: boolean }>>([])
+  const [colorVariants, setColorVariants] = useState<Array<{ slug: string; color: string; name: string; nameEn: string; hexColor: string; isCurrent: boolean; fullProduct: Product }>>([])
   const isOrderable = (!product?.isLaunchActive || timerCompleted) && !product?.isOutOfStock
 
   const addItem = useCartStore((state) => state.addItem)
@@ -114,6 +115,10 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
   const isShoes = categorySlug.includes('shoe') || categorySlug.includes('chaussure') || product?.category?.name?.toLowerCase().includes('shoe') || product?.category?.name?.toLowerCase().includes('chaussure');
 
   // All hooks must be called before any conditional returns
+  useEffect(() => {
+    setProduct(initialProduct)
+  }, [initialProduct])
+
   useEffect(() => {
     setMounted(true)
 
@@ -259,8 +264,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
             color: colorName.toLowerCase(),
             name: colorName, // Use the Arabic translation dictionary here if you add one later
             nameEn: colorName,
-            hexColor: colorHexMap[colorName] || '#CCCCCC',
-            isCurrent: sibling.id === product.id
+            hexColor: colorHexMap[colorName] || '#000000',
+            isCurrent: sibling.id === product.id,
+            fullProduct: sibling
           };
         });
 
@@ -614,7 +620,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                   }}
                 >
                   <Image
-                    src={(product.images[currentImageIndex] || '').trim() || '/placeholder.svg'}
+                    src={(product.images[currentImageIndex] || '').trim() ? (product.images[currentImageIndex] || '').trim().replace(/ /g, '%20') : '/placeholder.svg'}
                     alt={isRTL ? product.nameAr || product.name : product.name}
                     fill
                     className={`object-contain transition-transform duration-300 group-hover:scale-105 ${product.isOutOfStock ? 'opacity-50' : ''}`}
@@ -692,7 +698,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                           style={{ willChange: 'transform' }}
                         >
                           <Image
-                            src={(image || '').trim()}
+                            src={(image || '').trim() ? (image || '').trim().replace(/ /g, '%20') : '/placeholder.svg'}
                             alt={`${isRTL ? product.nameAr || product.name : product.name} - Image ${index + 1}`}
                             fill
                             className="object-contain"
@@ -812,6 +818,15 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                       <Link
                         key={variant.slug}
                         href={`/loud-styles/products/${variant.slug}?brand=loud-styles`}
+                        onClick={(e) => {
+                          if (!variant.isCurrent) {
+                            e.preventDefault();
+                            window.history.pushState({}, '', `/loud-styles/products/${variant.slug}?brand=loud-styles`);
+                            setProduct(variant.fullProduct);
+                            setCurrentImageIndex(0);
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }
+                        }}
                         className={`group relative flex flex-col items-center gap-1.5 transition-all duration-300 ${variant.isCurrent
                           ? 'opacity-100'
                           : 'opacity-60 hover:opacity-100'
