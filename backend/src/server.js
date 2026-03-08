@@ -38,8 +38,11 @@ app.use('/uploads', (req, res, next) => {
 // CORS configuration for production and development
 const allowedOrigins = [
   process.env.FRONTEND_URL, // Production Vercel URL
+  process.env.CORS_ADDITIONAL_ORIGIN, // Extra origin (e.g. Heroku frontend URL)
   'https://loudbrandss.com', // Production domain
   'https://www.loudbrandss.com', // Production domain with www
+  'https://loudycollection.com', // Loudy Collection
+  'https://www.loudycollection.com', // Loudy Collection with www
   'http://localhost:3000', // Development
   'http://127.0.0.1:3000' // Development
 ].filter(Boolean); // Remove undefined values
@@ -53,6 +56,7 @@ const corsOptions = {
     // Check if origin matches allowed domains or includes trusted substrings
     const isAllowed = allowedOrigins.includes(origin) ||
       origin.includes('loudbrandss.com') ||
+      origin.includes('loudycollection.com') ||
       origin.includes('loudbrands-backend') ||
       origin.includes('vercel.app') ||
       origin.includes('netlify.app') ||
