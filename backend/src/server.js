@@ -47,6 +47,20 @@ const allowedOrigins = [
   'http://127.0.0.1:3000' // Development
 ].filter(Boolean); // Remove undefined values
 
+// Explicit preflight handler so OPTIONS always gets CORS headers (fixes Heroku/preflight issues)
+const loudycollectionOrigins = ['https://loudycollection.com', 'https://www.loudycollection.com'];
+app.use((req, res, next) => {
+  const origin = req.get('Origin');
+  if (req.method === 'OPTIONS' && origin && (allowedOrigins.includes(origin) || loudycollectionOrigins.includes(origin) || origin.includes('loudycollection.com'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, Accept, Origin, Cache-Control');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    return res.status(204).end();
+  }
+  next();
+});
+
 // CORS configuration
 const corsOptions = {
   origin: function (origin, callback) {
