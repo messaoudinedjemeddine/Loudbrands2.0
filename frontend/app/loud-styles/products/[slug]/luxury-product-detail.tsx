@@ -152,11 +152,13 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
     const fetchSiblingProducts = async () => {
       try {
         const colorKeywords = [
-          'Noir', 'Bleu', 'Blanc', 'Rose', 'Rouge', 'Vert', 'Beige', 'Bordeaux',
-          'Gris', 'Marron', 'Fayrouzi', 'Aubergine', 'Pistache', 'Orange',
-          'Bleu Roi', 'Royal Blue', 'Bleu Nuit', 'Bleu Fayrouz', 'Bleu Turquoise',
-          'Vert Olive', 'Vert D\'Eau', 'Vert Kaki', 'Vert Émreraude', 'Vert Bouteille',
-          'Blanc Casse', 'Rouge Brique'
+          'Aubergine/Beige', 'Noir/Rouge', 'Rose/Gris',
+          'Bleu Turquoise', 'Vert Émreraude', 'Vert Bouteille', 'Blanc Casse',
+          'Rouge Brique', 'Bleu Fayrouz', 'Blue Fayrouz', 'Vert Olive',
+          'Vert D\'Eau', 'Royal Blue', 'Bleu Nuit', 'Blue Nuit', 'Bleu Roi', 'Blue Roi', 'Vert Kaki',
+          'Fayrouzi', 'Aubergine', 'Pistache', 'Bordeaux', 'Bordeau',
+          'Orange', 'Marron', 'Maron', 'Blanc', 'Rouge', 'Beige', 'Noir', 'Noire', 'Black', 'Bleu', 'Blue',
+          'Rose', 'Vert', 'Gris'
         ];
 
         const colorHexMap: Record<string, string> = {
@@ -174,28 +176,37 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
           'Vert': '#008000',
           'Beige': '#F5F5DC',
           'Bordeaux': '#800000',
+          'Bordeau': '#800000',
           'Gris': '#808080',
           'Marron': '#A52A2A',
+          'Maron': '#A52A2A',
           'Fayrouzi': '#40E0D0',
           'Aubergine': '#4A0E4E',
           'Pistache': '#93C572',
           'Orange': '#FFA500',
           'Bleu Roi': '#4169E1',
+          'Blue Roi': '#4169E1',
           'Royal Blue': '#4169E1',
           'Bleu Nuit': '#191970',
+          'Blue Nuit': '#191970',
           'Bleu Fayrouz': '#00CED1',
+          'Blue Fayrouz': '#00CED1',
           'Bleu Turquoise': '#40E0D0',
           'Vert Olive': '#808000',
           'Vert D\'Eau': '#B0E0E6',
           'Vert Kaki': '#C3B091',
           'Vert Émreraude': '#50C878',
           'Vert Bouteille': '#006A4E',
+          'Aubergine/Beige': '#7B3F00',
+          'Noir/Rouge': '#800020',
+          'Rose/Gris': '#C0C0C0',
+          'Noire': '#000000'
         };
 
         const extractColorFromName = (name: string): string | null => {
           if (!name) return null;
           for (const color of colorKeywords) {
-            const regex = new RegExp(`\\s+${color}$`, 'i');
+            const regex = new RegExp(`\\s+${color.replace(/\//g, '\\/')}\\s*$`, 'i');
             if (regex.test(name)) {
               return color;
             }
@@ -205,9 +216,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
 
         const extractBaseName = (name: string): string => {
           if (!name) return '';
-          let baseName = name;
+          let baseName = name.trim();
           for (const color of colorKeywords) {
-            const regex = new RegExp(`\\s+${color}$`, 'i');
+            const regex = new RegExp(`\\s+${color.replace(/\//g, '\\/')}\\s*$`, 'i');
             if (regex.test(baseName)) {
               baseName = baseName.replace(regex, '').trim();
               break;
@@ -603,7 +614,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                   }}
                 >
                   <Image
-                    src={product.images[currentImageIndex] || '/placeholder.svg'}
+                    src={(product.images[currentImageIndex] || '').trim() || '/placeholder.svg'}
                     alt={isRTL ? product.nameAr || product.name : product.name}
                     fill
                     className={`object-contain transition-transform duration-300 group-hover:scale-105 ${product.isOutOfStock ? 'opacity-50' : ''}`}
@@ -612,7 +623,7 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                     loading={currentImageIndex === 0 ? 'eager' : 'lazy'}
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 40vw"
                     quality={currentImageIndex === 0 ? 90 : 75}
-                    unoptimized={(product.images[currentImageIndex] || '').startsWith('http')}
+                    unoptimized={(product.images[currentImageIndex] || '').trim().startsWith('http')}
                     onError={(e) => {
                       const target = e.target as HTMLImageElement
                       target.src = '/placeholder.svg'
@@ -681,13 +692,13 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                           style={{ willChange: 'transform' }}
                         >
                           <Image
-                            src={image}
+                            src={(image || '').trim()}
                             alt={`${isRTL ? product.nameAr || product.name : product.name} - Image ${index + 1}`}
                             fill
                             className="object-contain"
                             loading="lazy"
                             sizes="(max-width: 640px) 40px, (max-width: 1024px) 56px, 80px"
-                            unoptimized={typeof image === 'string' && image.startsWith('http')}
+                            unoptimized={typeof image === 'string' && image.trim().startsWith('http')}
                             onError={(e) => {
                               const target = e.target as HTMLImageElement
                               target.src = '/placeholder.svg'

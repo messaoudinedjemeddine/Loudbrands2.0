@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-// Cache product details for 15s so primary picture and details update quickly
-export const revalidate = 15
+export const dynamic = 'force-dynamic'
+export const fetchCache = 'force-no-store'
 
 export async function GET(
   request: NextRequest,
@@ -14,7 +14,7 @@ export async function GET(
     const slug = resolvedParams.slug
 
     const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') || 'https://loudbrands-backend-eu-abfa65dd1df6.herokuapp.com'
-    const url = brand 
+    const url = brand
       ? `${backendUrl}/api/products/slug/${slug}?brand=${brand}`
       : `${backendUrl}/api/products/slug/${slug}`
 
@@ -35,10 +35,10 @@ export async function GET(
 
     const data = await response.json()
     const result = NextResponse.json(data)
-    
+
     // No-store so product images load on first visit (avoids grey images from stale cache)
     result.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate')
-    
+
     return result
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
