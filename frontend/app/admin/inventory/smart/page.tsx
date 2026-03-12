@@ -97,39 +97,69 @@ const STORAGE_KEY_RETOUR = 'scanned-yalidine-retour'
 const parseYalidineProductList = (productList: string) => {
     if (!productList) return []
 
-    // 1. Try existing newline-based parsing first (it's stricter and preferred if formatted correctly)
-    const lines = productList.split('\n').filter(line => line.trim())
+    // Normalize some known Yalidine formatting issues before parsing:
+    // - Cases like "Robe ... (XXL)1x Ensemble ..." (missing newline before 1x)
+    //   → turn into "Robe ... (XXL)\n1x Ensemble ..."
+    let normalized = productList.replace(/\)(\d+)x\s+/g, ')\n$1x ')
+
+    // 1. Try newline-based parsing first (preferred when formatted correctly)
+    const lines = normalized.split('\n').filter(line => line.trim())
     const legacyItems: any[] = []
     let legacyMatchCount = 0
 
-    for (const line of lines) {
-        // Regex to match "2x Product Name (Size)" (Legacy format)
-        const match = line.trim().match(/^(\d+)x\s+(.+?)(?:\s+\(([^)]+)\))?$/)
+    for (const rawLine of lines) {
+        const line = rawLine.trim()
+        if (!line) continue
+
+        // Strict legacy format: "2x Product Name (Size)"
+        let match = line.match(/^(\d+)x\s+(.+?)(?:\s+\(([^)]+)\))?$/)
+
         if (match) {
             const quantity = parseInt(match[1])
             const productName = match[2].trim()
             const size = match[3]?.trim() || ''
 
             legacyItems.push({
-                originalLine: line.trim(),
+                originalLine: line,
                 quantity,
                 productName,
                 size
             })
             legacyMatchCount++
+            continue
+        }
+
+        // Fallback: allow missing leading quantity, assume "1x"
+        // Examples:
+        // - "Robe flowers vert kaki (XXL)"
+        // - "Ensemble de prière Gris"
+        const fallback = line.match(/^(.+?)(?:\s+\(([^)]+)\))?$/)
+        if (fallback) {
+            const productName = fallback[1].trim()
+            const size = fallback[2]?.trim() || ''
+
+            if (productName.length > 2) {
+                legacyItems.push({
+                    originalLine: line,
+                    quantity: 1,
+                    productName,
+                    size
+                })
+                legacyMatchCount++
+            }
         }
     }
 
-    // If we matched lines successfully using the old format, return them
+    // If we matched lines successfully using the newline-based format, return them
     // We require at least some matches to consider it a legacy format success
     if (legacyMatchCount > 0 && legacyMatchCount >= lines.length / 2) {
         return legacyItems
     }
 
-    // 2. Try New Single-Line Parsing (for "Product (Size)1x Product (Size)1x..." format)
+    // 2. Single-line parsing (for "Product (Size)1x Product (Size)1x..." format)
     const items: any[] = []
 
-    // Regex: 
+    // Regex:
     // ([^(]+?)    -> Group 1: Product Name (lazy, anything until opening paren)
     // \s*         -> Optional whitespace
     // \(([^)]+)\) -> Group 2: Size (inside parens)
@@ -138,7 +168,7 @@ const parseYalidineProductList = (productList: string) => {
     const regex = /([^(]+?)\s*\(([^)]+)\)\s*(\d+x)?/g
 
     let match
-    while ((match = regex.exec(productList)) !== null) {
+    while ((match = regex.exec(normalized)) !== null) {
         const productName = match[1].trim()
         const size = match[2].trim()
         const quantityStr = match[3] // "1x", "2x" or undefined

@@ -421,8 +421,8 @@ export function ShippingRoleDashboard() {
         toWilayaName: freshOrder.city.name,
         toCommuneName: toCommuneName,
         productList: processedItems.map((item: any) => {
-          const sizeStr = item.size ? ` ${item.size}` : '';
-          return `${item.quantity}x ${item.product.name}${sizeStr}`;
+          const sizeStr = item.size || '';
+          return `${item.quantity}x ${item.product.name}${sizeStr ? ` (${sizeStr})` : ''}`;
         }).join('\n'),
         price: calculatedSubtotal, // Use forced calculation
         weight: 1,
