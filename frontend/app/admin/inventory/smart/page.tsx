@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { AdminLayout } from '@/components/admin/admin-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -919,6 +919,7 @@ function LabelsSection() {
 // Stock In Section
 function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMovement) => void }) {
     const [ateliers, setAteliers] = useState<{ id: string; name: string }[]>([])
+    const [ateliersLoading, setAteliersLoading] = useState(true)
     const [selectedAtelierId, setSelectedAtelierId] = useState<string>('')
     const [date, setDate] = useState(new Date().toISOString().split('T')[0])
     const [notes, setNotes] = useState('')
@@ -931,13 +932,34 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
     const [isSaving, setIsSaving] = useState(false)
     const inputRef = useRef<HTMLInputElement>(null)
 
+    const fetchAteliers = useCallback(async () => {
+        setAteliersLoading(true)
+        try {
+            const res: any = await api.getAteliers()
+            // Handle both { ateliers: [] } and wrapped responses (e.g. { data: { ateliers: [] } })
+            const list = Array.isArray(res?.ateliers)
+                ? res.ateliers
+                : Array.isArray(res?.data?.ateliers)
+                    ? res.data.ateliers
+                    : Array.isArray(res)
+                        ? res
+                        : []
+            setAteliers(list)
+        } catch (err) {
+            console.error('Failed to load ateliers', err)
+            setAteliers([])
+        } finally {
+            setAteliersLoading(false)
+        }
+    }, [])
+
     useEffect(() => {
         inputRef.current?.focus()
     }, [])
 
     useEffect(() => {
-        api.getAteliers().then((res: any) => setAteliers(res.ateliers || [])).catch(() => { })
-    }, [])
+        fetchAteliers()
+    }, [fetchAteliers])
 
     const handleScan = async (e: React.FormEvent) => {
         e.preventDefault()
@@ -1210,14 +1232,26 @@ function StockInSection({ onStockAdded }: { onStockAdded: (movement: StockMoveme
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-muted/30 p-3 rounded-lg border">
                     <div className="space-y-1">
                         <Label className="text-xs">Atelier / Source</Label>
-                        <Select value={selectedAtelierId} onValueChange={setSelectedAtelierId}>
+                        <Select
+                            value={selectedAtelierId}
+                            onValueChange={setSelectedAtelierId}
+                            onOpenChange={(open) => {
+                                if (open && ateliers.length === 0 && !ateliersLoading) fetchAteliers()
+                            }}
+                        >
                             <SelectTrigger className="h-8 text-sm">
-                                <SelectValue placeholder="Sélectionner un atelier..." />
+                                <SelectValue placeholder={ateliersLoading ? "Chargement..." : "Sélectionner un atelier..."} />
                             </SelectTrigger>
                             <SelectContent>
-                                {ateliers.map((a) => (
-                                    <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
-                                ))}
+                                {ateliersLoading ? (
+                                    <div className="py-4 px-3 text-sm text-muted-foreground text-center">Chargement des ateliers...</div>
+                                ) : ateliers.length === 0 ? (
+                                    <div className="py-4 px-3 text-sm text-muted-foreground text-center">Aucun atelier. Créez-en depuis la page Ateliers.</div>
+                                ) : (
+                                    ateliers.map((a) => (
+                                        <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
+                                    ))
+                                )}
                             </SelectContent>
                         </Select>
                     </div>
