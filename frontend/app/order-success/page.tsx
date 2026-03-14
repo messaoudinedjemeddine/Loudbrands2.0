@@ -33,6 +33,7 @@ declare global {
   interface Window {
     fbq: any;
     gtag: any;
+    ttq: any;
   }
 }
 
@@ -222,6 +223,46 @@ function OrderSuccessContent() {
               item_variant: item.size
             }))
           })
+        }
+
+        // TikTok Pixel - SubmitOrder (order placed; no online payment)
+        const tiktokTrackedKey = 'tiktokPixelTrackedOrders'
+        const tiktokTracked = JSON.parse(localStorage.getItem(tiktokTrackedKey) || '[]')
+        if (!tiktokTracked.includes(parsedDetails.orderNumber)) {
+          const trackTikTokSubmitOrder = () => {
+            if (typeof window === 'undefined' || !window.ttq) return false
+            try {
+              const totalValue = parseFloat(String(parsedDetails.total || 0))
+              window.ttq.track('SubmitOrder', {
+                content_id: String(parsedDetails.orderNumber),
+                content_type: 'product',
+                value: totalValue,
+                currency: 'DZD',
+                contents: (parsedDetails.items || []).map((item: any) => ({
+                  content_id: String(item.id || ''),
+                  quantity: parseInt(String(item.quantity || 1)),
+                  price: parseFloat(String(item.price || 0))
+                }))
+              })
+              tiktokTracked.push(parsedDetails.orderNumber)
+              if (tiktokTracked.length > 100) tiktokTracked.shift()
+              localStorage.setItem(tiktokTrackedKey, JSON.stringify(tiktokTracked))
+              if (process.env.NODE_ENV === 'development') {
+                console.log('✅ TikTok Pixel SubmitOrder tracked:', { order_id: parsedDetails.orderNumber, value: totalValue })
+              }
+              return true
+            } catch (err) {
+              console.error('❌ TikTok SubmitOrder error:', err)
+              return false
+            }
+          }
+          if (!trackTikTokSubmitOrder()) {
+            let retries = 0
+            const tiktokRetry = setInterval(() => {
+              retries++
+              if (trackTikTokSubmitOrder() || retries >= 10) clearInterval(tiktokRetry)
+            }, 500)
+          }
         }
 
       } catch (error) {
