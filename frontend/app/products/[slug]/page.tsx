@@ -57,9 +57,12 @@ export async function generateStaticParams() {
     const data = await res.json()
     const products = Array.isArray(data) ? data : (data.products || [])
 
-    return products.map((product: Product) => ({
-      slug: product.slug,
-    }))
+    // Filter out null, undefined, or excessively long slugs to avoid ENAMETOOLONG filesystem errors during static build
+    return products
+      .filter((product: Product) => product.slug && typeof product.slug === 'string' && product.slug.length < 100)
+      .map((product: Product) => ({
+        slug: product.slug,
+      }))
   } catch (error) {
     console.error('Failed to generate static params:', error)
     return []
