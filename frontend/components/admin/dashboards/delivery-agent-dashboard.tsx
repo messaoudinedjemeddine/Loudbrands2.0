@@ -1,0 +1,2265 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Truck,
+  MapPin,
+  Clock,
+  CheckCircle,
+  Loader2,
+  Eye,
+  AlertTriangle,
+  Navigation,
+  Phone,
+  Package,
+  MessageSquare,
+  MessageCircle,
+  Edit,
+  Tag,
+  ExternalLink,
+  Send,
+  Save,
+  Printer,
+  Home,
+  Store,
+  ChevronLeft,
+  ChevronRight,
+  Search
+} from 'lucide-react'
+import Link from 'next/link'
+import { useSearchParams, useRouter, usePathname } from 'next/navigation'
+import { api } from '@/lib/api'
+import { useLocaleStore } from '@/lib/locale-store'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+  PaginationEllipsis
+} from '@/components/ui/pagination'
+import { toast } from 'sonner'
+import { yalidineAPI } from '@/lib/yalidine-api'
+
+interface DeliveryStats {
+  enPreparation: number;
+  centre: number;
+  versWilaya: number;
+  sortiEnLivraison: number;
+  livre: number;
+  echecLivraison: number;
+  retourARetirer: number;
+  retourneAuVendeur: number;
+  echangeEchoue: number;
+  confirmedOrders: number;
+  totalShipments: number;
+  tentativeEchouee?: number;
+  enAlerte?: number;
+  enAttenteClient?: number;
+  confirmedStats?: {
+    enPreparation: number;
+    centre: number;
+    versWilaya: number;
+    sortiEnLivraison: number;
+    livre: number;
+    echecLivraison: number;
+    retourARetirer: number;
+    retourneAuVendeur: number;
+    echangeEchoue: number;
+    tentativeEchouee: number;
+    enAlerte: number;
+    enAttenteClient: number;
+    totalShipments: number;
+  };
+}
+
+interface Order {
+  id: string;
+  orderNumber: string;
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string;
+  deliveryType: 'HOME_DELIVERY' | 'PICKUP';
+  deliveryAddress?: string;
+  deliveryFee: number;
+  subtotal: number;
+  total: number;
+  callCenterStatus: 'NEW' | 'CONFIRMED' | 'CANCELED' | 'PENDING' | 'DOUBLE_ORDER' | 'DELAYED';
+  deliveryStatus: string;
+  communicationStatus?: 'ANSWERED' | 'DIDNT_ANSWER' | 'SMS_SENT';
+  notes?: string;
+  trackingNumber?: string;
+  yalidineShipmentId?: string;
+  createdAt: string;
+  updatedAt: string;
+  city: {
+    id: string;
+    name: string;
+    nameAr?: string;
+  };
+  deliveryDesk?: {
+    id: string;
+    name: string;
+    nameAr?: string;
+  };
+  items: Array<{
+    id: string;
+    productId: string;
+    quantity: number;
+    price: number;
+    size?: string;
+    product: {
+      id: string;
+      name: string;
+      nameAr?: string;
+      image?: string;
+    };
+    image?: string;
+  }>;
+  deliveryDetails?: {
+    wilayaId?: string;
+    communeId?: string;
+    centerId?: string;
+    deliveryType?: string;
+    deliveryAddress?: string;
+  };
+}
+
+interface YalidineShipment {
+  id: string;
+  tracking: string;
+  customer_name: string;
+  customer_phone: string;
+  customer_address?: string;
+  from_wilaya_name: string;
+  to_wilaya_name: string;
+  to_commune_name: string;
+  product_list: string;
+  price: number;
+  weight: number;
+  last_status: string;
+  date_creation: string;
+  date_last_status: string;
+}
+
+// Normalize Yalidine API status to canonical form (API may return variants: no accents, different casing)
+const CANONICAL_STATUSES = [
+  'En préparation', 'Centre', 'Vers Wilaya', 'Sorti en livraison', 'Livré',
+  'Echèc livraison', 'Echec de livraison', 'Retour à retirer', 'Retourné au vendeur',
+  'Echange échoué', 'Tentative échouée', 'En alerte', 'En attente du client'
+] as const
+function normalizeKey(s: string): string {
+  return (s || '')
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .replace(/\s+/g, ' ')
+}
+const STATUS_NORMALIZE_MAP = new Map<string, string>()
+CANONICAL_STATUSES.forEach(c => STATUS_NORMALIZE_MAP.set(normalizeKey(c), c))
+// Common API variants (no accents, different spelling)
+const STATUS_ALIASES: [string, string][] = [
+  ['en preparation', 'En préparation'],
+  ['tentative echouee', 'Tentative échouée'],
+  ['sorti en livraison', 'Sorti en livraison'],
+  ['livre', 'Livré'],
+  ['echec livraison', 'Echec de livraison'],
+  ['echec de livraison', 'Echec de livraison'],
+  ['echèc livraison', 'Echec de livraison'],
+  ['centre', 'Centre'],
+  ['vers wilaya', 'Vers Wilaya'],
+  ['en alerte', 'En alerte'],
+  ['en attente du client', 'En attente du client'],
+  ['retour a retirer', 'Retour à retirer'],
+  ['retourne au vendeur', 'Retourné au vendeur'],
+  ['echange echoue', 'Echange échoué'],
+]
+STATUS_ALIASES.forEach(([key, canonical]) => STATUS_NORMALIZE_MAP.set(normalizeKey(key), canonical))
+
+function normalizeYalidineStatus(raw: string | undefined): string {
+  if (raw == null || typeof raw !== 'string') return 'Unknown'
+  const key = normalizeKey(raw)
+  return STATUS_NORMALIZE_MAP.get(key) ?? (raw.trim() || 'Unknown')
+}
+
+const getStatusVariant = (status: string) => {
+  const statusMap: Record<string, string> = {
+    'Livré': 'success',
+    'Sorti en livraison': 'info',
+    'En attente du client': 'warning',
+    'Tentative échouée': 'error',
+    'En alerte': 'error',
+    'En préparation': 'warning',
+    'Expédié': 'info',
+    'Centre': 'purple',
+    'READY': 'warning',
+    'IN_TRANSIT': 'info',
+    'DONE': 'success',
+    'CONFIRMED': 'success',
+    'ANSWERED': 'success',
+    'DIDNT_ANSWER': 'error',
+    'SMS_SENT': 'info',
+    'default': 'secondary'
+  };
+  return statusMap[status] || statusMap.default;
+};
+
+const statusLabels = {
+  READY: 'Ready',
+  IN_TRANSIT: 'In Transit',
+  DONE: 'Delivered',
+  CONFIRMED: 'Confirmed',
+  ANSWERED: 'Answered',
+  DIDNT_ANSWER: 'Didn\'t Answer',
+  SMS_SENT: 'SMS Sent'
+}
+
+const getCommunicationStatusVariant = (status: string) => {
+  const statusMap: Record<string, string> = {
+    'ANSWERED': 'success',
+    'DIDNT_ANSWER': 'error',
+    'SMS_SENT': 'info',
+    'default': 'secondary'
+  };
+  return statusMap[status] || statusMap.default;
+};
+
+const communicationStatusLabels = {
+  ANSWERED: 'Answered',
+  DIDNT_ANSWER: 'Didn\'t Answer',
+  SMS_SENT: 'SMS Sent'
+}
+
+export function DeliveryAgentDashboard() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const pathname = usePathname()
+  const defaultTab = searchParams.get('tab') || 'parcels'
+
+  const [activeTab, setActiveTab] = useState(defaultTab)
+  const [otherTabsDataLoaded, setOtherTabsDataLoaded] = useState(false)
+
+  // Update active tab when URL changes; default to confirmed and sync URL
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab) {
+      setActiveTab(tab)
+    } else if (defaultTab === 'confirmed') {
+      router.replace(`${pathname}?tab=confirmed`)
+    }
+  }, [searchParams, defaultTab, pathname, router])
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value)
+    // Update URL without full reload
+    const params = new URLSearchParams(searchParams.toString())
+    params.set('tab', value)
+    router.push(`${pathname}?${params.toString()}`)
+  }
+
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const { t, isRTL, direction } = useLocaleStore()
+  const [stats, setStats] = useState<DeliveryStats>({
+    enPreparation: 0,
+    centre: 0,
+    versWilaya: 0,
+    sortiEnLivraison: 0,
+    livre: 0,
+    echecLivraison: 0,
+    retourARetirer: 0,
+    retourneAuVendeur: 0,
+    echangeEchoue: 0,
+    confirmedOrders: 0,
+    totalShipments: 0,
+    tentativeEchouee: 0,
+    enAlerte: 0,
+    enAttenteClient: 0,
+    confirmedStats: {
+      enPreparation: 0,
+      centre: 0,
+      versWilaya: 0,
+      sortiEnLivraison: 0,
+      livre: 0,
+      echecLivraison: 0,
+      retourARetirer: 0,
+      retourneAuVendeur: 0,
+      echangeEchoue: 0,
+      tentativeEchouee: 0,
+      enAlerte: 0,
+      enAttenteClient: 0,
+      totalShipments: 0
+    }
+  })
+  const [orders, setOrders] = useState<Order[]>([])
+  const [allConfirmedOrders, setAllConfirmedOrders] = useState<Order[]>([])
+  const [yalidineShipments, setYalidineShipments] = useState<YalidineShipment[]>([])
+  const [confirmedShipments, setConfirmedShipments] = useState<YalidineShipment[]>([])
+
+  // Enhanced functionality state
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null)
+  const [showCommunicationDialog, setShowCommunicationDialog] = useState(false)
+  const [showNotesDialog, setShowNotesDialog] = useState(false)
+  const [noteInput, setNoteInput] = useState('')
+  const [loadingAction, setLoadingAction] = useState(false)
+
+  // Status filter for All Parcels tab
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  // Status filter for Confirmed Orders tab
+  const [confirmedStatusFilter, setConfirmedStatusFilter] = useState<string>('all')
+  // Tab filter for Confirmed Orders (quick status tabs)
+  const [confirmedTabFilter, setConfirmedTabFilter] = useState<string>('all')
+  // Pagination for Confirmed Orders
+  const [confirmedCurrentPage, setConfirmedCurrentPage] = useState<number>(1)
+  const [confirmedItemsPerPage, setConfirmedItemsPerPage] = useState<number>(10)
+  // Search for Confirmed Orders
+  const [confirmedSearchQuery, setConfirmedSearchQuery] = useState<string>('')
+
+  // Yalidine status options for filtering
+  const yalidineStatuses = [
+    { value: 'all', label: 'All Statuses' },
+    { value: 'Pas encore expédié', label: 'Pas encore expédié' },
+    { value: 'A vérifier', label: 'A vérifier' },
+    { value: 'En préparation', label: 'En préparation' },
+    { value: 'Pas encore ramassé', label: 'Pas encore ramassé' },
+    { value: 'Prêt à expédier', label: 'Prêt à expédier' },
+    { value: 'Ramassé', label: 'Ramassé' },
+    { value: 'Bloqué', label: 'Bloqué' },
+    { value: 'Débloqué', label: 'Débloqué' },
+    { value: 'Transfert', label: 'Transfert' },
+    { value: 'Expédié', label: 'Expédié' },
+    { value: 'Centre', label: 'Centre' },
+    { value: 'En localisation', label: 'En localisation' },
+    { value: 'Vers Wilaya', label: 'Vers Wilaya' },
+    { value: 'Reçu à Wilaya', label: 'Reçu à Wilaya' },
+    { value: 'En attente du client', label: 'En attente du client' },
+    { value: 'Prêt pour livreur', label: 'Prêt pour livreur' },
+    { value: 'Sorti en livraison', label: 'Sorti en livraison' },
+    { value: 'En attente', label: 'En attente' },
+    { value: 'En alerte', label: 'En alerte' },
+    { value: 'Tentative échouée', label: 'Tentative échouée' },
+    { value: 'Livré', label: 'Livré' },
+    { value: 'Echèc livraison', label: 'Echèc livraison' },
+    { value: 'Retour vers centre', label: 'Retour vers centre' },
+    { value: 'Retourné au centre', label: 'Retourné au centre' },
+    { value: 'Retour transfert', label: 'Retour transfert' },
+    { value: 'Retour groupé', label: 'Retour groupé' },
+    { value: 'Retour à retirer', label: 'Retour à retirer' },
+    { value: 'Retour vers vendeur', label: 'Retour vers vendeur' },
+    { value: 'Retourné au vendeur', label: 'Retourné au vendeur' },
+    { value: 'Echange échoué', label: 'Echange échoué' }
+  ]
+
+  const YALIDINE_DELAY_MS = 260 // ~4 req/sec to stay under 5/sec quota
+
+  const normalizeShipment = (s: any) => {
+    const tracking = s.tracking || s.tracking_number
+    const rawStatus = s.last_status || s.status || s.state || ''
+    return {
+      ...s,
+      id: s.id || tracking,
+      tracking,
+      last_status: normalizeYalidineStatus(rawStatus),
+      date_creation: s.date_creation || s.created_at || s.date || new Date().toISOString(),
+      date_last_status: s.date_last_status || s.updated_at || s.date || new Date().toISOString(),
+      customer_name: s.customer_name || `${s.firstname || ''} ${s.familyname || ''}`.trim() || 'N/A',
+      customer_phone: s.customer_phone || s.contact_phone || s.phone || 'N/A',
+      customer_address: s.customer_address || s.address || 'N/A',
+      from_wilaya_name: s.from_wilaya_name || s.fromWilayaName || 'N/A',
+      to_wilaya_name: s.to_wilaya_name || s.toWilayaName || 'N/A',
+      to_commune_name: s.to_commune_name || s.toCommuneName || 'N/A',
+      product_list: s.product_list || s.productList || 'N/A',
+      price: s.price || 0,
+      weight: s.weight || 1
+    }
+  }
+
+  // Phase 1: Fast load – confirmed orders only. Calculates stats immediately from DB data.
+  const fetchConfirmedOrdersOnly = async (): Promise<Order[]> => {
+    try {
+      setLoading(true)
+      setError(null)
+      const confirmedOrdersData = await api.admin.getOrders({ limit: 10000, confirmedOnly: 'true' })
+      const list = (confirmedOrdersData as any).orders || (confirmedOrdersData as Order[])
+      const withTracking = list.filter((o: Order) => o.callCenterStatus === 'CONFIRMED' && !!o.trackingNumber)
+
+      setAllConfirmedOrders(list)
+      setOrders(list)
+
+      // Calculate stats immediately from the fetched orders (DB status)
+      // This is instant and doesn't require 800+ API calls to Yalidine
+      const newConfirmedStats = {
+        enPreparation: 0,
+        centre: 0,
+        versWilaya: 0,
+        sortiEnLivraison: 0,
+        livre: 0,
+        echecLivraison: 0,
+        retourARetirer: 0,
+        retourneAuVendeur: 0,
+        echangeEchoue: 0,
+        tentativeEchouee: 0,
+        enAlerte: 0,
+        enAttenteClient: 0,
+        totalShipments: withTracking.length
+      }
+
+      withTracking.forEach((order: Order) => {
+        const status = normalizeYalidineStatus(order.deliveryStatus)
+        // Map status to stats keys
+        if (status === 'En préparation' || status === 'Pas encore ramassé' || status === 'Prêt à expédier') newConfirmedStats.enPreparation++
+        else if (status === 'Centre' || status === 'Expédié' || status === 'Transfert' || status === 'En localisation') newConfirmedStats.centre++
+        else if (status === 'Vers Wilaya' || status === 'Reçu à Wilaya' || status === 'Arrivée à Wilaya') newConfirmedStats.versWilaya++
+        else if (status === 'Sorti en livraison') newConfirmedStats.sortiEnLivraison++
+        else if (status === 'Livré') newConfirmedStats.livre++
+        else if (status === 'Echèc livraison' || status === 'Echec de livraison') newConfirmedStats.echecLivraison++
+        else if (status === 'Retour à retirer' || status === 'Retour vers centre' || status === 'Retourné au centre') newConfirmedStats.retourARetirer++
+        else if (status === 'Retourné au vendeur' || status === 'Retour vers vendeur') newConfirmedStats.retourneAuVendeur++
+        else if (status === 'Echange échoué') newConfirmedStats.echangeEchoue++
+        else if (status === 'Tentative échouée') newConfirmedStats.tentativeEchouee++
+        else if (status === 'En alerte') newConfirmedStats.enAlerte++
+        else if (status === 'En attente du client' || status === 'En attente') newConfirmedStats.enAttenteClient++
+      })
+
+      setStats(prev => ({
+        ...prev,
+        confirmedOrders: withTracking.length,
+        // Update top-level stats for the tabs to work immediately
+        enPreparation: newConfirmedStats.enPreparation,
+        centre: newConfirmedStats.centre,
+        versWilaya: newConfirmedStats.versWilaya,
+        sortiEnLivraison: newConfirmedStats.sortiEnLivraison,
+        livre: newConfirmedStats.livre,
+        echecLivraison: newConfirmedStats.echecLivraison,
+        retourARetirer: newConfirmedStats.retourARetirer,
+        retourneAuVendeur: newConfirmedStats.retourneAuVendeur,
+        echangeEchoue: newConfirmedStats.echangeEchoue,
+        tentativeEchouee: newConfirmedStats.tentativeEchouee,
+        enAlerte: newConfirmedStats.enAlerte,
+        enAttenteClient: newConfirmedStats.enAttenteClient,
+        // Also update specific confirmedStats object
+        confirmedStats: newConfirmedStats
+      }))
+
+      return list
+    } catch (err) {
+      console.error('Error fetching confirmed orders:', err)
+      setError(err instanceof Error ? err.message : 'Failed to load orders')
+      return []
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Phase 2: Fetch Yalidine status for confirmed orders (Bulk Fetch)
+  const fetchYalidineStatusForConfirmed = async (ordersList?: Order[]) => {
+    const list = ordersList ?? allConfirmedOrders.filter((o: Order) => o.callCenterStatus === 'CONFIRMED' && !!o.trackingNumber)
+    if (list.length === 0) return
+
+    setLoading(true)
+
+    try {
+      // 1. Calculate earliest date from orders
+      // We go back 7 days from the oldest order to be safe (Yalidine might have slight delays in date sync or timezone diffs)
+      // If list is empty, we default to a recent date to avoid fetching too much
+      const dates = list.map(o => new Date(o.createdAt).getTime())
+      const minDateTimestamp = Math.min(...dates)
+      const minDate = new Date(minDateTimestamp)
+      minDate.setDate(minDate.getDate() - 7)
+      const dateCreationFilter = minDate.toISOString().split('T')[0]
+
+      console.log('📦 Bulk fetching shipments since:', dateCreationFilter)
+
+      // 2. Bulk fetch from Yalidine
+      // We use page_size=1000 to get as many as possible in one request
+      // We filter by date_creation to get only relevant recent shipments
+      const result = await yalidineAPI.getAllShipments({
+        date_creation: dateCreationFilter,
+        page: 1
+      })
+
+      const bulkShipments = result.data || []
+      console.log(`✅ Bulk fetched ${bulkShipments.length} shipments`)
+
+      // 3. Map fetched shipments to tracking numbers
+      const shipmentMap = new Map<string, any>()
+      bulkShipments.forEach((s: any) => {
+        const tracking = s.tracking || s.tracking_number
+        if (tracking) {
+          shipmentMap.set(tracking, normalizeShipment(s))
+        }
+      })
+
+      const confirmedShipmentsList: YalidineShipment[] = []
+
+      // 4. Update local state and stats
+      // Note: We only have data for shipments that were returned by the bulk fetch.
+      // If an order is very old and outside our date range, it might show "Unknown" status until we fetch it individually (fallback?)
+      // For now, we assume the date filter covers all relevant active orders.
+
+      const confirmedStats = {
+        enPreparation: 0,
+        centre: 0,
+        versWilaya: 0,
+        sortiEnLivraison: 0,
+        livre: 0,
+        echecLivraison: 0,
+        retourARetirer: 0,
+        retourneAuVendeur: 0,
+        echangeEchoue: 0,
+        tentativeEchouee: 0,
+        enAlerte: 0,
+        enAttenteClient: 0,
+        totalShipments: list.length // Total orders we are tracking
+      }
+
+      list.forEach((order) => {
+        const tracking = order.trackingNumber
+        if (!tracking) return
+
+        const shipmentData = shipmentMap.get(tracking)
+        if (shipmentData) {
+          confirmedShipmentsList.push(shipmentData)
+
+          // Update stats
+          const status = shipmentData.last_status // Already normalized by normalizeShipment
+
+          if (status === 'En préparation') confirmedStats.enPreparation++
+          else if (status === 'Centre') confirmedStats.centre++
+          else if (status === 'Vers Wilaya') confirmedStats.versWilaya++
+          else if (status === 'Sorti en livraison') confirmedStats.sortiEnLivraison++
+          else if (status === 'Livré') confirmedStats.livre++
+          else if (status === 'Echèc livraison') confirmedStats.echecLivraison++
+          else if (status === 'Retour à retirer') confirmedStats.retourARetirer++
+          else if (status === 'Retourné au vendeur') confirmedStats.retourneAuVendeur++
+          else if (status === 'Echange échoué') confirmedStats.echangeEchoue++
+          else if (status === 'Tentative échouée') confirmedStats.tentativeEchouee++
+          else if (status === 'En alerte') confirmedStats.enAlerte++
+          else if (status === 'En attente du client') confirmedStats.enAttenteClient++
+        } else {
+          // If not found in bulk, it counts as "Unknown" or just doesn't add to specific stats
+          // We could trigger individual fetch for missing ones here, but that risks 429 again.
+          // Better to assume if it's not in the last X days, it's old/archived.
+        }
+      })
+
+      setConfirmedShipments(confirmedShipmentsList)
+
+      console.log('📊 Updating stats with confirmed stats:', confirmedStats)
+      console.log('📊 Total confirmed orders:', list.length)
+      console.log('📊 Shipments found:', confirmedShipmentsList.length)
+
+      setStats(prev => ({
+        ...prev,
+        confirmedStats,
+        // Update top stats with confirmed stats to make sure UI is consistent
+        ...confirmedStats
+      }))
+
+    } catch (err) {
+      console.error('❌ Error in bulk fetching confirmed shipments:', err)
+      toast.error('Failed to load shipment statuses')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Fetch global stats (fast)
+  const fetchGlobalStats = async () => {
+    try {
+      const globalStats = await yalidineAPI.getShipmentStats()
+      setStats(prev => ({
+        ...prev,
+        ...globalStats
+      }))
+    } catch (err) {
+      console.error('Error fetching global stats:', err)
+    }
+  }
+
+  useEffect(() => {
+    let cancelled = false
+    let pollingInterval: NodeJS.Timeout | null = null
+
+    // 1. Fetch fast global stats immediately
+    fetchGlobalStats()
+
+    // 2. Fetch confirmed orders initially AND THEN fetch Yalidine status
+    fetchConfirmedOrdersOnly().then((orders) => {
+      if (!cancelled && orders.length > 0) {
+        // Fetch Yalidine status for these orders
+        fetchYalidineStatusForConfirmed(orders)
+      }
+    })
+
+    // 3. Set up polling for confirmed orders (every 60 seconds - optimized to reduce API quota usage)
+    const startPolling = () => {
+      if (pollingInterval) return // Already polling
+
+      pollingInterval = setInterval(() => {
+        if (!cancelled && document.visibilityState === 'visible') {
+          console.log('🔄 Polling for order updates...')
+          fetchConfirmedOrdersOnly().then((orders) => {
+            if (!cancelled && orders.length > 0) {
+              fetchYalidineStatusForConfirmed(orders)
+            }
+          })
+        } else if (document.visibilityState === 'hidden') {
+          console.log('⏸️ Polling paused - tab not visible')
+        }
+      }, 60000) // Increased from 30s to 60s to reduce API calls by 50%
+    }
+
+    const stopPolling = () => {
+      if (pollingInterval) {
+        clearInterval(pollingInterval)
+        pollingInterval = null
+      }
+    }
+
+    // 4. Add visibility change listener to pause/resume polling
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('👁️ Tab visible - resuming polling')
+        // Fetch immediately when tab becomes visible
+        fetchConfirmedOrdersOnly().then((orders) => {
+          if (!cancelled && orders.length > 0) {
+            fetchYalidineStatusForConfirmed(orders)
+          }
+        })
+        startPolling()
+      } else {
+        console.log('🙈 Tab hidden - pausing polling')
+        stopPolling()
+      }
+    }
+
+    // Start polling and add visibility listener
+    startPolling()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      cancelled = true
+      stopPolling()
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+
+  // Lazy load "All Parcels" and other tabs when user first switches to them (respects Yalidine quota)
+  const loadOtherTabsData = async () => {
+    if (otherTabsDataLoaded) return
+    setOtherTabsDataLoaded(true)
+    try {
+      const [ordersData, yalidineRes] = await Promise.all([
+        api.admin.getOrders({ limit: 500 }),
+        yalidineAPI.getAllShipments({ page: 1, date_creation: '2024-12-25' }).catch(() => ({ data: [], has_more: false }))
+      ])
+      const ordersList = (ordersData as any).orders || (ordersData as Order[])
+      const orderTrackings = new Set(ordersList.map((o: Order) => o.trackingNumber).filter(Boolean))
+      const raw = (yalidineRes.data || []).filter((s: any) => orderTrackings.has(s.tracking || s.tracking_number))
+      setYalidineShipments(raw.map((s: any) => normalizeShipment(s)))
+      setOrders(prev => (prev.length === 0 ? ordersList : prev))
+    } catch (e) {
+      console.warn('Lazy load other tabs failed:', e)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'confirmed') return
+    loadOtherTabsData()
+  }, [activeTab]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const fetchDeliveryData = async () => {
+    setOtherTabsDataLoaded(false)
+    fetchGlobalStats() // Refresh global stats
+    const orders = await fetchConfirmedOrdersOnly() // Refresh orders from DB (webhook updates)
+    if (orders.length > 0) {
+      await fetchYalidineStatusForConfirmed(orders)
+    }
+  }
+
+
+  const updateDeliveryStatus = async (orderId: string, status: string) => {
+    try {
+      await api.admin.updateOrderStatus(orderId, { deliveryStatus: status })
+      fetchDeliveryData() // Refresh data
+    } catch (err) {
+      console.error('Error updating delivery status:', err)
+    }
+  }
+
+  // Enhanced functionality functions
+  const updateCommunicationStatus = async (orderId: string, status: string, notes?: string) => {
+    try {
+      setLoadingAction(true)
+      const updateData: any = { communicationStatus: status }
+      if (notes) updateData.notes = notes
+
+      await api.admin.updateOrderStatus(orderId, updateData)
+      toast.success(`Communication status updated to ${communicationStatusLabels[status as keyof typeof communicationStatusLabels]}`)
+      fetchDeliveryData()
+    } catch (err) {
+      console.error('Error updating communication status:', err)
+      toast.error('Failed to update communication status')
+    } finally {
+      setLoadingAction(false)
+    }
+  }
+
+  const updateOrderNotes = async (orderId: string, noteToAppend: string) => {
+    try {
+      if (!noteToAppend.trim()) return
+
+      setLoadingAction(true)
+      // Use appendNote to add to existing notes with attribution
+      await api.admin.updateOrderStatus(orderId, { appendNote: noteToAppend })
+
+      toast.success('Note added successfully')
+      fetchDeliveryData()
+      setShowNotesDialog(false)
+      setNoteInput('')
+    } catch (err) {
+      console.error('Error updating order notes:', err)
+      toast.error('Failed to add note')
+    } finally {
+      setLoadingAction(false)
+    }
+  }
+
+  const sendWhatsAppMessage = (phoneNumber: string, trackingNumber: string) => {
+    try {
+      // Format phone number for WhatsApp (remove leading 0 and add country code)
+      const formattedPhone = phoneNumber.startsWith('0') ? phoneNumber.substring(1) : phoneNumber
+      const whatsappNumber = `213${formattedPhone}`
+
+      // Create WhatsApp message
+      const message = `مرحبا! يمكنك تتبع طلبك باستخدام الرقم التالي: ${trackingNumber}
+
+يمكنك تتبع طلبك على موقعنا:
+https://loudim.com/track-order
+
+شكرا لك!`
+
+      // Encode message for URL
+      const encodedMessage = encodeURIComponent(message)
+
+      // Create WhatsApp URL
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`
+
+      // Open WhatsApp in new tab
+      window.open(whatsappUrl, '_blank')
+
+      toast.success('WhatsApp message prepared for sending')
+    } catch (err) {
+      console.error('Error preparing WhatsApp message:', err)
+      toast.error('Failed to prepare WhatsApp message')
+    }
+  }
+
+  const sendTrackingMessage = (phoneNumber: string, trackingNumber: string) => {
+    try {
+      // Format phone number for WhatsApp (remove leading 0 and add country code)
+      const formattedPhone = phoneNumber.startsWith('0') ? phoneNumber.substring(1) : phoneNumber
+      const whatsappNumber = `213${formattedPhone}`
+
+      // Create tracking message
+      const message = `مرحبا! يمكنكم تتبع طلبكم رقم #${trackingNumber} عبر الرابط التالي:
+
+https://loudbrandss.com/track-order?tracking=${trackingNumber}
+
+شكرا لثقتكم بنا!`
+
+      // Encode message for URL
+      const encodedMessage = encodeURIComponent(message)
+
+      // Create WhatsApp URL
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`
+
+      // Open WhatsApp
+      window.open(whatsappUrl, '_blank')
+
+      toast.success('Tracking message prepared for sending')
+    } catch (error) {
+      console.error('Error sending tracking message:', error)
+      toast.error('Failed to prepare tracking message')
+    }
+  }
+
+  const sendClaimMessage = (phoneNumber: string, trackingNumber: string, customerName: string) => {
+    try {
+      // Format phone number for WhatsApp (remove leading 0 and add country code)
+      const formattedPhone = phoneNumber.startsWith('0') ? phoneNumber.substring(1) : phoneNumber
+      const whatsappNumber = `213${formattedPhone}`
+
+      // Create Order Near message
+      const message = `مرحبا ${customerName} 👋
+طلبيتك برقم التتبع ${trackingNumber} 📦 راهي قريبة ليك! 📍
+يرجى الرد على ياليدين لاستلام الطلبية. 📞
+شكرا!`
+
+      // Encode message for URL
+      const encodedMessage = encodeURIComponent(message)
+
+      // Create WhatsApp URL
+      const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${encodedMessage}`
+
+      // Open WhatsApp
+      window.open(whatsappUrl, '_blank')
+
+      toast.success('Message prepared for sending')
+    } catch (error) {
+      console.error('Error sending message:', error)
+      toast.error('Failed to prepare message')
+    }
+  }
+
+  const handleCallCustomer = (phone: string) => {
+    window.open(`tel:${phone}`, '_blank')
+  }
+
+  const handleNavigateToAddress = (address: string) => {
+    const encodedAddress = encodeURIComponent(address)
+    window.open(`https://www.google.com/maps/search/?api=1&query=${encodedAddress}`, '_blank')
+  }
+
+  const getYalidineStatusForOrder = (order: Order, useConfirmedShipments = false) => {
+    if (!order.trackingNumber) return null
+
+    // Use confirmed shipments if requested (for confirmed tab), otherwise use regular shipments
+    const shipmentsToSearch = useConfirmedShipments ? confirmedShipments : yalidineShipments
+
+    // Find the corresponding Yalidine shipment
+    const yalidineShipment = shipmentsToSearch.find(shipment =>
+      shipment.tracking === order.trackingNumber
+    )
+
+    // If we found a Yalidine shipment, use its status
+    if (yalidineShipment) {
+      return yalidineShipment.last_status
+    }
+
+    // Fallback: If no Yalidine data but we have DB status (from webhook), use that
+    if (order.deliveryStatus) {
+      return normalizeYalidineStatus(order.deliveryStatus)
+    }
+
+    // If no data at all, show pending
+    return 'Pending Sync'
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading delivery data...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertTriangle className="w-8 h-8 text-red-500 mx-auto mb-4" />
+          <p className="text-red-500 mb-4">{error}</p>
+          <Button onClick={fetchDeliveryData}>Retry</Button>
+        </div>
+      </div>
+    )
+  }
+
+  const getDeliveryAgentWhatsAppLink = (order: Order, status: string | null) => {
+    if (!status) return null
+
+    const shipment = yalidineShipments.find(s => s.tracking === order.trackingNumber)
+    const tracking = order.trackingNumber || 'N/A'
+    const customerName = order.customerName
+
+    // Format articles with emojis and better organization
+    const articles = order.items.map(i => {
+      const sizeStr = i.size ? ` (${i.size})` : ''
+      return `📦 ${i.quantity}x ${i.product.name}${sizeStr}`
+    }).join('\n')
+
+    // Format phone
+    let phone = order.customerPhone || ''
+    if (phone.startsWith('0')) phone = phone.substring(1)
+    const whatsappNumber = `213${phone}`
+
+    let message = ''
+
+    if (status === 'En attente du client') {
+      // Show only the Yalidine desk name chosen by the client (for PICKUP orders)
+      const deskName = order.deliveryDesk?.name || shipment?.to_commune_name || 'le bureau Yalidine'
+      message = `مرحبًا ${customerName} 🌸
+نعلمك أن طلبيتك:
+${articles}
+رقم التتبع: (${tracking}) 📦
+وصلت إلى مكتب ياليدين:
+🏢 المكتب: ${deskName}
+
+يرجى التوجه إلى المكتب لاستلام الطلبية في أقرب وقت.
+شكرًا لثقتك بنا 🤍
+Loudstyles`
+    } else if (status === 'Sorti en livraison') {
+      // Get delivery address or desk based on delivery type
+      let deliveryInfo = ''
+      if (order.deliveryType === 'PICKUP') {
+        // For PICKUP, show only the desk name
+        const deskName = order.deliveryDesk?.name || 'المكتب المطلوب'
+        deliveryInfo = `🏢 المكتب: ${deskName}`
+      } else {
+        // For HOME_DELIVERY, show address, commune, and wilaya in one line
+        const wilaya = shipment?.to_wilaya_name || order.city?.name || ''
+        const commune = shipment?.to_commune_name || ''
+        const homeAddress = order.deliveryAddress || shipment?.customer_address || 'العنوان المطلوب'
+        const addressParts = [homeAddress]
+        if (commune) addressParts.push(commune)
+        if (wilaya) addressParts.push(wilaya)
+        deliveryInfo = `📍 Adresse: ${addressParts.join(', ')}`
+      }
+
+      message = `مرحبا ${customerName} 🌸
+نعلمك أن طلبيتك:
+${articles}
+برقم التتبع (${tracking}) 📦
+راهي عند عامل التوصيل 🚚
+
+${deliveryInfo}
+
+عامل التوصيل راح يتصل بك قريبًا،
+يرجى الرد على الهاتف لتأكيد الاستلام 📞
+شكرا لثقتك بنا 🤍
+Loudstyles`
+    } else if (status === 'Echèc livraison' || status === 'Echec de livraison') {
+      message = `⛔ إشعار نهائي
+
+إشعار نهائي وتحذير أخير
+
+بخصوص طلبيتك:
+${articles}
+رقم التتبع (${tracking}) 📦
+
+نعلمك أن اليوم هو آخر أجل للاستلام دون أي تمديد.
+
+⚠️ في حال عدم الاستلام أو التسبب في إرجاع الطرد (retour)، سيتم تلقائيًا:
+
+❌ تسجيلك ضمن قائمة الزبائن غير الملتزمين لدى شركات توصيل
+❌ حظرك نهائيًا من الطلب من صفحة Loudstyles
+❌ رفض أي تعامل مستقبلي معك دون استثناء 
+Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبائن غير جادين`
+    } else if (status === 'Tentative échouée') {
+      // Different messages based on delivery type
+      if (order.deliveryType === 'PICKUP') {
+        // Desk delivery - show only the Yalidine desk name chosen by the client
+        const deskName = order.deliveryDesk?.name || 'المكتب المطلوب'
+        message = `مرحبا ${customerName} 🌸
+بخصوص طلبيتك:
+${articles}
+رقم التتبع: (${tracking}) 📦
+
+شركة التوصيل yalidine حاولت الاتصال بك
+لإستلامها من:
+🏢 المكتب: ${deskName}
+
+لكن لم يتم الرد على الهاتف لتأكيد الاستلام
+وتم تسجيلها كـ Tentative échouée 🚫
+
+📞 يرجى الرد والتقدّم للمكتب في أقرب وقت لإستلامها
+وتفادي إلغاء الطلبية
+
+شكرا لتفهمك 🤍
+Loudstyles`
+      } else {
+        // Home delivery - show address, commune, and wilaya in one line
+        const homeAddress = order.deliveryAddress || shipment?.customer_address || 'المنزل المطلوب'
+        const commune = shipment?.to_commune_name || ''
+        const wilaya = shipment?.to_wilaya_name || order.city?.name || ''
+        const addressParts = [homeAddress]
+        if (commune) addressParts.push(commune)
+        if (wilaya) addressParts.push(wilaya)
+        const addressInfo = `📍 Adresse: ${addressParts.join(', ')}`
+
+        message = `مرحبا ${customerName} 🌸
+بخصوص طلبيتك:
+${articles}
+رقم التتبع: (${tracking}) 📦
+
+عامل التوصيل yalidine حاول الإتصال بك لتسليمها إلى:
+${addressInfo}
+
+لكن لم يتم الرد على الهاتف لتأكيد الاستلام
+وتم تسجيلها كـ Tentative échouée 🚫
+
+📞 يرجى الرد على عامل التوصيل في أقرب وقت لإستلامها 
+و تفادي إلغاء الطلبية
+
+شكرا لتفهمك 🤍
+Loudstyles`
+      }
+    } else if (status === 'Livré') {
+      message = `مرحبا ${customerName} 🌸
+
+نشكرك جزيل الشكر على اختيارك لنا وثقتك في Loudstyles! 🙏
+
+نتمنى أن تكون طلبيتك:
+${articles}
+رقم التتبع: (${tracking}) 📦
+
+قد وصلت إليك بحالة ممتازة وأنك راضٍ/ة عن تجربتك معنا.
+
+نقدر رأيك كثيراً ونرغب في تحسين خدماتنا باستمرار. 
+لذلك نود أن نعرف:
+✨ كيف كانت تجربتك مع موقعنا؟
+✨ ما رأيك في المنتجات التي استلمتها؟
+✨ هل لديك أي اقتراحات لتحسين خدمتنا؟
+
+نرجو منك مشاركة تجربتك معنا عبر رسالة نصية على صفحتنا على Instagram:
+📱 https://www.instagram.com/loudstyless/
+
+رأيك مهم جداً لنا ويساعدنا في تقديم أفضل خدمة لجميع عملائنا.
+
+شكراً جزيلاً لوقتك وثقتك بنا! 🤍
+Loudstyles`
+    } else {
+      return null // No message for other statuses
+    }
+
+    const encodedMessage = encodeURIComponent(message)
+    return `https://wa.me/${whatsappNumber}?text=${encodedMessage}`
+  }
+
+  const getShipmentWhatsAppLink = (shipment: YalidineShipment) => {
+    const status = shipment.last_status
+    const tracking = shipment.tracking
+    const customerName = shipment.customer_name
+
+    // Try to find order details to get sizes and delivery type
+    const order = orders.find(o => o.trackingNumber === tracking)
+    let articles = shipment.product_list || 'Articles'
+
+    if (order) {
+      // Format articles with emojis and better organization
+      articles = order.items.map(i => {
+        const sizeStr = i.size ? ` (${i.size})` : ''
+        return `📦 ${i.quantity}x ${i.product.name}${sizeStr}`
+      }).join('\n')
+    } else {
+      // Fallback: format product_list with emoji
+      articles = `📦 ${articles}`
+    }
+
+    // Format phone
+    let phone = shipment.customer_phone || ''
+    if (phone.startsWith('0')) phone = phone.substring(1)
+    const whatsappNumber = `213${phone}`
+
+    let message = ''
+
+    if (status === 'En attente du client') {
+      // Show only the Yalidine desk name chosen by the client (for PICKUP orders)
+      const deskName = order?.deliveryDesk?.name || shipment.to_commune_name || 'le bureau Yalidine'
+      message = `مرحبًا ${customerName} 🌸
+نعلمك أن طلبيتك:
+${articles}
+رقم التتبع: (${tracking}) 📦
+وصلت إلى مكتب ياليدين:
+🏢 المكتب: ${deskName}
+
+يرجى التوجه إلى المكتب لاستلام الطلبية في أقرب وقت.
+شكرًا لثقتك بنا 🤍
+Loudstyles`
+    } else if (status === 'Sorti en livraison') {
+      // Get delivery address or desk based on delivery type
+      let deliveryInfo = ''
+      if (order && order.deliveryType === 'PICKUP') {
+        // For PICKUP, show only the desk name
+        const deskName = order.deliveryDesk?.name || 'المكتب المطلوب'
+        deliveryInfo = `🏢 المكتب: ${deskName}`
+      } else {
+        // For HOME_DELIVERY, show address, commune, and wilaya in one line
+        const wilaya = shipment.to_wilaya_name || order?.city?.name || ''
+        const commune = shipment.to_commune_name || ''
+        const homeAddress = order?.deliveryAddress || shipment.customer_address || 'العنوان المطلوب'
+        const addressParts = [homeAddress]
+        if (commune) addressParts.push(commune)
+        if (wilaya) addressParts.push(wilaya)
+        deliveryInfo = `📍 Adresse: ${addressParts.join(', ')}`
+      }
+
+      message = `مرحبا ${customerName} 🌸
+نعلمك أن طلبيتك:
+${articles}
+برقم التتبع (${tracking}) 📦
+راهي عند عامل التوصيل 🚚
+
+${deliveryInfo}
+
+عامل التوصيل راح يتصل بك قريبًا،
+يرجى الرد على الهاتف لتأكيد الاستلام 📞
+شكرا لثقتك بنا 🤍
+Loudstyles`
+    } else if (status === 'Echèc livraison' || status === 'Echec de livraison') {
+      message = `⛔ إشعار نهائي
+
+إشعار نهائي وتحذير أخير
+
+بخصوص طلبيتك:
+${articles}
+رقم التتبع (${tracking}) 📦
+
+نعلمك أن اليوم هو آخر أجل للاستلام دون أي تمديد.
+
+⚠️ في حال عدم الاستلام أو التسبب في إرجاع الطرد (retour)، سيتم تلقائيًا:
+
+❌ تسجيلك ضمن قائمة الزبائن غير الملتزمين لدى شركات توصيل
+❌ حظرك نهائيًا من الطلب من صفحة Loudstyles
+❌ رفض أي تعامل مستقبلي معك دون استثناء 
+Loudstyles لا تقبل خسارة وقتها أو منتجاتها مع زبائن غير جادين`
+    } else if (status === 'Tentative échouée') {
+      // Different messages based on delivery type
+      if (order && order.deliveryType === 'PICKUP') {
+        // Desk delivery - show only the Yalidine desk name chosen by the client
+        const deskName = order.deliveryDesk?.name || 'المكتب المطلوب'
+        message = `مرحبا ${customerName} 🌸
+بخصوص طلبيتك:
+${articles}
+رقم التتبع: (${tracking}) 📦
+
+شركة التوصيل yalidine حاولت الاتصال بك
+لإستلامها من:
+🏢 المكتب: ${deskName}
+
+لكن لم يتم الرد على الهاتف لتأكيد الاستلام
+وتم تسجيلها كـ Tentative échouée 🚫
+
+📞 يرجى الرد والتقدّم للمكتب في أقرب وقت لإستلامها
+وتفادي إلغاء الطلبية
+
+شكرا لتفهمك 🤍
+Loudstyles`
+      } else {
+        // Home delivery - show address, commune, and wilaya in one line
+        const homeAddress = order?.deliveryAddress || shipment.customer_address || 'المنزل المطلوب'
+        const commune = shipment.to_commune_name || ''
+        const wilaya = shipment.to_wilaya_name || order?.city?.name || ''
+        const addressParts = [homeAddress]
+        if (commune) addressParts.push(commune)
+        if (wilaya) addressParts.push(wilaya)
+        const addressInfo = `📍 Adresse: ${addressParts.join(', ')}`
+
+        message = `مرحبا ${customerName} 🌸
+بخصوص طلبيتك:
+${articles}
+رقم التتبع: (${tracking}) 📦
+
+عامل التوصيل yalidine حاول الإتصال بك لتسليمها إلى:
+${addressInfo}
+
+لكن لم يتم الرد على الهاتف لتأكيد الاستلام
+وتم تسجيلها كـ Tentative échouée 🚫
+
+📞 يرجى الرد على عامل التوصيل في أقرب وقت لإستلامها 
+و تفادي إلغاء الطلبية
+
+شكرا لتفهمك 🤍
+Loudstyles`
+      }
+    } else if (status === 'Livré') {
+      message = `مرحبا ${customerName} 🌸
+
+نشكرك جزيل الشكر على اختيارك لنا وثقتك في Loudstyles! 🙏
+
+نتمنى أن تكون طلبيتك:
+${articles}
+رقم التتبع: (${tracking}) 📦
+
+قد وصلت إليك بحالة ممتازة وأنك راضٍ/ة عن تجربتك معنا.
+
+نقدر رأيك كثيراً ونرغب في تحسين خدماتنا باستمرار. 
+لذلك نود أن نعرف:
+✨ كيف كانت تجربتك مع موقعنا؟
+✨ ما رأيك في المنتجات التي استلمتها؟
+✨ هل لديك أي اقتراحات لتحسين خدمتنا؟
+
+نرجو منك مشاركة تجربتك معنا عبر رسالة نصية على صفحتنا على Instagram:
+📱 https://www.instagram.com/loudstyless/
+
+رأيك مهم جداً لنا ويساعدنا في تقديم أفضل خدمة لجميع عملائنا.
+
+شكراً جزيلاً لوقتك وثقتك بنا! 🤍
+Loudstyles`
+    } else {
+      return null
+    }
+
+    const encodedMessage = encodeURIComponent(message)
+    return `https://wa.me/${whatsappNumber}?text=${encodedMessage}`
+  }
+
+  return (
+    <div className="space-y-6" dir={direction}>
+      {/* ... header ... */}
+      {/* ... stats ... */}
+
+      {/* Delivery Management */}
+      <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
+        {activeTab !== 'confirmed' && (
+          <TabsList className="flex w-full overflow-x-auto pb-2 justify-start h-auto gap-2">
+            <TabsTrigger value="all-parcels" className="flex-shrink-0">All Parcels ({yalidineShipments.length})</TabsTrigger>
+            <TabsTrigger value="confirmed" className="flex-shrink-0 bg-emerald-600 text-white data-[state=active]:bg-emerald-700">Confirmed Orders ({stats.confirmedOrders})</TabsTrigger>
+            <TabsTrigger value="preparation" className="flex-shrink-0 bg-blue-600 text-white data-[state=active]:bg-blue-700">En préparation ({stats.enPreparation})</TabsTrigger>
+            <TabsTrigger value="delivery" className="flex-shrink-0 bg-indigo-600 text-white data-[state=active]:bg-indigo-700">Sorti en livraison ({stats.sortiEnLivraison})</TabsTrigger>
+            <TabsTrigger value="waiting" className="flex-shrink-0 bg-amber-500 text-white data-[state=active]:bg-amber-600">En attente du client ({stats.enAttenteClient || 0})</TabsTrigger>
+            <TabsTrigger value="failed" className="flex-shrink-0 bg-red-600 text-white animate-pulse-slow data-[state=active]:bg-red-700">Tentative échouée ({stats.tentativeEchouee || 0})</TabsTrigger>
+            <TabsTrigger value="alert" className="flex-shrink-0 bg-orange-600 text-white animate-pulse-slow data-[state=active]:bg-orange-700">En alerte ({stats.enAlerte || 0})</TabsTrigger>
+          </TabsList>
+        )}
+
+        <TabsContent value="all-parcels" className="space-y-4">
+          {/* ... all parcels content ... */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Package className="w-5 h-5 mr-2" />
+                  All Yalidine Parcels ({statusFilter === 'all' ? yalidineShipments.length : yalidineShipments.filter(s => s.last_status === statusFilter).length})
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {yalidineStatuses.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={fetchDeliveryData}
+                    disabled={loading}
+                  >
+                    <Loader2 className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {(() => {
+                  const filteredShipments = statusFilter === 'all'
+                    ? yalidineShipments
+                    : yalidineShipments.filter(shipment => shipment.last_status === statusFilter);
+
+                  return filteredShipments.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Package className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>{statusFilter === 'all' ? 'No parcels found' : `No parcels with status "${statusFilter}"`}</p>
+                      <p className="text-sm">All your Yalidine parcels will appear here</p>
+                    </div>
+                  ) : (
+                    filteredShipments.map((shipment, index) => {
+                      const order = orders.find(o => o.trackingNumber === shipment.tracking)
+                      const whatsappLink = getShipmentWhatsAppLink(shipment)
+
+                      return (
+                        <div key={shipment.id || shipment.tracking || `parcel-${index}`} className="border rounded-lg p-4 hover:bg-muted/50 transition-colors">
+                          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:space-x-4 gap-2 sm:gap-0">
+                                <div>
+                                  <p className="font-medium">#{shipment.tracking}</p>
+                                  <p className="text-sm text-muted-foreground">{shipment.customer_name}</p>
+                                  <p className="text-sm text-muted-foreground">{shipment.customer_phone}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {shipment.price?.toLocaleString()} DA
+                                  </p>
+                                </div>
+                                <div className="flex space-x-2">
+                                  <Badge variant={getStatusVariant(shipment.last_status) as any}>
+                                    {shipment.last_status}
+                                  </Badge>
+                                </div>
+                              </div>
+                              <div className="mt-2 text-sm text-muted-foreground">
+                                <div className="flex flex-wrap gap-2 items-center">
+                                  <span>{shipment.product_list || 'N/A'}</span>
+                                  <span className="hidden sm:inline">•</span>
+                                  <span>{shipment.weight || 1} kg</span>
+                                  <span className="hidden sm:inline">•</span>
+                                  <span>{shipment.from_wilaya_name} → {shipment.to_wilaya_name}</span>
+                                  <span className="hidden sm:inline">•</span>
+                                  <span>{shipment.to_commune_name}</span>
+                                </div>
+                              </div>
+                              {shipment.customer_address && (
+                                <div className="mt-2 text-sm bg-muted p-2 rounded">
+                                  <strong>Address:</strong> {shipment.customer_address}
+                                </div>
+                              )}
+                              <div className="mt-2 text-xs text-muted-foreground">
+                                Created: {new Date(shipment.date_creation).toLocaleDateString()} •
+                                Last Update: {new Date(shipment.date_last_status).toLocaleDateString()}
+                              </div>
+                            </div>
+
+                          </div>
+                        </div>
+                      )
+                    })
+                  );
+                })()}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="confirmed" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className={`flex items-center ${isRTL ? 'flex-row-reverse' : ''}`}>
+                  <CheckCircle className={`w-5 h-5 ${isRTL ? 'ml-2' : 'mr-2'}`} />
+                  Confirmed Orders - Customer Communication
+                </div>
+                {/* ... filter ... */}
+                <div className="flex items-center space-x-2">
+                  <Select value={confirmedStatusFilter} onValueChange={(value) => {
+                    setConfirmedStatusFilter(value)
+                    setConfirmedTabFilter('all') // Reset tab when using dropdown
+                    setConfirmedCurrentPage(1) // Reset to first page when changing filter
+                  }}>
+                    <SelectTrigger className="w-48">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {yalidineStatuses.map((status) => (
+                        <SelectItem key={status.value} value={status.value}>
+                          {status.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {/* Status Tabs */}
+              <Tabs value={confirmedTabFilter} onValueChange={(value) => {
+                setConfirmedTabFilter(value)
+                setConfirmedCurrentPage(1) // Reset to first page when changing tabs
+                if (value !== 'all') {
+                  setConfirmedStatusFilter(value) // Sync dropdown with tab
+                }
+              }} className="mb-6">
+                <TabsList className="flex w-full overflow-x-auto pb-2 justify-start h-auto gap-2">
+                  <TabsTrigger
+                    value="all"
+                    className="flex-shrink-0"
+                  >
+                    All ({stats.confirmedOrders})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="En préparation"
+                    className="flex-shrink-0 bg-blue-600 text-white data-[state=active]:bg-blue-700"
+                  >
+                    En préparation ({stats.confirmedStats?.enPreparation || 0})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="Sorti en livraison"
+                    className="flex-shrink-0 bg-indigo-600 text-white data-[state=active]:bg-indigo-700"
+                  >
+                    Sorti en livraison ({stats.confirmedStats?.sortiEnLivraison || 0})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="En attente du client"
+                    className="flex-shrink-0 bg-amber-500 text-white data-[state=active]:bg-amber-600"
+                  >
+                    En attente du client ({stats.confirmedStats?.enAttenteClient || 0})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="Tentative échouée"
+                    className="flex-shrink-0 bg-red-600 text-white animate-pulse-slow data-[state=active]:bg-red-700"
+                  >
+                    Tentative échouée ({stats.confirmedStats?.tentativeEchouee || 0})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="En alerte"
+                    className="flex-shrink-0 bg-orange-600 text-white animate-pulse-slow data-[state=active]:bg-orange-700"
+                  >
+                    En alerte ({stats.confirmedStats?.enAlerte || 0})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="Echèc livraison"
+                    className="flex-shrink-0 bg-red-700 text-white animate-pulse-slow data-[state=active]:bg-red-800"
+                  >
+                    Echec livraison ({stats.confirmedStats?.echecLivraison || 0})
+                  </TabsTrigger>
+                  <TabsTrigger
+                    value="Livré"
+                    className="flex-shrink-0 bg-green-600 text-white data-[state=active]:bg-green-700"
+                  >
+                    Livré ({stats.confirmedStats?.livre || 0})
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+
+              {/* Search and Items Per Page Selector */}
+              <div className="flex items-center justify-between mb-4 gap-4">
+                <div className="flex-1 max-w-md">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                    <Input
+                      placeholder="Rechercher par nom, téléphone ou tracking..."
+                      value={confirmedSearchQuery}
+                      onChange={(e) => {
+                        setConfirmedSearchQuery(e.target.value)
+                        setConfirmedCurrentPage(1) // Reset to first page when searching
+                      }}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Label className="text-sm text-muted-foreground">Orders per page:</Label>
+                  <Select
+                    value={confirmedItemsPerPage.toString()}
+                    onValueChange={(value) => {
+                      setConfirmedItemsPerPage(Number(value))
+                      setConfirmedCurrentPage(1) // Reset to first page when changing items per page
+                    }}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                      <SelectItem value="50">50</SelectItem>
+                      <SelectItem value="100">100</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {/* Orders List */}
+              {(() => {
+                // For confirmed tab, use all confirmed orders that have a tracking number
+                // Filter orders based on both tab and dropdown filter
+                let filteredOrders = allConfirmedOrders.filter(order =>
+                  order.callCenterStatus === 'CONFIRMED' && !!order.trackingNumber
+                )
+
+                // Apply tab filter if not 'all' - use confirmedShipments for accurate matching
+                if (confirmedTabFilter !== 'all') {
+                  if (confirmedTabFilter === 'Echèc livraison') {
+                    // Handle both "Echèc livraison" and "Echec de livraison" statuses
+                    filteredOrders = filteredOrders.filter(order => {
+                      const status = getYalidineStatusForOrder(order, true) // Use confirmed shipments
+                      return status === 'Echèc livraison' || status === 'Echec de livraison'
+                    })
+                  } else {
+                    filteredOrders = filteredOrders.filter(order =>
+                      getYalidineStatusForOrder(order, true) === confirmedTabFilter // Use confirmed shipments
+                    )
+                  }
+                }
+
+                // Apply dropdown filter if not 'all' and tab is 'all'
+                if (confirmedStatusFilter !== 'all' && confirmedTabFilter === 'all') {
+                  filteredOrders = filteredOrders.filter(order =>
+                    getYalidineStatusForOrder(order, true) === confirmedStatusFilter // Use confirmed shipments
+                  )
+                }
+
+                // Apply search filter
+                if (confirmedSearchQuery.trim()) {
+                  const searchLower = confirmedSearchQuery.toLowerCase().trim()
+                  filteredOrders = filteredOrders.filter(order => {
+                    const nameMatch = order.customerName?.toLowerCase().includes(searchLower)
+                    const phoneMatch = order.customerPhone?.toLowerCase().includes(searchLower)
+                    const trackingMatch = order.trackingNumber?.toLowerCase().includes(searchLower)
+                    return nameMatch || phoneMatch || trackingMatch
+                  })
+                }
+
+                // Calculate pagination
+                const totalOrders = filteredOrders.length
+                const totalPages = Math.ceil(totalOrders / confirmedItemsPerPage)
+                const startIndex = (confirmedCurrentPage - 1) * confirmedItemsPerPage
+                const endIndex = startIndex + confirmedItemsPerPage
+                const paginatedOrders = filteredOrders.slice(startIndex, endIndex)
+
+                if (filteredOrders.length === 0) {
+                  return <p className="text-muted-foreground text-center py-8">No confirmed orders found</p>
+                }
+
+                return (
+                  <div className="space-y-2">
+                    {/* Pagination Info */}
+                    <div className="text-xs text-muted-foreground">
+                      Showing {startIndex + 1}-{Math.min(endIndex, totalOrders)} of {totalOrders} orders
+                    </div>
+
+                    {/* Orders */}
+                    {paginatedOrders.map((order) => {
+                      const status = getYalidineStatusForOrder(order, true) // Use confirmed shipments
+                      const whatsappLink = getDeliveryAgentWhatsAppLink(order, status)
+                      // Find Yalidine shipment for this order to get wilaya and commune names
+                      const shipment = confirmedShipments.find(s => s.tracking === order.trackingNumber)
+                      const wilayaName = shipment?.to_wilaya_name || order.city?.name || ''
+                      const communeName = shipment?.to_commune_name || ''
+
+                      return (
+                        <div key={order.id} className="border rounded-lg p-3 space-y-2">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 space-y-2 min-w-0">
+                              {/* Order Number and Status */}
+                              <div className="flex flex-col space-y-1">
+                                <div className="flex items-center space-x-2">
+                                  <h4 className="font-semibold text-base">#{order.orderNumber}</h4>
+                                  {status && (
+                                    <Badge variant={getStatusVariant(status) as any} className="text-xs">
+                                      {status}
+                                    </Badge>
+                                  )}
+                                </div>
+                                {order.trackingNumber && (
+                                  <div className="flex items-center text-xs text-muted-foreground">
+                                    <Tag className="w-3 h-3 mr-1" />
+                                    {order.trackingNumber}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Client Information */}
+                              <div className="bg-muted/50 p-2 rounded-lg">
+                                <div className="flex items-center space-x-4">
+                                  <div>
+                                    <p className="text-xs font-medium text-muted-foreground">Client</p>
+                                    <p className="font-semibold text-sm">{order.customerName}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-xs font-medium text-muted-foreground">Téléphone</p>
+                                    <p className="font-semibold text-sm">{order.customerPhone}</p>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Order Summary */}
+                              <div className="bg-muted/30 p-2 rounded-lg space-y-1">
+                                <p className="text-xs font-medium text-muted-foreground mb-1">Résumé de la commande:</p>
+                                <div className="space-y-0.5">
+                                  {order.items.map((item) => {
+                                    const itemTotal = item.price * item.quantity
+                                    const sizeStr = item.size ? ` [${item.size}]` : ''
+                                    return (
+                                      <div key={item.id} className="flex justify-between text-xs">
+                                        <span>
+                                          {item.quantity}x {item.product.name}{sizeStr}
+                                        </span>
+                                        <span className="font-medium">{itemTotal.toLocaleString()} DA</span>
+                                      </div>
+                                    )
+                                  })}
+                                </div>
+                                <div className="border-t pt-1 mt-1 space-y-0.5">
+                                  <div className="flex flex-col gap-0.5 text-xs">
+                                    <div className="flex justify-between items-start">
+                                      <div className="flex-1">
+                                        {order.deliveryType === 'HOME_DELIVERY' ? (
+                                          <>
+                                            <div className="flex items-center gap-1 text-muted-foreground">
+                                              <span className="text-base">🏠</span>
+                                              <span className="text-xs">Livraison à domicile:</span>
+                                            </div>
+                                            <div className="text-muted-foreground mt-0.5 ml-5 space-y-0.5 text-xs">
+                                              {wilayaName && <div>Wilaya: {wilayaName}</div>}
+                                              {communeName && <div>Commune: {communeName}</div>}
+                                              {order.deliveryAddress && <div>Adresse: {order.deliveryAddress}</div>}
+                                              {!wilayaName && !communeName && !order.deliveryAddress && (
+                                                <div>Adresse non spécifiée</div>
+                                              )}
+                                            </div>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <div className="flex items-center gap-1 text-muted-foreground">
+                                              <span className="text-base">🏢</span>
+                                              <span className="text-xs">Bureau Yalidine:</span>
+                                            </div>
+                                            <div className="text-muted-foreground mt-0.5 ml-5 text-xs">
+                                              {order.deliveryDesk?.name || order.deliveryAddress || 'Bureau non spécifié'}
+                                            </div>
+                                          </>
+                                        )}
+                                      </div>
+                                      <span className="font-medium ml-2 text-xs">{order.deliveryFee.toLocaleString()} DA</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex justify-between text-xs pt-0.5 border-t">
+                                    <span className="font-medium">Total:</span>
+                                    <span className="font-semibold text-green-600">{order.total.toLocaleString()} DA</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              {/* Yalidine Tracking */}
+                              {order.trackingNumber && (
+                                <div className="text-xs">
+                                  <span className="font-medium">Yalidine Tracking:</span>
+                                  <span className="ml-2 font-mono bg-blue-50 px-1.5 py-0.5 rounded text-blue-700 text-xs">
+                                    {order.trackingNumber}
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Notes Display - Orange and Animated */}
+                              {order.notes && (
+                                <motion.div
+                                  className="bg-orange-50 border-2 border-orange-300 p-2 rounded-lg shadow-md"
+                                  initial={{ scale: 1 }}
+                                  animate={{
+                                    scale: [1, 1.02, 1],
+                                    boxShadow: [
+                                      '0 0 0px rgba(251, 146, 60, 0.4)',
+                                      '0 0 10px rgba(251, 146, 60, 0.6)',
+                                      '0 0 0px rgba(251, 146, 60, 0.4)'
+                                    ]
+                                  }}
+                                  transition={{
+                                    duration: 2,
+                                    repeat: Infinity,
+                                    ease: "easeInOut"
+                                  }}
+                                >
+                                  <p className="text-xs font-medium text-orange-800 mb-0.5">Notes:</p>
+                                  <p className="text-xs text-orange-900 whitespace-pre-wrap">{order.notes}</p>
+                                </motion.div>
+                              )}
+                            </div>
+
+                            {/* Action Buttons - Right Side */}
+                            <div className="flex flex-col items-end space-y-1.5 ml-3 flex-shrink-0">
+                              <TooltipProvider>
+                                <Tooltip>
+                                  <TooltipTrigger asChild>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-xs h-7 px-2"
+                                      onClick={() => {
+                                        setSelectedOrder(order)
+                                        setShowNotesDialog(true)
+                                        setNoteInput('')
+                                      }}
+                                    >
+                                      <Edit className="w-3 h-3 mr-1" />
+                                      {order.notes ? 'Modifier Note' : 'Ajouter Note'}
+                                    </Button>
+                                  </TooltipTrigger>
+                                  {order.notes && (
+                                    <TooltipContent side="left" className="max-w-md">
+                                      <div className="space-y-1">
+                                        <p className="font-semibold text-sm mb-2">Détails des Notes:</p>
+                                        <p className="text-xs whitespace-pre-wrap">{order.notes}</p>
+                                      </div>
+                                    </TooltipContent>
+                                  )}
+                                </Tooltip>
+                              </TooltipProvider>
+
+                              {whatsappLink && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => window.open(whatsappLink, '_blank')}
+                                  className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200 text-xs h-7 px-2"
+                                >
+                                  <MessageCircle className="w-3 h-3 mr-1" />
+                                  WhatsApp
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+
+                    {/* Pagination Controls */}
+                    {totalPages > 1 && (
+                      <div className="mt-6">
+                        <Pagination>
+                          <PaginationContent>
+                            <PaginationItem>
+                              <PaginationPrevious
+                                href="#"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  if (confirmedCurrentPage > 1) {
+                                    setConfirmedCurrentPage(confirmedCurrentPage - 1)
+                                  }
+                                }}
+                                className={confirmedCurrentPage === 1 ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                              />
+                            </PaginationItem>
+
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                              // Show first page, last page, current page, and pages around current
+                              if (
+                                page === 1 ||
+                                page === totalPages ||
+                                (page >= confirmedCurrentPage - 1 && page <= confirmedCurrentPage + 1)
+                              ) {
+                                return (
+                                  <PaginationItem key={page}>
+                                    <PaginationLink
+                                      href="#"
+                                      onClick={(e) => {
+                                        e.preventDefault()
+                                        setConfirmedCurrentPage(page)
+                                      }}
+                                      isActive={confirmedCurrentPage === page}
+                                      className="cursor-pointer"
+                                    >
+                                      {page}
+                                    </PaginationLink>
+                                  </PaginationItem>
+                                )
+                              } else if (
+                                page === confirmedCurrentPage - 2 ||
+                                page === confirmedCurrentPage + 2
+                              ) {
+                                return (
+                                  <PaginationItem key={page}>
+                                    <PaginationEllipsis />
+                                  </PaginationItem>
+                                )
+                              }
+                              return null
+                            })}
+
+                            <PaginationItem>
+                              <PaginationNext
+                                href="#"
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  if (confirmedCurrentPage < totalPages) {
+                                    setConfirmedCurrentPage(confirmedCurrentPage + 1)
+                                  }
+                                }}
+                                className={confirmedCurrentPage === totalPages ? 'pointer-events-none opacity-50' : 'cursor-pointer'}
+                              />
+                            </PaginationItem>
+                          </PaginationContent>
+                        </Pagination>
+                      </div>
+                    )}
+                  </div>
+                )
+              })()}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="preparation" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Orders in Preparation</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {yalidineShipments.filter(shipment => shipment.last_status === 'En préparation').map((shipment, index) => {
+                  const order = orders.find(o => o.trackingNumber === shipment.tracking)
+                  return (
+                    <div key={shipment.id || shipment.tracking || `preparation-${index}`} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-4">
+                            <div>
+                              <p className="font-medium">#{shipment.tracking}</p>
+                              <p className="text-sm text-muted-foreground">{shipment.customer_name}</p>
+                              <p className="text-sm text-muted-foreground">{shipment.customer_phone}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {shipment.price?.toLocaleString()} DA
+                              </p>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Badge variant={getStatusVariant(shipment.last_status) as any}>
+                                {shipment.last_status}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            {shipment.product_list || 'N/A'} • {shipment.weight || 1} kg
+                          </div>
+                          {shipment.customer_address && (
+                            <div className="mt-2 text-sm bg-muted p-2 rounded">
+                              <strong>Address:</strong> {shipment.customer_address}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex space-x-2">
+                          {order && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedOrder(order)
+                                setShowNotesDialog(true)
+                                setNoteInput('')
+                              }}
+                            >
+                              <Edit className="w-4 h-4 mr-1" />
+                              Add Note
+                            </Button>
+                          )}
+                          {shipment.customer_address && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleNavigateToAddress(shipment.customer_address!)}
+                            >
+                              <Navigation className="w-4 h-4 mr-1" />
+                              Navigate
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+                {yalidineShipments.filter(shipment => shipment.last_status === 'En préparation').length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No orders in preparation
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="delivery" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Orders Out for Delivery</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {yalidineShipments.filter(shipment => shipment.last_status === 'Sorti en livraison').map((shipment, index) => {
+                  const whatsappLink = getShipmentWhatsAppLink(shipment)
+                  return (
+                    <div key={shipment.id || shipment.tracking || `delivery-${index}`} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-4">
+                            <div>
+                              <p className="font-medium">#{shipment.tracking}</p>
+                              <p className="text-sm text-muted-foreground">{shipment.customer_name}</p>
+                              <p className="text-sm text-muted-foreground">{shipment.customer_phone}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {shipment.price?.toLocaleString()} DA
+                              </p>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Badge variant={getStatusVariant(shipment.last_status) as any}>
+                                {shipment.last_status}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            {shipment.product_list || 'N/A'} • {shipment.weight || 1} kg
+                          </div>
+                          {shipment.customer_address && (
+                            <div className="mt-2 text-sm bg-muted p-2 rounded">
+                              <strong>Address:</strong> {shipment.customer_address}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex space-x-2">
+                          {whatsappLink && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(whatsappLink, '_blank')}
+                              className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                            >
+                              <ExternalLink className="w-4 h-4 mr-1" />
+                              WhatsApp
+                            </Button>
+                          )}
+                          {shipment.customer_address && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleNavigateToAddress(shipment.customer_address!)}
+                            >
+                              <Navigation className="w-4 h-4 mr-1" />
+                              Navigate
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+                {yalidineShipments.filter(shipment => shipment.last_status === 'Sorti en livraison').length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No orders out for delivery
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="waiting" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>En attente du client</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {yalidineShipments.filter(shipment => shipment.last_status === 'En attente du client').map((shipment, index) => {
+                  const whatsappLink = getShipmentWhatsAppLink(shipment)
+                  return (
+                    <div key={shipment.id || shipment.tracking || `waiting-${index}`} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-4">
+                            <div>
+                              <p className="font-medium">#{shipment.tracking}</p>
+                              <p className="text-sm text-muted-foreground">{shipment.customer_name}</p>
+                              <p className="text-sm text-muted-foreground">{shipment.customer_phone}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {shipment.price?.toLocaleString()} DA
+                              </p>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Badge variant={getStatusVariant(shipment.last_status) as any}>
+                                {shipment.last_status}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            {shipment.product_list || 'N/A'} • {shipment.weight || 1} kg
+                          </div>
+                          {shipment.customer_address && (
+                            <div className="mt-2 text-sm bg-muted p-2 rounded">
+                              <strong>Address:</strong> {shipment.customer_address}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex space-x-2">
+                          {whatsappLink && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(whatsappLink, '_blank')}
+                              className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                            >
+                              <ExternalLink className="w-4 h-4 mr-1" />
+                              WhatsApp
+                            </Button>
+                          )}
+                          {shipment.customer_address && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleNavigateToAddress(shipment.customer_address!)}
+                            >
+                              <Navigation className="w-4 h-4 mr-1" />
+                              Navigate
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+                {yalidineShipments.filter(shipment => shipment.last_status === 'En attente du client').length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No orders waiting for client
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="failed" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Tentative échouée</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {yalidineShipments.filter(shipment => shipment.last_status === 'Tentative échouée').map((shipment, index) => {
+                  const whatsappLink = getShipmentWhatsAppLink(shipment)
+                  return (
+                    <div key={shipment.id || shipment.tracking || `failed-${index}`} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-4">
+                            <div>
+                              <p className="font-medium">#{shipment.tracking}</p>
+                              <p className="text-sm text-muted-foreground">{shipment.customer_name}</p>
+                              <p className="text-sm text-muted-foreground">{shipment.customer_phone}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {shipment.price?.toLocaleString()} DA
+                              </p>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Badge variant={getStatusVariant(shipment.last_status) as any}>
+                                {shipment.last_status}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            {shipment.product_list || 'N/A'} • {shipment.weight || 1} kg
+                          </div>
+                          {shipment.customer_address && (
+                            <div className="mt-2 text-sm bg-muted p-2 rounded">
+                              <strong>Address:</strong> {shipment.customer_address}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex space-x-2">
+                          {whatsappLink && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => window.open(whatsappLink, '_blank')}
+                              className="bg-green-50 hover:bg-green-100 text-green-700 border-green-200"
+                            >
+                              <ExternalLink className="w-4 h-4 mr-1" />
+                              WhatsApp
+                            </Button>
+                          )}
+                          {shipment.customer_address && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleNavigateToAddress(shipment.customer_address!)}
+                            >
+                              <Navigation className="w-4 h-4 mr-1" />
+                              Navigate
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+                {yalidineShipments.filter(shipment => shipment.last_status === 'Tentative échouée').length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No failed delivery attempts
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="alert" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>En alerte</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {yalidineShipments.filter(shipment => shipment.last_status === 'En alerte').map((shipment, index) => {
+                  const order = orders.find(o => o.trackingNumber === shipment.tracking)
+                  return (
+                    <div key={shipment.id || shipment.tracking || `alert-${index}`} className="border rounded-lg p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-4">
+                            <div>
+                              <p className="font-medium">#{shipment.tracking}</p>
+                              <p className="text-sm text-muted-foreground">{shipment.customer_name}</p>
+                              <p className="text-sm text-muted-foreground">{shipment.customer_phone}</p>
+                              <p className="text-sm text-muted-foreground">
+                                {shipment.price?.toLocaleString()} DA
+                              </p>
+                            </div>
+                            <div className="flex space-x-2">
+                              <Badge variant={getStatusVariant(shipment.last_status) as any}>
+                                {shipment.last_status}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="mt-2 text-sm text-muted-foreground">
+                            {shipment.product_list || 'N/A'} • {shipment.weight || 1} kg
+                          </div>
+                          {shipment.customer_address && (
+                            <div className="mt-2 text-sm bg-muted p-2 rounded">
+                              <strong>Address:</strong> {shipment.customer_address}
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex space-x-2">
+                          {order && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => {
+                                setSelectedOrder(order)
+                                setShowNotesDialog(true)
+                                setNoteInput('')
+                              }}
+                            >
+                              <Edit className="w-4 h-4 mr-1" />
+                              Add Note
+                            </Button>
+                          )}
+                          {shipment.customer_address && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleNavigateToAddress(shipment.customer_address!)}
+                            >
+                              <Navigation className="w-4 h-4 mr-1" />
+                              Navigate
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+                {yalidineShipments.filter(shipment => shipment.last_status === 'En alerte').length === 0 && (
+                  <div className="text-center py-8 text-muted-foreground">
+                    No orders in alert status
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+
+      </Tabs>
+
+      {/* Communication Status Dialog */}
+      <Dialog open={showCommunicationDialog} onOpenChange={setShowCommunicationDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Update Communication Status</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Order #{selectedOrder?.orderNumber}</Label>
+              <p className="text-sm text-muted-foreground">
+                Customer: {selectedOrder?.customerName} ({selectedOrder?.customerPhone})
+              </p>
+            </div>
+            <div>
+              <Label>Communication Status</Label>
+              <Select onValueChange={(value) => {
+                if (selectedOrder) {
+                  updateCommunicationStatus(selectedOrder.id, value)
+                  setShowCommunicationDialog(false)
+                }
+              }}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ANSWERED">Answered</SelectItem>
+                  <SelectItem value="DIDNT_ANSWER">Didn&apos;t Answer</SelectItem>
+                  <SelectItem value="SMS_SENT">SMS Sent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showNotesDialog} onOpenChange={setShowNotesDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Order Notes</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Order #{selectedOrder?.orderNumber}</Label>
+              <p className="text-sm text-muted-foreground">
+                Customer: {selectedOrder?.customerName}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label>History</Label>
+              <div className="bg-muted p-3 rounded-md text-sm whitespace-pre-wrap max-h-[200px] overflow-y-auto border">
+                {selectedOrder?.notes || 'No notes yet.'}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>New Note</Label>
+              <Textarea
+                placeholder="Write a new note..."
+                value={noteInput}
+                onChange={(e) => setNoteInput(e.target.value)}
+                rows={3}
+              />
+              <p className="text-xs text-muted-foreground">
+                Your note will be appended with your attribution.
+              </p>
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowNotesDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (selectedOrder) {
+                    updateOrderNotes(selectedOrder.id, noteInput)
+                  }
+                }}
+                disabled={loadingAction || !noteInput.trim()}
+              >
+                {loadingAction ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Save className="h-4 w-4 mr-2" />
+                    Add Note
+                  </>
+                )}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+    </div>
+  )
+} 

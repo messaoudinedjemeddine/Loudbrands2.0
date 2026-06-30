@@ -1,0 +1,32 @@
+# Deploy backend (Node/Prisma) to Heroku when files in /backend change.
+# Runs only on push to main when backend/** is modified.
+# Migrations run automatically via Heroku release phase (Procfile).
+
+name: Deploy Backend to Heroku
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Required for git subtree split
+
+      - name: Deploy backend subdirectory to Heroku
+        env:
+          HEROKU_API_KEY: ${{ secrets.HEROKU_API_KEY }}
+          HEROKU_APP_NAME: ${{ secrets.HEROKU_APP_NAME }}
+        run: |
+          # Create a branch that has only backend/ as repo root (Heroku expects app at root)
+          git subtree split --prefix=backend -b heroku-deploy
+
+          # Push that branch to Heroku; release phase in Procfile runs migrations before dynos start
+          git push https://heroku:${HEROKU_API_KEY}@git.heroku.com/${HEROKU_APP_NAME}.git heroku-deploy:main --force

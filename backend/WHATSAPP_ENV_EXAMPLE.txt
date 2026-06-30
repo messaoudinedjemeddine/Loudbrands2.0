@@ -1,0 +1,17 @@
+# WhatsApp Cloud API Configuration
+# Add these to your backend/.env file
+
+# Your WhatsApp number (the one that will receive order notifications)
+# Format: +213XXXXXXXXX (with country code)
+ADMIN_WHATSAPP_NUMBER=+213XXXXXXXXX
+
+# Use WhatsApp Cloud API
+WHATSAPP_PROVIDER=cloud-api
+
+# Your WhatsApp Cloud API credentials
+WHATSAPP_CLOUD_API_TOKEN=EAARIr2b5ZBO0BQbVzZB5ZCOVGoYS7fnZBNhPnxYNNoxcqBbLcAW2Ha5NNDfOrrAHt2fxviGV13TCTvIzIecGUQTZACG4782Mp70C81kSOLjHTFCn0IfZCIVNzco6ZB54UrhaRZAKZC29DzWRFVg0Cb977Op7BEtu8OEXxKWY0IWuDrqxz4ed6rTzQCUxvrmDBjN5fiirt53rEAcrtBo7ZAb89YLkH0l1qKfOHhbKQ8CWS1xnlEpxLOiTtvZBuIoN36dx4qKPZCTvJ5WU0JTMxTYrkiWoOZCleWFFt85FmQ3TnBroZD
+WHATSAPP_CLOUD_API_PHONE_NUMBER_ID=968834689645123
+
+# Optional: Business Account ID (for reference)
+# WHATSAPP_BUSINESS_ACCOUNT_ID=704349945879390
+
