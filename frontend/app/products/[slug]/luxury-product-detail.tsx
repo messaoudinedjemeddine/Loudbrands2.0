@@ -43,6 +43,7 @@ import { useCartStore, useWishlistStore } from '@/lib/store'
 import { useLocaleStore } from '@/lib/locale-store'
 import { toast } from 'sonner'
 import { LaunchCountdown } from '@/components/launch-countdown'
+import { trackViewContent, trackAddToCart, trackInitiateCheckout } from '@/lib/meta-pixel'
 
 declare global {
   interface Window {
@@ -116,6 +117,12 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
 
   }, [product.sizes, selectedSize, product.isLaunch, product.launchAt, product.name, product.id, product.price, product.category])
 
+  useEffect(() => {
+    if (mounted && product) {
+      trackViewContent(product)
+    }
+  }, [mounted, product])
+
   if (!mounted) return null
 
   const nextImage = () => {
@@ -165,6 +172,8 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
         }]
       })
     }
+
+    trackAddToCart(product, quantity, selectedSize)
 
     toast.success(isRTL ? 'تمت الإضافة إلى السلة' : 'Added to cart')
   }
@@ -609,6 +618,9 @@ export default function LuxuryProductDetail({ product }: ProductDetailClientProp
                         size: selectedSize || undefined,
                         sizeId: selectedSizeObj?.id
                       })
+
+                      // Track InitiateCheckout (Meta Pixel)
+                      trackInitiateCheckout(product, quantity, selectedSize)
 
                       // Redirect to checkout
                       router.push('/checkout')

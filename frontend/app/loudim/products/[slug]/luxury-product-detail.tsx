@@ -31,6 +31,7 @@ import { useLocaleStore } from '@/lib/locale-store'
 import { toast } from 'sonner'
 import { Navbar } from '@/components/navbar'
 import { LaunchCountdown } from '@/components/launch-countdown'
+import { trackViewContent, trackAddToCart, trackInitiateCheckout } from '@/lib/meta-pixel'
 
 declare global {
   interface Window {
@@ -95,6 +96,12 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
 
   }, [product.sizes, selectedSize, product.id, product.name, product.price, product.category])
 
+  useEffect(() => {
+    if (mounted && product) {
+      trackViewContent(product)
+    }
+  }, [mounted, product])
+
   if (!mounted) return null
 
   const nextImage = () => {
@@ -145,6 +152,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
         }]
       })
     }
+
+    trackAddToCart(product, quantity, selectedSize)
 
     setCartOpen(true)
 
@@ -614,6 +623,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                           size: selectedSize || undefined,
                           sizeId: selectedSizeObj?.id
                         })
+
+                        // Track InitiateCheckout (Meta Pixel)
+                        trackInitiateCheckout(product, quantity, selectedSize)
 
                         // Redirect to checkout
                         router.push('/checkout')

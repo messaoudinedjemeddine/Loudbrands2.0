@@ -28,6 +28,7 @@ import Link from 'next/link'
 import { Navbar } from '@/components/navbar'
 import jsPDF from 'jspdf'
 import QRCode from 'qrcode'
+import { trackPurchase } from '@/lib/meta-pixel'
 
 declare global {
   interface Window {
@@ -120,91 +121,20 @@ function OrderSuccessContent() {
         
         // Only track if this order hasn't been tracked before
         if (!trackedOrders.includes(parsedDetails.orderNumber)) {
-          // Track Purchase Event (Meta Pixel) - Only track when order is actually completed
-          const trackPurchase = () => {
-            if (typeof window === 'undefined') return false
-            
-            const win = window as Window & { fbq?: any }
-            
-            // Ensure fbq is loaded and initialized
-            if (!win.fbq) {
-              return false
-            }
-            
-            try {
-              const contentIds = parsedDetails.items.map((item: any) => String(item.id || ''))
-              const contents = parsedDetails.items.map((item: any) => ({
-                id: String(item.id || ''),
-                quantity: parseInt(String(item.quantity || 1)),
-                item_price: parseFloat(String(item.price || 0))
-              }))
-              
-              const totalValue = parseFloat(String(parsedDetails.total || 0))
-              const numItems = parsedDetails.items.reduce((sum: number, item: any) => sum + parseInt(String(item.quantity || 1)), 0)
-              
-              // Track Purchase event with proper Meta Pixel format
-              win.fbq('track', 'Purchase', {
-                content_ids: contentIds,
-                content_type: 'product',
-                value: totalValue,
-                currency: 'DZD',
-                num_items: numItems,
-                order_id: String(parsedDetails.orderNumber),
-                contents: contents
-              })
-              
-              // Mark this order as tracked
-              trackedOrders.push(parsedDetails.orderNumber)
-              // Keep only last 100 tracked orders to prevent localStorage bloat
-              if (trackedOrders.length > 100) {
-                trackedOrders.shift()
-              }
-              localStorage.setItem(trackedOrdersKey, JSON.stringify(trackedOrders))
-              
-              console.log('✅ Meta Pixel Purchase event tracked:', {
-                order_id: parsedDetails.orderNumber,
-                value: totalValue,
-                currency: 'DZD',
-                num_items: numItems,
-                content_ids: contentIds
-              })
-              return true
-            } catch (error) {
-              console.error('❌ Error tracking Purchase event:', error)
-              return false
-            }
-          }
+          // Track Purchase Event (Meta Pixel)
+          trackPurchase(
+            parsedDetails.orderNumber,
+            parseFloat(String(parsedDetails.total || 0)),
+            parsedDetails.items
+          )
 
-          // Wait for Meta Pixel to be fully loaded before tracking
-          const waitForPixelAndTrack = () => {
-            const win = window as Window & { fbq?: any }
-            
-            // Check if fbq is loaded
-            if (win.fbq && typeof win.fbq === 'function') {
-              // Additional check: ensure pixel is initialized
-              if (win.fbq.loaded) {
-                trackPurchase()
-                return true
-              }
-            }
-            return false
+          // Mark this order as tracked
+          trackedOrders.push(parsedDetails.orderNumber)
+          // Keep only last 100 tracked orders to prevent localStorage bloat
+          if (trackedOrders.length > 100) {
+            trackedOrders.shift()
           }
-
-          // Try to track immediately
-          if (!waitForPixelAndTrack()) {
-            // If fbq not loaded yet, wait and retry (up to 5 seconds)
-            let retries = 0
-            const maxRetries = 10
-            const retryInterval = setInterval(() => {
-              retries++
-              if (waitForPixelAndTrack() || retries >= maxRetries) {
-                clearInterval(retryInterval)
-                if (retries >= maxRetries) {
-                  console.warn('⚠️ Meta Pixel Purchase event could not be tracked after retries - Pixel may not be loaded')
-                }
-              }
-            }, 500)
-          }
+          localStorage.setItem(trackedOrdersKey, JSON.stringify(trackedOrders))
         } else {
           console.log('ℹ️ Purchase event already tracked for order:', parsedDetails.orderNumber)
         }

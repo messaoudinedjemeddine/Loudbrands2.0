@@ -41,6 +41,7 @@ import { useCartStore, useWishlistStore, useUIStore } from '@/lib/store'
 import { useLocaleStore } from '@/lib/locale-store'
 import { toast } from 'sonner'
 import { LoudStylesNavbar } from '@/components/loud-styles-navbar'
+import { trackViewContent, trackAddToCart, trackInitiateCheckout } from '@/lib/meta-pixel'
 // Lazy load non-critical components
 const LaunchCountdownEnhanced = dynamic(() => import('@/components/launch-countdown-enhanced').then(mod => ({ default: mod.LaunchCountdownEnhanced })), {
   ssr: false
@@ -129,6 +130,12 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
 
     return () => { } // Return empty cleanup function if window is undefined
   }, [product])
+
+  useEffect(() => {
+    if (mounted && product) {
+      trackViewContent(product)
+    }
+  }, [mounted, product])
 
   useEffect(() => {
     // Auto-select first size if available (only for non-accessoires)
@@ -240,6 +247,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
       })
     }
 
+    trackAddToCart(accessory, 1)
+
     setCartOpen(true)
     toast.success(isRTL ? 'تمت الإضافة إلى السلة' : 'Added to cart', {
       className: 'bg-green-500 text-white border-green-600',
@@ -322,6 +331,8 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
         }]
       })
     }
+
+    trackAddToCart(product, quantity, selectedSize)
 
     setCartOpen(true)
 
@@ -1118,6 +1129,9 @@ export default function LuxuryProductDetail({ product }: LuxuryProductDetailProp
                         size: isAccessoires ? undefined : (selectedSize || undefined),
                         sizeId: isAccessoires ? undefined : selectedSizeObj?.id
                       })
+
+                      // Track InitiateCheckout (Meta Pixel)
+                      trackInitiateCheckout(product, quantity, selectedSize)
 
                       // Redirect to checkout
                       router.push('/checkout')
