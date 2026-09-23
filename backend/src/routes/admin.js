@@ -17,7 +17,7 @@ router.get('/dashboard/stats', async (req, res) => {
   try {
     const [totalOrders, totalProducts, totalUsers, recentOrders, totalRevenue, orderStatusBreakdown] = await Promise.all([
       prisma.order.count(),
-      prisma.product.count(),
+      prisma.product.count({ where: { isDeleted: false } }),
       prisma.user.count(),
       prisma.order.findMany({
         take: 5,
@@ -232,7 +232,8 @@ router.get('/dashboard/low-stock', async (req, res) => {
     const products = await prisma.product.findMany({
       where: {
         stock: { lte: 5 },
-        isActive: true
+        isActive: true,
+        isDeleted: false
       },
       include: {
         category: true,
@@ -263,7 +264,7 @@ router.get('/products', async (req, res) => {
     const { page = 1, limit = 20, search, category, status } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const where = {};
+    const where = { isDeleted: false };
 
     if (search) {
       where.OR = [
@@ -652,9 +653,22 @@ router.delete('/products/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
-    await prisma.product.delete({
-      where: { id }
+    // Products referenced by orders can't be hard-deleted without breaking
+    // order history (order_items_productId_fkey), so soft-delete them instead
+    const orderItemsCount = await prisma.orderItem.count({
+      where: { productId: id }
     });
+
+    if (orderItemsCount > 0) {
+      await prisma.product.update({
+        where: { id },
+        data: { isActive: false, isDeleted: true }
+      });
+    } else {
+      await prisma.product.delete({
+        where: { id }
+      });
+    }
 
     res.json({ message: 'Product deleted successfully' });
   } catch (error) {
@@ -1817,7 +1831,7 @@ router.get('/inventory', async (req, res) => {
     const { page = 1, limit = 50, search, category, stockFilter, status } = req.query;
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
-    const where = {};
+    const where = { isDeleted: false };
 
     if (search) {
       where.OR = [
@@ -1888,6 +1902,7 @@ router.get('/inventory', async (req, res) => {
 router.get('/inventory/export', async (req, res) => {
   try {
     const products = await prisma.product.findMany({
+      where: { isDeleted: false },
       include: {
         category: true,
         sizes: {
@@ -1970,7 +1985,8 @@ router.get('/inventory/brand/:brandSlug', async (req, res) => {
     }
 
     const where = {
-      brandId: brand.id
+      brandId: brand.id,
+      isDeleted: false
     };
 
     if (search) {
@@ -2083,7 +2099,7 @@ router.get('/inventory/brand/:brandSlug/export', async (req, res) => {
     }
 
     const products = await prisma.product.findMany({
-      where: { brandId: brand.id },
+      where: { brandId: brand.id, isDeleted: false },
       include: {
         category: true,
         sizes: {
@@ -2870,6 +2886,7 @@ router.get('/analytics/comprehensive', async (req, res) => {
 
     // Calculate Stock Valuation
     const allProducts = await prisma.product.findMany({
+      where: { isDeleted: false },
       include: {
         sizes: true
       }
@@ -3272,6 +3289,7 @@ router.get('/analytics/orders-timeline', async (req, res) => {
 router.get('/analytics/inventory-intelligence', async (req, res) => {
   try {
     const products = await prisma.product.findMany({
+      where: { isDeleted: false },
       include: {
         sizes: true,
         category: {
