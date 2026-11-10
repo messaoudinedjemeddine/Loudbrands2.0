@@ -32,6 +32,7 @@ enum DeliveryStatus {
   READY
   IN_TRANSIT
   DONE
+  RETURNED // set automatically from Yalidine return / failed-delivery statuses
 }
 
 enum DeliveryType {
@@ -50,7 +51,7 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  orders Order[]
+  orders            Order[]
   pushSubscriptions PushSubscription[]
 
   @@map("users")
@@ -64,24 +65,24 @@ model PushSubscription {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("push_subscriptions")
 }
 
 model Brand {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  nameAr      String?
-  description String?
+  id            String   @id @default(cuid())
+  name          String   @unique
+  nameAr        String?
+  description   String?
   descriptionAr String?
-  logo        String?
-  slug        String    @unique
-  isActive    Boolean   @default(true)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
+  logo          String?
+  slug          String   @unique
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
   categories Category[]
   products   Product[]
 
@@ -89,55 +90,55 @@ model Brand {
 }
 
 model Category {
-  id          String    @id @default(cuid())
-  name        String
-  nameAr      String?
-  description String?
+  id            String   @id @default(cuid())
+  name          String
+  nameAr        String?
+  description   String?
   descriptionAr String?
-  image       String?
-  slug        String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  
-  brandId     String
-  brand       Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  products    Product[]
+  image         String?
+  slug          String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  brandId  String
+  brand    Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  products Product[]
 
   @@unique([brandId, slug])
   @@map("categories")
 }
 
 model Product {
-  id          String   @id @default(cuid())
-  name        String
-  nameAr      String?
-  description String?
-  descriptionAr String?
-  price       Float
-  costPrice   Float    @default(0)
-  wholesalePrice Float?
-  oldPrice    Float?
-  stock       Int      @default(0)
-  reference   String?  @unique
-  slug        String
-  isOnSale    Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  isLaunch    Boolean  @default(false)
-  isOutOfStock Boolean @default(false)  // Manual out of stock flag
-  isDeleted   Boolean  @default(false)  // Soft-deleted from admin (kept for order history)
-  launchAt    DateTime?
-  displayPriority Int?  // Lower = show first on Loud Styles products page; null = no priority
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String    @id @default(cuid())
+  name            String
+  nameAr          String?
+  description     String?
+  descriptionAr   String?
+  price           Float
+  costPrice       Float     @default(0)
+  wholesalePrice  Float?
+  oldPrice        Float?
+  stock           Int       @default(0)
+  reference       String?   @unique
+  slug            String
+  isOnSale        Boolean   @default(false)
+  isActive        Boolean   @default(true)
+  isLaunch        Boolean   @default(false)
+  isOutOfStock    Boolean   @default(false) // Manual out of stock flag
+  isDeleted       Boolean   @default(false) // Soft-deleted from admin (kept for order history)
+  launchAt        DateTime?
+  displayPriority Int? // Lower = show first on Loud Styles products page; null = no priority
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  brandId     String
-  brand       Brand     @relation(fields: [brandId], references: [id], onDelete: Cascade)
-  categoryId  String
-  category    Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  brandId    String
+  brand      Brand    @relation(fields: [brandId], references: [id], onDelete: Cascade)
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
 
-  images      ProductImage[]
-  sizes       ProductSize[]
-  orderItems  OrderItem[]
+  images     ProductImage[]
+  sizes      ProductSize[]
+  orderItems OrderItem[]
 
   @@unique([brandId, slug])
   @@map("products")
@@ -199,25 +200,25 @@ model DeliveryDesk {
 }
 
 model Order {
-  id               String            @id @default(cuid())
-  orderNumber      String            @unique
-  customerName     String
-  customerPhone    String
-  customerEmail    String?
-  deliveryType     DeliveryType
-  deliveryAddress  String?
-  deliveryFee      Float             @default(0)
-  subtotal         Float
-  total            Float
-  notes            String?
-  callCenterStatus CallCenterStatus  @default(NEW)
-  deliveryStatus   DeliveryStatus    @default(NOT_READY)
-  trackingNumber   String?           // Yalidine tracking number
-  yalidineShipmentId String?         // Yalidine shipment ID
+  id                 String           @id @default(cuid())
+  orderNumber        String           @unique
+  customerName       String
+  customerPhone      String
+  customerEmail      String?
+  deliveryType       DeliveryType
+  deliveryAddress    String?
+  deliveryFee        Float            @default(0)
+  subtotal           Float
+  total              Float
+  notes              String?
+  callCenterStatus   CallCenterStatus @default(NEW)
+  deliveryStatus     DeliveryStatus   @default(NOT_READY)
+  trackingNumber     String? // Yalidine tracking number
+  yalidineShipmentId String? // Yalidine shipment ID
   // deliveryDetails removed
-  deliveryDetails  Json?             // Raw delivery details from frontend
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  deliveryDetails    Json? // Raw delivery details from frontend
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 
   userId         String?
   user           User?         @relation(fields: [userId], references: [id])
@@ -229,20 +230,23 @@ model Order {
   items   OrderItem[]
   coupons OrderCoupon[]
 
+  yalidineParcel YalidineParcel?
+
   @@map("orders")
 }
 
 model OrderItem {
-  id       String @id @default(cuid())
+  id       String  @id @default(cuid())
   quantity Int
   price    Float
+  unitCost Float? // cost of making at the time of sale (null = use the product's current costPrice)
   size     String?
 
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product @relation(fields: [productId], references: [id])
-  sizeId    String?
+  orderId     String
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product      @relation(fields: [productId], references: [id])
+  sizeId      String?
   productSize ProductSize? @relation(fields: [sizeId], references: [id])
 
   @@map("order_items")
@@ -251,7 +255,7 @@ model OrderItem {
 model Coupon {
   id             String    @id @default(cuid())
   code           String    @unique
-  discountType   String    // PERCENTAGE, FIXED
+  discountType   String // PERCENTAGE, FIXED
   discountValue  Float
   minOrderAmount Float?
   maxUses        Int?
@@ -267,7 +271,7 @@ model Coupon {
 }
 
 model OrderCoupon {
-  id            String @id @default(cuid())
+  id             String @id @default(cuid())
   discountAmount Float
 
   orderId  String
@@ -295,30 +299,30 @@ model Atelier {
 }
 
 model StockReception {
-  id            String        @id @default(cuid())
-  atelierId     String?       // Optional until legacy data migrated; then required
-  atelier       Atelier?      @relation(fields: [atelierId], references: [id], onDelete: Restrict)
-  atelierLegacy String?       @map("atelier") // Legacy string column; remove after migration script
-  date          DateTime      @default(now())
-  status        String        @default("COMPLETED")
-  paymentStatus PaymentStatus @default(PENDING)
-  totalCost     Float         @default(0)
-  amountPaid    Float         @default(0)
+  id            String               @id @default(cuid())
+  atelierId     String? // Optional until legacy data migrated; then required
+  atelier       Atelier?             @relation(fields: [atelierId], references: [id], onDelete: Restrict)
+  atelierLegacy String?              @map("atelier") // Legacy string column; remove after migration script
+  date          DateTime             @default(now())
+  status        String               @default("COMPLETED")
+  paymentStatus PaymentStatus        @default(PENDING)
+  totalCost     Float                @default(0)
+  amountPaid    Float                @default(0)
   notes         String?
   items         StockReceptionItem[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
   @@map("stock_receptions")
 }
 
 model StockReceptionItem {
-  id          String   @id @default(cuid())
+  id          String  @id @default(cuid())
   productName String
   reference   String?
-  size        String?  // Nullable for accessories
+  size        String? // Nullable for accessories
   quantity    Int
-  unitCost    Float    @default(0)  // Snapshot of buying price at reception time
+  unitCost    Float   @default(0) // Snapshot of buying price at reception time
   barcode     String?
 
   receptionId String
@@ -328,24 +332,128 @@ model StockReceptionItem {
 }
 
 model StockMovement {
-  id              String   @id @default(cuid())
-  type            String   // 'in' or 'out'
-  barcode         String?
-  productName     String
+  id               String   @id @default(cuid())
+  type             String // 'in' or 'out'
+  barcode          String?
+  productName      String
   productReference String?
-  size            String?
-  quantity        Int
-  oldStock        Int?
-  newStock        Int?
-  orderNumber     String?
-  trackingNumber  String?
-  notes           String?
-  operationType   String?  // 'entree', 'sortie', 'echange', 'retour' (scoped with trackingNumber)
-  createdAt       DateTime @default(now())
+  size             String?
+  quantity         Int
+  oldStock         Int?
+  newStock         Int?
+  orderNumber      String?
+  trackingNumber   String?
+  notes            String?
+  operationType    String? // 'entree', 'sortie', 'echange', 'retour' (scoped with trackingNumber)
+  createdAt        DateTime @default(now())
 
-  @@map("stock_movements")
   @@index([createdAt])
   @@index([type])
   @@index([operationType])
   @@index([trackingNumber, operationType])
+  @@map("stock_movements")
+}
+
+// Mirror of the parcels in the Yalidine account (one row per tracking number).
+// Kept in sync by the Yalidine sync job and webhooks. Personal data is NOT stored here:
+// Yalidine masks it in API responses; the real customer data lives on the Order.
+model YalidineParcel {
+  id              String  @id @default(cuid())
+  tracking        String  @unique
+  orderId         String? @unique // our Order, matched by trackingNumber or Yalidine order_id = orderNumber
+  order           Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  yalidineOrderId String? // Yalidine "order_id" (our orderNumber when created by the app)
+
+  lastStatus       String? // e.g. "Sorti en livraison"
+  lastStatusReason String? // e.g. "Client ne répond pas"
+  lastStatusAt     DateTime?
+  paymentStatus    String? // not-ready | ready | receivable | payed
+  paymentId        String?
+
+  isStopdesk        Boolean @default(false)
+  stopdeskId        Int?
+  stopdeskName      String?
+  toWilayaId        Int?
+  toWilayaName      String?
+  toCommuneName     String?
+  currentCenterName String?
+  currentWilayaName String?
+
+  productList  String?
+  price        Int?
+  deliveryFee  Int?
+  freeshipping Boolean @default(false)
+  hasExchange  Boolean @default(false)
+  label        String?
+  importId     Int?
+
+  dateCreation   DateTime?
+  dateExpedition DateTime?
+  deletedAt      DateTime? // set when Yalidine reports the parcel deleted
+  lastSyncedAt   DateTime  @default(now())
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  history YalidineStatusHistory[]
+
+  @@index([lastStatus])
+  @@index([paymentStatus])
+  @@index([lastStatusAt])
+  @@index([yalidineOrderId])
+  @@map("yalidine_parcels")
+}
+
+// Every status change of a parcel (from Yalidine /histories or webhooks).
+model YalidineStatusHistory {
+  id          String         @id @default(cuid())
+  tracking    String
+  parcel      YalidineParcel @relation(fields: [tracking], references: [tracking], onDelete: Cascade)
+  status      String
+  reason      String?
+  occurredAt  DateTime
+  centerName  String?
+  wilayaName  String?
+  communeName String?
+  createdAt   DateTime       @default(now())
+
+  @@unique([tracking, status, occurredAt])
+  @@index([tracking, occurredAt])
+  @@map("yalidine_status_history")
+}
+
+// Raw events received from the Yalidine webhook, stored before processing
+// (the endpoint must answer within 10 s). event_id is unique → duplicates are ignored.
+model YalidineWebhookEvent {
+  id          String    @id @default(cuid())
+  eventId     String    @unique
+  type        String // parcel_status_updated, parcel_payment_updated, parcel_created, parcel_edited, parcel_deleted
+  tracking    String?
+  occurredAt  DateTime?
+  data        Json
+  status      String    @default("pending") // pending | processed | ignored | failed
+  attempts    Int       @default(0)
+  error       String?
+  receivedAt  DateTime  @default(now())
+  processedAt DateTime?
+
+  @@index([status, occurredAt])
+  @@index([tracking])
+  @@map("yalidine_webhook_events")
+}
+
+// Predefined WhatsApp messages the delivery agents send from the parcel page.
+// statuses/reasons empty = the template applies to every status/reason.
+// Placeholders: {nom} {tracking} {commande} {statut} {raison} {centre} {wilaya} {commune} {prix} {lien_suivi}
+model WhatsappTemplate {
+  id        String   @id @default(cuid())
+  name      String
+  body      String
+  statuses  String[] @default([])
+  reasons   String[] @default([])
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("whatsapp_templates")
 }

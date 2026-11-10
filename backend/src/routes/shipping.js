@@ -4,6 +4,13 @@ const prisma = require('../config/database'); // Added Prisma import
 const yalidineService = require('../services/yalidine');
 const { getWilayaById, getWilayaName, getWilayaByName } = require('../utils/wilaya-mapper');
 const { z } = require('zod');
+const { authenticateToken, requireRole } = require('../middleware/auth');
+
+// Access control. Public routes (no middleware) are only the ones the storefront needs:
+// status, wilayas, communes, centers, calculate-fees (checkout) and shipment/tracking lookup (track-order page).
+const canViewShipments = [authenticateToken, requireRole(['ADMIN', 'CONFIRMATRICE', 'AGENT_LIVRAISON'])];
+const canCreateShipments = [authenticateToken, requireRole(['ADMIN', 'CONFIRMATRICE'])];
+const adminOnly = [authenticateToken, requireRole(['ADMIN'])];
 
 // ... (existing code)
 
@@ -12,8 +19,11 @@ const sanitizePhone = (phone) => {
   return phone.replace(/\D/g, '');
 };
 
+// Parcels from the local Yalidine mirror (search, stats, detail, cancel)
+router.use('/parcels', require('./shipping-parcels'));
+
 // CRITICAL: Robust Ship Order Endpoint
-router.post('/ship-order/:orderId', async (req, res) => {
+router.post('/ship-order/:orderId', canCreateShipments, async (req, res) => {
   try {
     const { orderId } = req.params;
     console.log(`🚢 Processing centralized shipment request for Order ${orderId}`);
@@ -258,7 +268,7 @@ router.get('/status', (req, res) => {
 });
 
 // Test Yalidine API connection and endpoints
-router.get('/test', async (req, res) => {
+router.get('/test', adminOnly, async (req, res) => {
   try {
     console.log('🔍 Testing Yalidine connection...');
 
@@ -542,7 +552,7 @@ router.post('/calculate-fees', async (req, res) => {
 });
 
 // Create shipment
-router.post('/create-shipment', async (req, res) => {
+router.post('/create-shipment', canCreateShipments, async (req, res) => {
   try {
     if (!yalidineService.isConfigured()) {
       return res.status(503).json({ error: 'Yalidine shipping not configured' });
@@ -649,7 +659,7 @@ router.get('/tracking/:tracking', async (req, res) => {
 });
 
 // Update shipment
-router.patch('/shipment/:tracking', async (req, res) => {
+router.patch('/shipment/:tracking', adminOnly, async (req, res) => {
   try {
     if (!yalidineService.isConfigured()) {
       return res.status(503).json({ error: 'Yalidine shipping not configured' });
@@ -668,7 +678,7 @@ router.patch('/shipment/:tracking', async (req, res) => {
 });
 
 // Delete shipment
-router.delete('/shipment/:tracking', async (req, res) => {
+router.delete('/shipment/:tracking', adminOnly, async (req, res) => {
   try {
     if (!yalidineService.isConfigured()) {
       return res.status(503).json({ error: 'Yalidine shipping not configured' });
@@ -685,7 +695,7 @@ router.delete('/shipment/:tracking', async (req, res) => {
 });
 
 // Debug endpoint to test shipment creation with sample data
-router.post('/test-shipment', async (req, res) => {
+router.post('/test-shipment', adminOnly, async (req, res) => {
   try {
     console.log('🔍 Testing shipment creation with sample data...');
 
@@ -760,7 +770,7 @@ router.post('/test-shipment', async (req, res) => {
 });
 
 // Debug endpoint to test shipments without filters
-router.get('/shipments/debug', async (req, res) => {
+router.get('/shipments/debug', adminOnly, async (req, res) => {
   try {
     console.log('🔍 Debug shipments request received');
 
@@ -810,7 +820,7 @@ router.get('/shipments/debug', async (req, res) => {
 });
 
 // Get all shipments from Yalidine with filters
-router.get('/shipments', async (req, res) => {
+router.get('/shipments', canViewShipments, async (req, res) => {
   try {
     console.log('🔍 Shipments request received with filters:', req.query);
 
@@ -903,7 +913,7 @@ router.get('/shipments', async (req, res) => {
 });
 
 // Get Yalidine shipment statistics
-router.get('/shipments/stats', async (req, res) => {
+router.get('/shipments/stats', canViewShipments, async (req, res) => {
   try {
     console.log('🔍 Yalidine shipment stats request received');
 
@@ -995,4 +1005,49 @@ router.get('/shipments/stats', async (req, res) => {
   }
 });
 
-module.exports = router; 
+// ---------------------------------------------------------------------------
+// Yalidine → database sync
+// ---------------------------------------------------------------------------
+const yalidineSync = require('../services/yalidine-sync');
+
+// POST /api/shipping/sync  { mode: 'incremental' | 'full' }
+// incremental: waits for the result (a few seconds). full (admin only): runs in the background.
+router.post('/sync', canViewShipments, async (req, res) => {
+  try {
+    const mode = req.body && req.body.mode === 'full' ? 'full' : 'incremental';
+    if (mode === 'full') {
+      if (req.user.role !== 'ADMIN') {
+        return res.status(403).json({ error: 'Only admins can run a full sync' });
+      }
+      const current = yalidineSync.getSyncState();
+      if (current.running) {
+        return res.status(409).json({ error: `A ${current.running} sync is already running`, state: current });
+      }
+      yalidineSync.fullSync(); // background; progress via GET /sync/status
+      return res.status(202).json({ message: 'Full sync started', state: yalidineSync.getSyncState() });
+    }
+    const result = await yalidineSync.incrementalSync();
+    if (result.skipped) return res.status(409).json(result);
+    return res.status(result.ok ? 200 : 502).json(result);
+  } catch (error) {
+    console.error('Sync error:', error);
+    res.status(500).json({ error: 'Sync failed' });
+  }
+});
+
+// GET /api/shipping/sync/status
+router.get('/sync/status', canViewShipments, (req, res) => {
+  res.json(yalidineSync.getSyncState());
+});
+
+// GET /api/shipping/sync/report?limit=100  — where the app and Yalidine disagree
+router.get('/sync/report', adminOnly, async (req, res) => {
+  try {
+    res.json(await yalidineSync.getMismatchReport({ limit: req.query.limit }));
+  } catch (error) {
+    console.error('Sync report error:', error);
+    res.status(500).json({ error: 'Failed to build report' });
+  }
+});
+
+module.exports = router;

@@ -1,3 +1,5 @@
+import { toast } from 'sonner';
+
 // Ensure API_BASE_URL doesn't have double /api
 // App name: loudbrands-backend-eu → URL: loudbrands-backend-eu-abfa65dd1df6.herokuapp.com
 const getApiBaseUrl = () => {
@@ -7,6 +9,15 @@ const getApiBaseUrl = () => {
 };
 
 const API_BASE_URL = getApiBaseUrl();
+
+// The backend adds `yalidineWarning` when a Yalidine parcel could not be deleted
+// (e.g. it was already shipped). Show it so the admin can cancel it manually.
+const showYalidineWarning = (result: unknown) => {
+  const warning = (result as { yalidineWarning?: string } | null)?.yalidineWarning;
+  if (warning) {
+    toast.warning(warning, { duration: 15000 });
+  }
+};
 
 // Helper function to get auth token
 const getAuthToken = (): string | null => {
@@ -275,10 +286,12 @@ class ApiClient {
       appendNote?: string;
     }
   ) {
-    return this.request(`/admin/orders/${orderId}/status`, {
+    const result = await this.request(`/admin/orders/${orderId}/status`, {
       method: 'PATCH',
       body: JSON.stringify(status),
     });
+    showYalidineWarning(result);
+    return result;
   }
 
   async updateOrderItems(
@@ -309,9 +322,11 @@ class ApiClient {
   }
 
   async deleteOrder(id: string) {
-    return this.request(`/admin/orders/${id}`, {
+    const result = await this.request(`/admin/orders/${id}`, {
       method: 'DELETE',
     });
+    showYalidineWarning(result);
+    return result;
   }
 
   async getUsers(params?: {
@@ -770,6 +785,65 @@ export const api = {
     apiClient.request<{ items: Array<{ productName: string; productReference?: string; size: string; quantity: number; barcode?: string }>; count: number }>(
       `/inventory/lookup-sortie-by-tracking?${new URLSearchParams({ trackingNumber }).toString()}`
     ),
+  // Parcels from the local Yalidine mirror (no Yalidine quota used)
+  parcels: {
+    list: (params: Record<string, string | number | undefined>) => {
+      const query = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== '' && v !== 'all') query.append(k, String(v));
+      });
+      return apiClient.request<import('@/components/shipping/types').ParcelListResponse>(`/shipping/parcels?${query.toString()}`);
+    },
+    stats: (params: Record<string, string | number | undefined> = {}) => {
+      const query = new URLSearchParams();
+      Object.entries(params).forEach(([k, v]) => {
+        if (v !== undefined && v !== '' && v !== 'all') query.append(k, String(v));
+      });
+      return apiClient.request<import('@/components/shipping/types').ParcelStats>(`/shipping/parcels/stats?${query.toString()}`);
+    },
+    get: (tracking: string) =>
+      apiClient.request<import('@/components/shipping/types').ParcelDetail>(`/shipping/parcels/${encodeURIComponent(tracking)}`),
+    cancel: (tracking: string) =>
+      apiClient.request<{ success: boolean }>(`/shipping/parcels/${encodeURIComponent(tracking)}/cancel`, { method: 'POST' }),
+    sync: (mode: 'incremental' | 'full' = 'incremental') =>
+      apiClient.request<import('@/components/shipping/types').SyncRun>('/shipping/sync', {
+        method: 'POST',
+        body: JSON.stringify({ mode }),
+      }),
+    syncStatus: () => apiClient.request<import('@/components/shipping/types').SyncState>('/shipping/sync/status'),
+    report: (limit = 100) =>
+      apiClient.request<import('@/components/shipping/types').SyncReport>(`/shipping/sync/report?limit=${limit}`),
+  },
+
+  // Business analytics (Loud Styles, revenue counted at delivery)
+  analytics: {
+    overview: (params: { from: string; to: string; groupBy?: string }) =>
+      apiClient.request<import('@/components/analytics/types').AnalyticsOverview>(
+        `/analytics/overview?${new URLSearchParams(Object.entries(params).filter(([, v]) => v && v !== 'auto') as [string, string][]).toString()}`
+      ),
+    profit: (params: { from: string; to: string }) =>
+      apiClient.request<import('@/components/analytics/types').ProfitReport>(
+        `/analytics/profit?${new URLSearchParams(params).toString()}`
+      ),
+  },
+
+  whatsappTemplates: {
+    list: (all = false) =>
+      apiClient.request<{ templates: import('@/components/shipping/types').WhatsappTemplate[] }>(
+        `/whatsapp-templates${all ? '?all=true' : ''}`
+      ),
+    create: (data: import('@/components/shipping/types').WhatsappTemplateInput) =>
+      apiClient.request<import('@/components/shipping/types').WhatsappTemplate>('/whatsapp-templates', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: import('@/components/shipping/types').WhatsappTemplateInput) =>
+      apiClient.request<import('@/components/shipping/types').WhatsappTemplate>(`/whatsapp-templates/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    remove: (id: string) => apiClient.request<{ success: boolean }>(`/whatsapp-templates/${id}`, { method: 'DELETE' }),
+  },
 };
 
 export default apiClient;

@@ -6,7 +6,7 @@ import { useAuthStore } from '@/lib/store'
 import { AdminLayout } from '@/components/admin/admin-layout'
 import { AdminDashboard } from '@/components/admin/dashboards/admin-dashboard'
 import { CallCenterDashboard } from '@/components/admin/dashboards/call-center-dashboard'
-import { DeliveryAgentDashboard } from '@/components/admin/dashboards/delivery-agent-dashboard'
+import { ParcelBoard } from '@/components/shipping/parcel-board'
 import { Loader2 } from 'lucide-react'
 import { useLocaleStore } from '@/lib/locale-store'
 
@@ -32,7 +32,7 @@ function DashboardContent() {
     // Redirect to appropriate dashboard based on user role
     if (mounted && user && role !== user.role.toLowerCase()) {
       const base = `/admin/dashboard/${user.role.toLowerCase()}`
-      const url = user.role === 'AGENT_LIVRAISON' ? `${base}?tab=confirmed` : base
+      const url = base
       router.push(url)
       return
     }
@@ -75,7 +75,8 @@ function DashboardContent() {
       case 'confirmatrice':
         return <CallCenterDashboard />
       case 'agent_livraison':
-        return <DeliveryAgentDashboard />
+        // Delivery agents: search parcels, see Yalidine statuses and customer info, contact on WhatsApp
+        return <ParcelBoard mode="agent" />
       case 'stock_manager':
         // Stock manager doesn't have a dashboard, show loading while redirecting
         return (

@@ -153,6 +153,7 @@ router.post('/orders', async (req, res) => {
         productId: item.productId,
         quantity: item.quantity,
         price: itemPrice, // Store the custom wholesale price
+        unitCost: product.costPrice > 0 ? product.costPrice : null,
         size: item.size || null,
         sizeId: item.sizeId || null
       });
@@ -901,10 +902,12 @@ router.post('/orders/:id/items', async (req, res) => {
     const { id } = req.params;
     const { productId, quantity, price, size, color } = req.body;
 
+    const productForCost = await prisma.product.findUnique({ where: { id: productId }, select: { costPrice: true } });
     const item = await prisma.orderItem.create({
       data: {
         orderId: id,
         productId,
+        unitCost: productForCost && productForCost.costPrice > 0 ? productForCost.costPrice : null,
         quantity: parseInt(quantity),
         price: parseFloat(price),
         size: size || null,
@@ -1127,6 +1130,7 @@ router.patch('/orders/:id/status', async (req, res) => {
     // Stock is only decremented when scanning items in the smart inventory sortie section
     const oldStatus = currentOrder.callCenterStatus;
     const newStatus = callCenterStatus || oldStatus;
+    let yalidineWarning = null;
 
     // If canceling order (changing to CANCELED)
     if (newStatus === 'CANCELED' && oldStatus !== 'CANCELED') {
@@ -1139,9 +1143,11 @@ router.patch('/orders/:id/status', async (req, res) => {
         console.log(`  🚚 Removing Yalidine tracking data`);
 
         // Try to delete from Yalidine
+        let yalidineDeleted = !currentOrder.trackingNumber;
         if (currentOrder.trackingNumber) {
           try {
             await yalidineService.deleteParcel(currentOrder.trackingNumber);
+            yalidineDeleted = true;
             console.log(`  ✓ Yalidine parcel deleted: ${currentOrder.trackingNumber}`);
           } catch (yalidineError) {
             console.error(`  ⚠️ Failed to delete Yalidine parcel: ${yalidineError.message}`);
@@ -1149,9 +1155,18 @@ router.patch('/orders/:id/status', async (req, res) => {
           }
         }
 
-        updateData.trackingNumber = null;
-        updateData.yalidineShipmentId = null;
-        console.log(`  ✓ Yalidine tracking removed locally`);
+        if (yalidineDeleted) {
+          updateData.trackingNumber = null;
+          updateData.yalidineShipmentId = null;
+          console.log(`  ✓ Yalidine tracking removed locally`);
+        } else {
+          // The parcel still exists at Yalidine (probably already past "En préparation").
+          // Keep the tracking number so it can still be followed and cancelled manually.
+          yalidineWarning = `Le colis Yalidine ${currentOrder.trackingNumber} n'a pas pu être supprimé (probablement déjà expédié). Annulez-le manuellement depuis le tableau de bord Yalidine.`;
+          const baseNotes = updateData.notes !== undefined ? updateData.notes : currentOrder.notes;
+          updateData.notes = `${baseNotes || ''}\n[YALIDINE] ${yalidineWarning}`;
+          console.warn(`  ⚠️ Keeping tracking ${currentOrder.trackingNumber}: parcel still active at Yalidine`);
+        }
       }
     }
 
@@ -1190,7 +1205,7 @@ router.patch('/orders/:id/status', async (req, res) => {
       }))
     };
 
-    res.json(formattedOrder);
+    res.json(yalidineWarning ? { ...formattedOrder, yalidineWarning } : formattedOrder);
   } catch (error) {
     console.error('Update order status error:', error);
     console.error('Error stack:', error.stack);
@@ -1227,6 +1242,7 @@ router.delete('/orders/:id', async (req, res) => {
     // Stock is only decremented when scanning items in the smart inventory sortie section
 
     // 1. Delete from Yalidine if there's a tracking number
+    let yalidineWarning = null;
     if (order.trackingNumber) {
       console.log(`  🚚 Removing Yalidine parcel: ${order.trackingNumber}`);
       try {
@@ -1234,7 +1250,9 @@ router.delete('/orders/:id', async (req, res) => {
         console.log(`  ✓ Yalidine parcel deleted`);
       } catch (yalidineError) {
         console.error(`  ⚠️ Failed to delete Yalidine parcel: ${yalidineError.message}`);
-        // We continue with local deletion even if this fails
+        // We continue with local deletion even if this fails (e.g. old delivered orders),
+        // but tell the caller the parcel still exists at Yalidine.
+        yalidineWarning = `Commande supprimée, mais le colis Yalidine ${order.trackingNumber} n'a pas pu être supprimé (probablement déjà expédié). Vérifiez-le dans le tableau de bord Yalidine.`;
       }
     }
 
@@ -1250,7 +1268,9 @@ router.delete('/orders/:id', async (req, res) => {
     });
 
     console.log(`  ✓ Order deleted locally`);
-    res.json({ message: 'Order deleted successfully' });
+    res.json(yalidineWarning
+      ? { message: 'Order deleted successfully', yalidineWarning }
+      : { message: 'Order deleted successfully' });
 
   } catch (error) {
     console.error('Delete order error:', error);
@@ -1298,6 +1318,7 @@ router.patch('/orders/:id/items', async (req, res) => {
               productId: item.product.id,
               quantity: item.quantity,
               price: item.price,
+              unitCost: product.costPrice > 0 ? product.costPrice : null,
               size: item.size || null
             },
             include: {

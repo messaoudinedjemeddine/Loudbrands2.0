@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "order_items" ADD COLUMN     "unitCost" DOUBLE PRECISION;
+

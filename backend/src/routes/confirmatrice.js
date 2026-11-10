@@ -241,29 +241,35 @@ router.patch('/orders/:orderId/confirm', async (req, res) => {
       }
     });
 
-    // Create Yalidine shipment
+    // Create Yalidine shipment (skip if the order already has one, to avoid duplicate parcels)
     try {
-      const shipmentData = formatOrderForYalidine(updatedOrder);
-      console.log('🚚 Creating Yalidine shipment for order:', orderId);
-      console.log('📦 Shipment data:', shipmentData);
-
-      const yalidineResult = await yalidineService.createParcel(shipmentData);
-
-      if (yalidineResult.success) {
-        // Update order with tracking information
-        await prisma.order.update({
-          where: { id: orderId },
-          data: {
-            trackingNumber: yalidineResult.tracking,
-            yalidineShipmentId: yalidineResult.import_id,
-            notes: `${updatedOrder.notes || ''}\n[YALIDINE] Shipment created: ${yalidineResult.tracking}`
-          }
-        });
-
-        console.log('✅ Yalidine shipment created successfully:', yalidineResult.tracking);
+      if (existingOrder.trackingNumber) {
+        console.log(`ℹ️ Order ${orderId} already has Yalidine tracking ${existingOrder.trackingNumber}, skipping shipment creation`);
       } else {
-        console.error('❌ Failed to create Yalidine shipment:', yalidineResult.message);
-        // Don't fail the order confirmation, just log the error
+        const shipmentData = formatOrderForYalidine(updatedOrder);
+        console.log('🚚 Creating Yalidine shipment for order:', orderId);
+        console.log('📦 Shipment data:', shipmentData);
+
+        const yalidineResponse = await yalidineService.createParcel(shipmentData);
+        // Yalidine returns an object keyed by order_id: { "<order_id>": { success, tracking, import_id, message } }
+        const yalidineResult = yalidineResponse && yalidineResponse[shipmentData.order_id];
+
+        if (yalidineResult && yalidineResult.success && yalidineResult.tracking) {
+          // Update order with tracking information
+          await prisma.order.update({
+            where: { id: orderId },
+            data: {
+              trackingNumber: String(yalidineResult.tracking),
+              yalidineShipmentId: yalidineResult.import_id != null ? String(yalidineResult.import_id) : null,
+              notes: `${updatedOrder.notes || ''}\n[YALIDINE] Shipment created: ${yalidineResult.tracking}`
+            }
+          });
+
+          console.log('✅ Yalidine shipment created successfully:', yalidineResult.tracking);
+        } else {
+          console.error('❌ Failed to create Yalidine shipment:', yalidineResult ? yalidineResult.message : yalidineResponse);
+          // Don't fail the order confirmation, just log the error
+        }
       }
     } catch (yalidineError) {
       console.error('❌ Error creating Yalidine shipment:', yalidineError);
@@ -695,6 +701,7 @@ router.post('/orders/:orderId/items', async (req, res) => {
         productId,
         quantity,
         price: product.price,
+        unitCost: product.costPrice > 0 ? product.costPrice : null,
         size: sizeString,
         sizeId: finalSizeId
       },

@@ -15,8 +15,7 @@ class YalidineService {
     };
 
     // Request queue and throttling
-    this.requestQueue = [];
-    this.processingQueue = false;
+    this.requestChain = Promise.resolve();
     this.lastRequestTime = 0;
     this.minRequestInterval = 200; // Minimum 200ms between requests (5 requests/second max)
 
@@ -131,59 +130,69 @@ class YalidineService {
     }
   }
 
-  // Check if we can make a request based on quota
+  // Check if we can make a request based on the last known quota.
+  // Each quota value is only trusted within its own window: a "1 left this second" reading
+  // is meaningless 2 seconds later. (Previously every value was trusted for 5 minutes, which
+  // blocked all Yalidine calls for up to 5 minutes after a short burst.)
+  // Returns { allowed: true } | { allowed: false, waitMs, reason, quota }.
   canMakeRequest() {
-    // Check if quota info is recent (within last 5 minutes)
     const now = Date.now();
-    const quotaAge = Math.min(
-      this.quotaInfo.second.lastUpdate ? now - this.quotaInfo.second.lastUpdate : Infinity,
-      this.quotaInfo.minute.lastUpdate ? now - this.quotaInfo.minute.lastUpdate : Infinity,
-      this.quotaInfo.hour.lastUpdate ? now - this.quotaInfo.hour.lastUpdate : Infinity,
-      this.quotaInfo.day.lastUpdate ? now - this.quotaInfo.day.lastUpdate : Infinity
-    );
+    const windows = [
+      { key: 'second', ms: 1000, min: 2, label: 'Second' },
+      { key: 'minute', ms: 60 * 1000, min: 2, label: 'Minute' },
+      { key: 'hour', ms: 60 * 60 * 1000, min: 5, label: 'Hour' },
+      { key: 'day', ms: 24 * 60 * 60 * 1000, min: 10, label: 'Day' }
+    ];
 
-    // If quota info is too old (> 5 minutes), allow request to get fresh info
-    if (quotaAge > 5 * 60 * 1000) {
-      return { allowed: true, reason: 'No recent quota info' };
-    }
-
-    // Check quotas (be conservative - require at least 2 remaining)
-    if (this.quotaInfo.second.left !== null && this.quotaInfo.second.left < 2) {
-      return { allowed: false, reason: 'Second quota too low', quota: this.quotaInfo.second.left };
-    }
-    if (this.quotaInfo.minute.left !== null && this.quotaInfo.minute.left < 2) {
-      return { allowed: false, reason: 'Minute quota too low', quota: this.quotaInfo.minute.left };
-    }
-    if (this.quotaInfo.hour.left !== null && this.quotaInfo.hour.left < 5) {
-      return { allowed: false, reason: 'Hour quota too low', quota: this.quotaInfo.hour.left };
-    }
-    if (this.quotaInfo.day.left !== null && this.quotaInfo.day.left < 10) {
-      return { allowed: false, reason: 'Day quota too low', quota: this.quotaInfo.day.left };
+    for (const w of windows) {
+      const info = this.quotaInfo[w.key];
+      if (info.left === null || !info.lastUpdate) continue;
+      const age = now - info.lastUpdate;
+      if (age >= w.ms) continue; // window has reset since we read it
+      if (info.left < w.min) {
+        return {
+          allowed: false,
+          waitMs: w.ms - age,
+          reason: `${w.label} quota too low`,
+          quota: info.left
+        };
+      }
     }
 
     return { allowed: true };
   }
 
-  // Throttled request wrapper
-  async throttledRequest(requestFn) {
-    // Check quota before making request
-    const quotaCheck = this.canMakeRequest();
-    if (!quotaCheck.allowed) {
-      const error = new Error(`Quota limit reached: ${quotaCheck.reason} (${quotaCheck.quota} remaining)`);
-      error.quotaExceeded = true;
-      error.quotaInfo = this.quotaInfo;
-      throw error;
-    }
+  // Throttled request wrapper: requests run one at a time, at most 5 per second,
+  // waiting out short (second/minute) quota windows instead of failing.
+  throttledRequest(requestFn) {
+    const run = async () => {
+      // Wait for second/minute windows to reset; fail fast on hour/day exhaustion.
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const quotaCheck = this.canMakeRequest();
+        if (quotaCheck.allowed) break;
+        if (quotaCheck.waitMs > 65 * 1000) {
+          const error = new Error(`Quota limit reached: ${quotaCheck.reason} (${quotaCheck.quota} remaining)`);
+          error.quotaExceeded = true;
+          error.quotaInfo = this.quotaInfo;
+          throw error;
+        }
+        await new Promise(resolve => setTimeout(resolve, quotaCheck.waitMs + 50));
+      }
 
-    // Enforce minimum interval between requests
-    const now = Date.now();
-    const timeSinceLastRequest = now - this.lastRequestTime;
-    if (timeSinceLastRequest < this.minRequestInterval) {
-      await new Promise(resolve => setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest));
-    }
+      // Enforce minimum interval between requests
+      const timeSinceLastRequest = Date.now() - this.lastRequestTime;
+      if (timeSinceLastRequest < this.minRequestInterval) {
+        await new Promise(resolve => setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest));
+      }
 
-    this.lastRequestTime = Date.now();
-    return requestFn();
+      this.lastRequestTime = Date.now();
+      return requestFn();
+    };
+
+    // Chain onto the previous request so concurrent callers don't burst together.
+    const result = this.requestChain.then(run, run);
+    this.requestChain = result.catch(() => {});
+    return result;
   }
 
   // Check if API is configured
@@ -453,17 +462,31 @@ class YalidineService {
       // Encode tracking number to handle special characters like :
       const encodedTracking = encodeURIComponent(tracking);
       const response = await this.throttledRequest(() => this.client.delete(`/parcels/${encodedTracking}`));
-      
+
       if (response.status === 429 || (response.data && response.data.message?.toLowerCase().includes('quota'))) {
         const error = new Error('Quota API dépassé');
         error.quotaExceeded = true;
         throw error;
       }
-      
+
+      // Yalidine answers HTTP 200 even when nothing was deleted, e.g.
+      // [{ "tracking": "yal-XXX", "deleted": false, "reason": "The parcel does not exist or cannot be deleted." }]
+      // Deletion is only possible while the parcel is still "En préparation".
+      const entries = Array.isArray(response.data) ? response.data : [response.data];
+      const entry = entries.find(e => e && e.tracking === tracking) || entries[0];
+
+      if (response.status >= 400 || !entry || entry.deleted !== true) {
+        const reason = (entry && (entry.reason || entry.message)) || `HTTP ${response.status}`;
+        const notDeletedError = new Error(`Yalidine parcel ${tracking} was not deleted: ${reason}`);
+        notDeletedError.notDeleted = true;
+        notDeletedError.yalidineResponse = response.data;
+        throw notDeletedError;
+      }
+
       console.log('✅ Successfully deleted parcel');
       return response.data;
     } catch (error) {
-      if (error.quotaExceeded) {
+      if (error.quotaExceeded || error.notDeleted) {
         throw error;
       }
       console.error('❌ Error deleting parcel:', error.message);

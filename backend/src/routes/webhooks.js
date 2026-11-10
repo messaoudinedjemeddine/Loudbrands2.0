@@ -1,102 +1,60 @@
+// Yalidine webhook endpoint: https://<backend>/api/webhooks/yalidine
+//
+// Mounted in server.js with express.raw() BEFORE the JSON parser and rate limiter, so that
+// req.body is the raw Buffer Yalidine signed.
+//
+// GET  ?subscribe=…&crc_token=…  → echo crc_token (Yalidine re-validates from time to time)
+// POST signed JSON delivery       → verify signature, store events, answer 200 immediately,
+//                                   then process the events in the background.
+
 const express = require('express');
+const webhook = require('../services/yalidine-webhook');
+
 const router = express.Router();
-const crypto = require('crypto');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
 
-// Secret key from Yalidine Webhooks Dashboard
-// TODO: Add YALIDINE_WEBHOOK_SECRET to .env
-const YALIDINE_WEBHOOK_SECRET = process.env.YALIDINE_WEBHOOK_SECRET;
+router.get('/yalidine', (req, res) => {
+  const { subscribe, crc_token: crcToken } = req.query;
+  if (subscribe !== undefined && crcToken !== undefined) {
+    return res.status(200).type('text/plain').send(String(crcToken));
+  }
+  return res.status(400).type('text/plain').send('Missing crc_token or subscribe parameter');
+});
 
-/**
- * Validate webhook signature
- * @param {string} payload - Raw request body
- * @param {string} signature - X-YALIDINE-SIGNATURE header
- */
-const isValidSignature = (payload, signature) => {
-    if (!YALIDINE_WEBHOOK_SECRET) return true; // Skip if secret not set (dev mode)
-    const computedSignature = crypto
-        .createHmac('sha256', YALIDINE_WEBHOOK_SECRET)
-        .update(payload)
-        .digest('hex');
-    return signature === computedSignature;
-};
+router.post('/yalidine', async (req, res) => {
+  const secret = process.env.YALIDINE_WEBHOOK_SECRET;
+  if (!secret) {
+    console.error('❌ YALIDINE_WEBHOOK_SECRET is not set: refusing webhook delivery');
+    return res.status(503).type('text/plain').send('Webhook secret not configured');
+  }
 
-/**
- * Handle Yalidine Webhooks
- */
-router.all('/yalidine', async (req, res) => {
-    // 1. CRC Validation (GET request)
-    if (req.method === 'GET') {
-        const { subscribe, crc_token } = req.query;
-        if (subscribe && crc_token) {
-            console.log('✅ Yalidine Webhook CRC Validation Successful');
-            return res.status(200).send(crc_token);
-        }
-        return res.status(400).send('Missing crc_token or subscribe parameter');
-    }
+  const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
+  const signature = req.get('x-yalidine-signature') || req.get('x_yalidine_signature');
+  if (!webhook.isValidSignature(rawBody, signature, secret)) {
+    console.warn('⚠️ Yalidine webhook: missing or invalid signature');
+    return res.status(400).type('text/plain').send('invalid signature');
+  }
 
-    // 2. Event Processing (POST request)
-    if (req.method === 'POST') {
-        try {
-            // Verify Signature
-            const signature = req.headers['x-yalidine-signature'] || req.headers['X-YALIDINE-SIGNATURE'];
-            const rawBody = JSON.stringify(req.body); // Ensure we use raw body for robust verification in prod
+  let payload;
+  try {
+    payload = JSON.parse(rawBody.toString('utf8'));
+  } catch (e) {
+    return res.status(400).type('text/plain').send('invalid JSON');
+  }
 
-            // Note: For strict security, we should use the raw buffer body, 
-            // but express.json() might have already parsed it.
-            // Assuming configured secret, we check:
-            if (YALIDINE_WEBHOOK_SECRET && !isValidSignature(rawBody, signature)) {
-                console.warn('⚠️ Invalid Yalidine Webhook Signature');
-                // Return 400 or 403 as per docs, but some prefer 200 to avoid retries if it's just a config issue
-                // For now, let's log and proceed or reject.
-                // return res.status(401).send('Invalid Signature');
-            }
+  try {
+    const { received, stored } = await webhook.storeDelivery(payload);
+    console.log(`📦 Yalidine webhook ${payload.type}: ${received} event(s), ${stored} new`);
+    res.status(200).type('text/plain').send('OK');
+  } catch (error) {
+    // Storage failed (e.g. database down): let Yalidine retry later.
+    console.error('❌ Yalidine webhook: could not store events:', error.message);
+    return res.status(500).type('text/plain').send('Internal Server Error');
+  }
 
-            const { type, events } = req.body;
-            console.log(`📦 Received Yalidine Webhook: ${type} (${events?.length} events)`);
-
-            if (type === 'parcel_status_updated' && events && Array.isArray(events)) {
-                for (const event of events) {
-                    const { tracking, status, reason } = event.data;
-
-                    if (!tracking) continue;
-
-                    console.log(`🔄 Updating order ${tracking} to status: ${status}`);
-
-                    // Find order by tracking number
-                    const order = await prisma.order.findFirst({
-                        where: { trackingNumber: tracking }
-                    });
-
-                    if (order) {
-                        await prisma.order.update({
-                            where: { id: order.id },
-                            data: {
-                                deliveryStatus: status,
-                                // Appending to history or notes could be good here too
-                                updatedAt: new Date()
-                            }
-                        });
-                        console.log(`✅ Order ${order.id} updated.`);
-                    } else {
-                        console.log(`⚠️ Order with tracking ${tracking} not found.`);
-                    }
-                }
-            }
-
-            // 3. Always return 200 OK immediately
-            return res.status(200).send('OK');
-
-        } catch (error) {
-            console.error('❌ Error processing Yalidine webhook:', error);
-            // Even if we fail processing, we might want to return 200 to stop retries if it's a bug
-            // But for temporary db errors, 500 will trigger retries.
-            return res.status(500).send('Internal Server Error');
-        }
-    }
-
-    return res.status(405).send('Method Not Allowed');
+  // After answering: process in the background.
+  setImmediate(() => {
+    webhook.processPendingEvents().catch((e) => console.error('❌ Webhook processing error:', e.message));
+  });
 });
 
 module.exports = router;

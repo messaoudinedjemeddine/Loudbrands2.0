@@ -11,7 +11,6 @@ import {
   Package,
   ShoppingCart,
   Users,
-  Settings,
   LogOut,
   Tag,
   BarChart3,
@@ -25,7 +24,6 @@ import {
   User,
   Menu,
   Building2,
-  CheckCircle,
   DollarSign
 } from 'lucide-react'
 import { useAuthStore } from '@/lib/store'
@@ -54,7 +52,6 @@ const getNavigationByRole = (role: string) => {
         { name: 'Expédition', href: '/admin/shipping', icon: Truck },
         { name: 'Analyses', href: '/admin/analytics', icon: BarChart3 },
         { name: 'Analyses de Profit', href: '/admin/analytics/profit', icon: BarChart3 },
-        { name: 'Paramètres', href: '/admin/settings', icon: Settings },
       ]
     case 'CONFIRMATRICE':
       return [
@@ -65,9 +62,7 @@ const getNavigationByRole = (role: string) => {
       ]
     case 'AGENT_LIVRAISON':
       return [
-        { name: 'Commandes Confirmées', href: '/admin/dashboard/agent_livraison?tab=confirmed', icon: CheckCircle },
-        // Hidden: Expéditions Yalidine link
-        // { name: 'Expéditions Yalidine', href: '/admin/dashboard/agent_livraison?tab=all-parcels', icon: Package },
+        { name: 'Suivi des Colis', href: '/admin/dashboard/agent_livraison', icon: Truck },
       ]
     case 'STOCK_MANAGER':
       return [
@@ -79,7 +74,6 @@ const getNavigationByRole = (role: string) => {
       return [
         { name: 'Tableau de Bord', href: '/admin/dashboard', icon: LayoutDashboard },
         { name: 'Commandes', href: '/admin/orders', icon: ShoppingCart },
-        { name: 'Paramètres', href: '/admin/settings', icon: Settings },
       ]
   }
 }
@@ -194,9 +188,13 @@ export function AdminLayout({ children }: AdminLayoutProps) {
           // Check if current path starts with the navigation item's href
           // This handles nested routes like /admin/products/new, /admin/products/123/edit, etc.
           // For dashboard, only match exact path or dashboard-specific routes
-          const isActive = item.href === '/admin/dashboard'
-            ? (pathname === item.href || pathname.startsWith('/admin/dashboard/'))
-            : (pathname === item.href || pathname.startsWith(item.href + '/'))
+          const matches = (href: string) => {
+            const base = href.split('?')[0]
+            return pathname === base || pathname.startsWith(base + '/')
+          }
+          // A more specific menu item wins (e.g. /admin/analytics/profit over /admin/analytics)
+          const isActive = matches(item.href) &&
+            !navigation.some((other) => other.href.length > item.href.length && other.href.startsWith(item.href) && matches(other.href))
 
 
 

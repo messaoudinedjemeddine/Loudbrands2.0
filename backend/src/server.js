@@ -105,6 +105,10 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 
+// Webhooks: mounted before the rate limiter and JSON parser so the handler gets the raw
+// request body (needed to verify the Yalidine signature).
+app.use('/api/webhooks', express.raw({ type: '*/*', limit: '5mb' }), require('./routes/webhooks'));
+
 // Rate limiting (temporarily increased for development) - Skip for OPTIONS requests
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
@@ -172,10 +176,11 @@ app.use('/api/confirmatrice', confirmatriceRoutes);
 app.use('/api/agent-livraison', agentLivraisonRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/shipping', shippingRoutes);
+app.use('/api/whatsapp-templates', require('./routes/whatsapp-templates'));
+app.use('/api/analytics', require('./routes/analytics'));
 app.use('/api/inventory', require('./routes/inventory'));
 app.use('/api/ateliers', require('./routes/ateliers'));
 app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/webhooks', require('./routes/webhooks'));
 app.use('/api/sse', sseRoutes);
 
 // 404 handler
@@ -233,6 +238,12 @@ app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  require('./services/yalidine-sync').startScheduler();
+  // Finish webhook events left unprocessed by a previous restart.
+  setTimeout(() => {
+    require('./services/yalidine-webhook').processPendingEvents()
+      .catch((e) => console.error('❌ Webhook processing error:', e.message));
+  }, 10 * 1000);
 });
 
 module.exports = app;
