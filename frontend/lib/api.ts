@@ -827,6 +827,17 @@ export const api = {
       ),
   },
 
+  zakat: {
+    auto: (from: string, to: string) =>
+      apiClient.request<import('@/components/zakat/types').ZakatAuto>(`/zakat/auto?${new URLSearchParams({ from, to }).toString()}`),
+    list: () => apiClient.request<{ calculations: import('@/components/zakat/types').ZakatCalculation[] }>('/zakat'),
+    save: (data: import('@/components/zakat/types').ZakatInput) =>
+      apiClient.request<import('@/components/zakat/types').ZakatCalculation>('/zakat', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: { isPaid?: boolean; notes?: string | null }) =>
+      apiClient.request<import('@/components/zakat/types').ZakatCalculation>(`/zakat/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+    remove: (id: string) => apiClient.request<{ success: boolean }>(`/zakat/${id}`, { method: 'DELETE' }),
+  },
+
   whatsappTemplates: {
     list: (all = false) =>
       apiClient.request<{ templates: import('@/components/shipping/types').WhatsappTemplate[] }>(

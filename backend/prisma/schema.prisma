@@ -457,3 +457,29 @@ model WhatsappTemplate {
 
   @@map("whatsapp_templates")
 }
+
+// Saved zakat calculations (Admin → Zakat). Amounts in DA.
+// base = stockValue + salesValue - ateliers - salaries - otherCharges ; zakat = base × rate if base >= nisab
+model ZakatCalculation {
+  id               String    @id @default(cuid())
+  periodFrom       DateTime // start of the zakat year (sales counted from this day)
+  periodTo         DateTime // zakat date
+  stockValue       Float // Loud Styles stock at cost (snapshot when saved)
+  salesValue       Float // Loud Styles delivered sales over the period
+  ateliers         Float     @default(0)
+  salaries         Float     @default(0)
+  otherCharges     Float     @default(0)
+  goldPricePerGram Float
+  nisab            Float // 85 g × gold price
+  base             Float
+  rate             Float     @default(0.025)
+  zakatDue         Float
+  notes            String?
+  isPaid           Boolean   @default(false)
+  paidAt           DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([periodTo])
+  @@map("zakat_calculations")
+}

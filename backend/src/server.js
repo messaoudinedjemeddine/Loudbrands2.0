@@ -178,6 +178,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/shipping', shippingRoutes);
 app.use('/api/whatsapp-templates', require('./routes/whatsapp-templates'));
 app.use('/api/analytics', require('./routes/analytics'));
+app.use('/api/zakat', require('./routes/zakat'));
 app.use('/api/inventory', require('./routes/inventory'));
 app.use('/api/ateliers', require('./routes/ateliers'));
 app.use('/api/notifications', require('./routes/notifications'));

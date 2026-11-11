@@ -16,6 +16,7 @@ import {
   BarChart3,
   Home,
   Truck,
+  HandCoins,
   Phone,
   FileText,
   MapPin,
@@ -52,6 +53,7 @@ const getNavigationByRole = (role: string) => {
         { name: 'Expédition', href: '/admin/shipping', icon: Truck },
         { name: 'Analyses', href: '/admin/analytics', icon: BarChart3 },
         { name: 'Analyses de Profit', href: '/admin/analytics/profit', icon: BarChart3 },
+        { name: 'Zakat', href: '/admin/zakat', icon: HandCoins },
       ]
     case 'CONFIRMATRICE':
       return [
